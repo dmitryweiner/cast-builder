@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="A starting point for small offline web apps." />
+    <title>Web App Template</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#294edb" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script type="module" src="./src/main.ts"></script>
+  </head>
+  <body>
+    <header>
+      <span class="brand" data-i18n="title">Web App Template</span>
+      <select id="locale" aria-label="Language" data-i18n-label="languageLabel">
+        <option value="en" lang="en">English</option>
+        <option value="ru" lang="ru">Русский</option>
+        <option value="he" lang="he">עברית</option>
+      </select>
+    </header>
+    <main>
+      <h1 data-i18n="heading">Web App Template</h1>
+      <p data-i18n="intro">Edit src/app.ts and start with a failing test.</p>
+      <div class="counter">
+        <button id="count" type="button" data-i18n="count">Count</button>
+        <button id="reset" type="button" class="secondary" data-i18n="reset">Reset</button>
+      </div>
+      <output id="clicked" for="count" aria-live="polite"></output>
+    </main>
+    <footer>
+      <a href="https://github.com/dmitryweiner/web-app-template" data-i18n="source">Source code</a>
+      · GPL-3.0-or-later
+    </footer>
+  </body>
+</html>
