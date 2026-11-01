@@ -1,35 +1,26 @@
-import { isLocale, type Locale } from './i18n';
+// Settings in localStorage: one versioned key per app, every field validated
+// (state.ts), every access in try/catch.
 
-export interface Settings {
-  /** The language picked in the switcher; null means detect from the browser. */
-  locale: Locale | null;
-  count: number;
-}
+import type { Settings } from './state';
+import { defaultSettings, sanitizeSettings } from './state';
 
 export type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 export const STORAGE_KEY = __APP_ID__;
 const VERSION = 1;
 
-export const DEFAULT_SETTINGS: Settings = { locale: null, count: 0 };
-
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-const isCount = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 
 /** Saved settings; unreadable data is replaced with defaults, field by field. */
 export function loadSettings(storage: KeyValueStorage | null): Settings {
   try {
     const raw = storage?.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
+    if (!raw) return defaultSettings();
     const data: unknown = JSON.parse(raw);
-    if (!isRecord(data) || data.version !== VERSION || !isRecord(data.settings)) return { ...DEFAULT_SETTINGS };
-    const { locale, count } = data.settings;
-    return {
-      locale: isLocale(locale) ? locale : DEFAULT_SETTINGS.locale,
-      count: isCount(count) ? count : DEFAULT_SETTINGS.count,
-    };
+    if (!isRecord(data) || data.version !== VERSION) return defaultSettings();
+    return sanitizeSettings(data.settings);
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return defaultSettings();
   }
 }
 

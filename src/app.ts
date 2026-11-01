@@ -1,74 +1,601 @@
-import { detectLocale, direction, isLocale, messages, staticText, type Locale, type Messages } from './i18n';
-import { loadSettings, saveSettings, type KeyValueStorage, type Settings } from './storage';
+// DOM wiring: a model in, the user's choices, the preview from the worker,
+// the download.
+//
+// The main thread only reads the STL, turns it and shows it. Everything
+// that builds tooling goes to the worker (`ToolingClient`): the master and
+// the pour boxes need boolean operations on the WASM module, which the main
+// thread never loads, and the slump mold of a large model is long enough to
+// freeze a tab. The preview waits for a pause in the edits.
+
+import type { IndexedMesh } from './geo/stl';
+import { encodeSTL, parseSTL } from './geo/stl';
+import { flip, placeModel, quarterTurn, sizeOf, IDENTITY_TURN } from './geo/model';
+import { meshNormals } from './geo/normals';
+import type { SurfaceMesh } from './geo/surface';
+import { placeInRow } from './geo/layout';
+import {
+  BATH_WALL_MAX_MM,
+  BATH_WALL_MIN_MM,
+  CLEAR_MAX_MM,
+  CLEAR_MIN_MM,
+  EAR_MAX_MM,
+  EAR_MIN_MM,
+  KEY_MAX_MM,
+  PLASTER_MAX_MM,
+  PLASTER_MIN_MM,
+  SHRINK_MAX_PCT,
+  SLAB_MAX_MM,
+  SLAB_MIN_MM,
+  SPARE_MAX_MM,
+  VENT_MAX_MM,
+  VENT_MIN_MM,
+} from './geo/mold/state';
+import type { Key, Locale } from './i18n';
+import { detectLocale, direction, isLocale, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
+import type { Mode, Settings, Setup } from './state';
+import { defaultSetup, MODES, RECESS_MAX_MM, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
+import type { KeyValueStorage } from './storage';
+import { loadSettings, saveSettings } from './storage';
+import type { Control } from './ui/controls';
+import { renderControls, setupAdjustmentButtons } from './ui/controls';
+import { el, make } from './ui/dom';
+import { createProgress } from './ui/progress';
+import { createScene } from './render/scene';
+import type { SceneHandle } from './render/scene';
+import { ToolingClient } from './worker/client';
+import type { JobInfo, JobPart, ToolingJob } from './worker/protocol';
 
 export interface AppOptions {
   storage?: KeyValueStorage | null;
-  /** Browser languages in preference order (`navigator.languages`). */
+  /** browser languages in preference order (`navigator.languages`) */
   languages?: readonly string[];
 }
 
-function required<T extends Element>(selector: string, type: abstract new () => T): T {
-  const el = document.querySelector(selector);
-  if (!(el instanceof type)) throw new Error(`index.html has no ${selector}`);
-  return el;
+/** The worker builds after this much quiet: tooling costs hundreds of milliseconds. */
+const PREVIEW_DELAY_MS = 400;
+/** Gap between parts in the "exploded" preview, mm. */
+const EXPLODE_GAP_MM = 20;
+/** A browser swallows a burst of downloads — they go one by one. */
+const DOWNLOAD_GAP_MS = 250;
+const EXAMPLE_URL = './examples/teapot.stl';
+
+const TABS: Record<Mode, string> = { master: 'tabMaster', bath: 'tabBath', slump: 'tabSlump' };
+const EXPORT_LABEL: Record<Mode, Key> = { master: 'export.master', bath: 'export.bath', slump: 'export.slump' };
+
+interface Model {
+  /** file name without the extension: the downloads are named after it */
+  name: string;
+  raw: IndexedMesh;
+  placed: IndexedMesh;
+  heightMm: number;
+  radiusMm: number;
 }
 
-/** Translates the static page: texts and labels marked in index.html, title, description, lang and dir. */
-function translatePage(locale: Locale, t: Messages) {
+/** Translates the static page: texts, labels and titles marked in index.html, the title, lang and dir. */
+function translatePage(locale: Locale): void {
+  const dict = messages[locale];
   document.documentElement.lang = locale;
   document.documentElement.dir = direction(locale);
-  document.title = t.title;
-  document.querySelector('meta[name="description"]')?.setAttribute('content', t.description);
-  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
-    const text = staticText(t, el.dataset.i18n ?? '');
-    if (text !== undefined) el.textContent = text;
+  document.title = dict.title;
+  document.querySelector('meta[name="description"]')?.setAttribute('content', dict.description);
+  for (const node of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+    const text = staticText(dict, node.dataset.i18n ?? '');
+    if (text !== undefined) node.textContent = text;
   }
-  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-label]')) {
-    const text = staticText(t, el.dataset.i18nLabel ?? '');
-    if (text !== undefined) el.setAttribute('aria-label', text);
+  for (const node of document.querySelectorAll<HTMLElement>('[data-i18n-label]')) {
+    const text = staticText(dict, node.dataset.i18nLabel ?? '');
+    if (text !== undefined) node.setAttribute('aria-label', text);
+  }
+  for (const node of document.querySelectorAll<HTMLElement>('[data-i18n-title]')) {
+    const text = staticText(dict, node.dataset.i18nTitle ?? '');
+    if (text !== undefined) node.title = text;
   }
 }
 
-/** Starts the app on the current page; returns a function that removes its listeners. */
-export function startApp({ storage = null, languages = [] }: AppOptions = {}): () => void {
-  const localeSelect = required('#locale', HTMLSelectElement);
-  const countButton = required('#count', HTMLButtonElement);
-  const resetButton = required('#reset', HTMLButtonElement);
-  const clicked = required('#clicked', HTMLOutputElement);
+/** The name of a tooling part by its `id`: `bath-…` is the pour box for a part, the rest the part itself. */
+export function partLabel(id: string): string {
+  if (id.startsWith('bath-')) return t('part.bath', { part: lowerFirst(partLabel(id.slice(5))) });
+  return tDynamic(`part.${id}`);
+}
+
+/** A slider over one field of the mold's parameters, shown in the given modes. */
+function range(
+  key: string,
+  label: Key,
+  hint: Key,
+  min: number,
+  max: number,
+  step: number,
+  field: keyof Settings['mold'],
+  modes: readonly Mode[],
+): Control<Settings> {
+  return {
+    kind: 'range',
+    key,
+    label,
+    hint,
+    min,
+    max,
+    step,
+    when: (s) => modes.includes(s.mode),
+    get: (s) => s.mold[field],
+    set: (s, value) => ({ ...s, mold: { ...s.mold, [field]: value } }),
+  };
+}
+
+export function startApp({ storage = null, languages = [] }: AppOptions = {}): void {
+  const stage = el('stage', HTMLElement);
+  const panel = el('panel', HTMLElement);
+  const emptyEl = el('empty', HTMLDivElement);
+  const fileInput = el('fileInput', HTMLInputElement);
+  const localeSelect = el('locale', HTMLSelectElement);
+  const modelInfo = el('modelInfo', HTMLParagraphElement);
+  const modelControls = el('modelControls', HTMLDivElement);
+  const toolingControls = el('toolingControls', HTMLDivElement);
+  const mouthCard = el('mouthCard', HTMLElement);
+  const mouthControls = el('mouthControls', HTMLDivElement);
+  const mouthNote = el('mouthNote', HTMLParagraphElement);
+  const schemeNote = el('schemeNote', HTMLParagraphElement);
+  const partList = el('partList', HTMLUListElement);
+  const warningsEl = el('warnings', HTMLParagraphElement);
+  const blockersEl = el('blockers', HTMLParagraphElement);
+  const auditEl = el('audit', HTMLParagraphElement);
+  const exportBtn = el('exportBtn', HTMLButtonElement);
+  const turnButtons = ['turnX', 'turnY', 'turnFlip', 'turnReset'].map((id) => el(id, HTMLButtonElement));
+  const progress = createProgress({
+    wrap: el('progressWrap', HTMLDivElement),
+    fill: el('progressFill', HTMLDivElement),
+    label: el('progressLabel', HTMLSpanElement),
+  });
+
+  const scene: SceneHandle = createScene(el('view', HTMLCanvasElement));
+  const client = new ToolingClient();
 
   let settings: Settings = loadSettings(storage);
   let locale: Locale = detectLocale(settings.locale, languages);
+  setLocale(locale);
+  let setup: Setup = defaultSetup();
+  let model: Model | null = null;
+  /** what the last finished build said; the panel is drawn from it */
+  let last: { parts: JobPart[]; info: JobInfo } | null = null;
+  /** grows on each request: a late answer to an old one must not overwrite a fresh one */
+  let generation = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let exporting = false;
+  let readError = '';
 
-  const render = () => {
-    const t = messages[locale];
-    translatePage(locale, t);
+  // ---- controls ----
+
+  const toolingSpec: Control<Settings>[] = [
+    range('shrink', 'ctl.shrink', 'ctl.shrink.hint', 0, SHRINK_MAX_PCT, 0.5, 'shrinkPct', MODES),
+    range('spare', 'ctl.spare', 'ctl.spare.hint', 0, SPARE_MAX_MM, 1, 'spareMm', ['master', 'bath']),
+    range('plaster', 'ctl.plaster', 'ctl.plaster.hint', PLASTER_MIN_MM, PLASTER_MAX_MM, 1, 'plasterMm', ['bath']),
+    range('key', 'ctl.key', 'ctl.key.hint', 0, KEY_MAX_MM, 0.5, 'keyMm', ['bath']),
+    range('silicone', 'ctl.silicone', 'ctl.silicone.hint', CLEAR_MIN_MM, CLEAR_MAX_MM, 1, 'bathClearMm', ['bath']),
+    range('bathWall', 'ctl.wall', 'ctl.bathWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['bath']),
+    range('slumpWall', 'ctl.wall', 'ctl.slumpWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['slump']),
+    range('slab', 'ctl.slab', 'ctl.slab.hint', SLAB_MIN_MM, Math.min(SLAB_MAX_MM, 20), 0.1, 'slabMm', ['slump']),
+    range('ear', 'ctl.ear', 'ctl.ear.hint', EAR_MIN_MM, EAR_MAX_MM, 0.5, 'earMm', ['slump']),
+    range('round', 'ctl.round', 'ctl.round.hint', 0, 100, 5, 'punchRoundPct', ['slump']),
+    range('vent', 'ctl.vent', 'ctl.vent.hint', VENT_MIN_MM, VENT_MAX_MM, 0.5, 'ventMm', ['slump']),
+    {
+      kind: 'select',
+      key: 'resolution',
+      label: 'ctl.resolution',
+      hint: 'ctl.resolution.hint',
+      options: RESOLUTIONS.map((value) => ({ value: String(value), label: 'size.box' })),
+      when: (s) => s.mode === 'slump',
+      get: (s) => String(s.resolution),
+      set: (s, value) => ({ ...s, resolution: Number(value) }),
+    },
+  ];
+  const schemeSpec: Control<Settings>[] = [
+    {
+      kind: 'select',
+      key: 'scheme',
+      label: 'scheme',
+      hint: 'scheme.hint',
+      options: SCHEME_CHOICES.map((value) => ({ value, label: `scheme.${value}` })),
+      when: (s) => s.mode !== 'slump',
+      get: (s) => s.scheme,
+      set: (s, value) => ({ ...s, scheme: SCHEME_CHOICES.find((choice) => choice === value) ?? 'auto' }),
+    },
+  ];
+  const heightLimit = (): number => Math.max(1, Math.round(model?.heightMm ?? 100));
+  const radiusLimit = (): number => Math.max(2, Math.round(model?.radiusMm ?? 100));
+  const mouthSpec: Control<Setup>[] = [
+    {
+      kind: 'check',
+      key: 'auto',
+      label: 'mouth.auto',
+      hint: 'mouth.auto.hint',
+      get: (s) => s.mouth.auto,
+      // the numbers start from what was found, not from zero
+      set: (s, auto) => ({
+        ...s,
+        mouth:
+          auto || !last?.info.mouth
+            ? { ...s.mouth, auto }
+            : { auto, zMm: round1(last.info.mouth.zMm), radiusMm: round1(last.info.mouth.radiusMm) },
+      }),
+    },
+    {
+      kind: 'range',
+      key: 'z',
+      label: 'mouth.z',
+      hint: 'mouth.z.hint',
+      min: 0,
+      max: heightLimit,
+      step: 0.5,
+      when: (s) => !s.mouth.auto,
+      get: (s) => s.mouth.zMm,
+      set: (s, zMm) => ({ ...s, mouth: { ...s.mouth, zMm } }),
+    },
+    {
+      kind: 'range',
+      key: 'r',
+      label: 'mouth.r',
+      hint: 'mouth.r.hint',
+      min: 1,
+      max: radiusLimit,
+      step: 0.5,
+      when: (s) => !s.mouth.auto,
+      get: (s) => s.mouth.radiusMm,
+      set: (s, radiusMm) => ({ ...s, mouth: { ...s.mouth, radiusMm } }),
+    },
+    {
+      kind: 'check',
+      key: 'on',
+      label: 'plug.on',
+      hint: 'plug.on.hint',
+      get: (s) => s.plug.on,
+      set: (s, on) => ({ ...s, plug: { ...s.plug, on, galleryMm: s.plug.galleryMm || defaultGallery() } }),
+    },
+    {
+      kind: 'range',
+      key: 'recess',
+      label: 'plug.recess',
+      hint: 'plug.recess.hint',
+      min: 0,
+      max: RECESS_MAX_MM,
+      step: 0.5,
+      when: (s) => s.plug.on,
+      get: (s) => s.plug.recessMm,
+      set: (s, recessMm) => ({ ...s, plug: { ...s.plug, recessMm } }),
+    },
+    {
+      kind: 'range',
+      key: 'gallery',
+      label: 'plug.gallery',
+      hint: 'plug.gallery.hint',
+      min: 1,
+      max: radiusLimit,
+      step: 0.5,
+      when: (s) => s.plug.on,
+      get: (s) => s.plug.galleryMm,
+      set: (s, galleryMm) => ({ ...s, plug: { ...s.plug, galleryMm } }),
+    },
+  ];
+  const modelSpec: Control<Setup>[] = [
+    {
+      kind: 'range',
+      key: 'spin',
+      label: 'ctl.spin',
+      hint: 'ctl.spin.hint',
+      min: 0,
+      max: 355,
+      step: 5,
+      get: (s) => s.orientation.spinDeg,
+      set: (s, spinDeg) => ({ ...s, orientation: { ...s.orientation, spinDeg } }),
+    },
+  ];
+
+  /** Between the gate and the rim: where a gallery over a ledge usually is. */
+  function defaultGallery(): number {
+    const info = last?.info;
+    if (!info?.mouth || info.rimMm === null) return 0;
+    return round1((info.mouth.radiusMm + info.rimMm) / 2);
+  }
+
+  let rows: { sync(): void }[] = [];
+
+  /** The panel drawn anew — at the start and on every change of language. */
+  function renderPanel(): void {
+    const toolingRows = renderControls(toolingControls, toolingSpec, () => settings, setSettings, 'mold');
+    const mouthHost = make('div');
+    const schemeHost = make('div');
+    mouthControls.textContent = '';
+    mouthControls.append(mouthHost, schemeHost);
+    const mouthRows = renderControls(mouthHost, mouthSpec, () => setup, setSetup, 'mouth');
+    const schemeRows = renderControls(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
+    const modelRows = renderControls(modelControls, modelSpec, () => setup, setSetup, 'model');
+    // the resolution options read as "128 × 128", not as a translated label
+    for (const option of document.querySelectorAll<HTMLOptionElement>('#mold_resolution option')) {
+      option.textContent = `${option.value} × ${option.value}`;
+    }
+    rows = [
+      { sync: () => toolingRows.sync(settings) },
+      { sync: () => schemeRows.sync(settings) },
+      { sync: () => mouthRows.sync(setup) },
+      { sync: () => modelRows.sync(setup) },
+    ];
+  }
+
+  function syncPanel(): void {
+    for (const row of rows) row.sync();
+    for (const mode of MODES) el(TABS[mode], HTMLButtonElement).setAttribute('aria-selected', String(mode === settings.mode));
+    mouthCard.hidden = settings.mode === 'slump';
+    emptyEl.hidden = model !== null;
+    for (const button of turnButtons) button.disabled = model === null;
     localeSelect.value = locale;
-    clicked.textContent = t.clicked(settings.count);
-    resetButton.disabled = settings.count === 0;
-  };
-  const update = (next: Settings) => {
-    settings = next;
-    saveSettings(storage, settings);
-    render();
-  };
+    if (!exporting) exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);
+    modelInfo.textContent = model
+      ? t('model.info', {
+          name: model.name,
+          dims: sizeOf(model.placed.positions)
+            .map((value) => Math.round(value))
+            .join('×'),
+          k: Math.round(model.raw.indices.length / 3000),
+        })
+      : readError;
+    renderResult();
+  }
 
-  const onLocale = () => {
+  /** The panel's part of the last build: the parts, the reasons, the warnings. */
+  function renderResult(): void {
+    partList.textContent = '';
+    if (!model) {
+      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote]) node.textContent = '';
+      auditEl.textContent = t('audit.none');
+      exportBtn.disabled = true;
+      return;
+    }
+    if (!last) return;
+    const { parts, info } = last;
+    for (const part of parts) {
+      const item = make('li');
+      item.append(
+        make('span', undefined, partLabel(part.id)),
+        make('span', undefined, part.note ? t('size.box', { dims: part.note }) : ''),
+      );
+      partList.append(item);
+    }
+    schemeNote.textContent = settings.mode === 'slump' ? t('slump.note') : info.reason.map(tm).join(' ');
+    warningsEl.textContent = info.warnings.map(tm).join('\n');
+    blockersEl.textContent = [...info.blocking, ...parts.flatMap((part) => part.blocking)].map(tm).join('\n');
+    const mouth = setup.mouth.auto ? info.mouth : setup.mouth;
+    mouthNote.textContent = mouth ? t('mouth.note', { z: mouth.zMm.toFixed(1), d: (mouth.radiusMm * 2).toFixed(1) }) : '';
+    const triangles = parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
+    auditEl.textContent = parts.length > 0 ? t('audit.parts', { n: parts.length, k: Math.round(triangles / 1000) }) : '';
+    exportBtn.disabled = exporting || parts.length === 0 || info.blocking.length > 0;
+  }
+
+  // ---- state changes ----
+
+  function setSettings(next: Settings): void {
+    settings = sanitizeSettings(next);
+    saveSettings(storage, settings);
+    syncPanel();
+    schedule();
+  }
+
+  function setSetup(next: Setup): void {
+    const turned = next.orientation !== setup.orientation;
+    setup = sanitizeSetup(next);
+    if (turned && model) {
+      place(model);
+      last = null;
+    }
+    syncPanel();
+    schedule();
+  }
+
+  function place(current: Model): void {
+    current.placed = placeModel(current.raw, setup.orientation);
+    const [width, depth, height] = sizeOf(current.placed.positions);
+    current.heightMm = height;
+    current.radiusMm = Math.hypot(width, depth) / 2;
+    scene.setPiece(withNormals(current.placed));
+  }
+
+  function loadModel(name: string, data: ArrayBuffer): void {
+    let raw: IndexedMesh;
+    try {
+      raw = parseSTL(data);
+    } catch (error) {
+      readError = t('error.read', { error: message(error) });
+      syncPanel();
+      return;
+    }
+    readError = '';
+    setup = defaultSetup();
+    model = { name: name.replace(/\.stl$/i, ''), raw, placed: raw, heightMm: 0, radiusMm: 0 };
+    last = null;
+    place(model);
+    syncPanel();
+    schedule(0);
+  }
+
+  // ---- the worker ----
+
+  function job(kind: ToolingJob['kind'], current: Model): ToolingJob {
+    return {
+      kind,
+      model: current.placed,
+      mode: settings.mode,
+      mold: settings.mold,
+      scheme: settings.scheme,
+      resolution: settings.resolution,
+      mouth: setup.mouth,
+      plug: setup.plug,
+    };
+  }
+
+  function schedule(delay = PREVIEW_DELAY_MS): void {
+    if (timer) clearTimeout(timer);
+    generation++;
+    if (!model) return;
+    timer = setTimeout(() => void preview(generation), delay);
+  }
+
+  async function preview(stamp: number): Promise<void> {
+    const current = model;
+    if (!current) return;
+    try {
+      const result = await progress.track(
+        (onProgress) =>
+          client.run(job('preview', current), (step) => {
+            onProgress(step);
+            if (stamp === generation) auditEl.textContent = t('audit.step', { step: tm(step.label), i: step.step + 1, n: step.total });
+          }),
+        { label: 'progress.preview' },
+      );
+      // null — a fresher job replaced it; stamp — a fresher answer is coming
+      if (!result || stamp !== generation) return;
+      last = result;
+      if (result.parts.length > 0) {
+        scene.setMeshes(
+          placeInRow(
+            result.parts.map((part) => [toMesh(part)]),
+            EXPLODE_GAP_MM,
+          ).flat(),
+        );
+      }
+      renderResult();
+    } catch (error) {
+      if (stamp !== generation) return;
+      last = null;
+      partList.textContent = '';
+      auditEl.textContent = '';
+      blockersEl.textContent = t('error.build', { error: message(error) });
+      exportBtn.disabled = true;
+    }
+  }
+
+  async function runExport(): Promise<void> {
+    const current = model;
+    if (!current || exporting) return;
+    exporting = true;
+    exportBtn.disabled = true;
+    exportBtn.textContent = t('export.busy');
+    try {
+      const result = await progress.track((onProgress) => client.run(job('export', current), onProgress), {
+        label: 'progress.export',
+        delayMs: 0,
+      });
+      if (!result) return;
+      const blocking = [...result.info.blocking, ...result.parts.flatMap((part) => part.blocking)];
+      if (blocking.length > 0) {
+        blockersEl.textContent = blocking.map(tm).join('\n');
+        return;
+      }
+      for (const part of result.parts) {
+        download(encodeSTL(part, { name: part.id }), `${current.name}-${part.id}.stl`);
+        // oxlint-disable-next-line no-await-in-loop -- one by one on purpose: a browser swallows a burst of downloads
+        await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_GAP_MS));
+      }
+    } catch (error) {
+      blockersEl.textContent = t('error.export', { error: message(error) });
+    } finally {
+      exporting = false;
+      exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);
+      exportBtn.disabled = false;
+    }
+  }
+
+  // ---- events ----
+
+  for (const mode of MODES) {
+    el(TABS[mode], HTMLButtonElement).addEventListener('click', () => {
+      if (mode === settings.mode) return;
+      last = null;
+      setSettings({ ...settings, mode });
+    });
+  }
+  const turn = (next: readonly number[]): void => setSetup({ ...setup, orientation: { ...setup.orientation, turn: next } });
+  turnButtons[0].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'x')));
+  turnButtons[1].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'y')));
+  turnButtons[2].addEventListener('click', () => turn(flip(setup.orientation.turn)));
+  turnButtons[3].addEventListener('click', () => setSetup({ ...setup, orientation: { turn: IDENTITY_TURN, spinDeg: 0 } }));
+
+  const openFile = (file: File | undefined): void => {
+    if (!file) return;
+    file.arrayBuffer().then(
+      (data) => loadModel(file.name, data),
+      (error: unknown) => {
+        readError = t('error.read', { error: message(error) });
+        syncPanel();
+      },
+    );
+  };
+  el('openBtn', HTMLButtonElement).addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    openFile(fileInput.files?.[0]);
+    fileInput.value = '';
+  });
+  el('exampleBtn', HTMLButtonElement).addEventListener('click', () => {
+    fetch(EXAMPLE_URL)
+      .then((response) => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(String(response.status)))))
+      .then(
+        (data) => loadModel('teapot.stl', data),
+        (error: unknown) => {
+          readError = t('error.read', { error: message(error) });
+          syncPanel();
+        },
+      );
+  });
+  stage.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    stage.classList.add('dragging');
+  });
+  stage.addEventListener('dragleave', () => stage.classList.remove('dragging'));
+  stage.addEventListener('drop', (event) => {
+    event.preventDefault();
+    stage.classList.remove('dragging');
+    openFile(event.dataTransfer?.files[0]);
+  });
+  exportBtn.addEventListener('click', () => void runExport());
+  localeSelect.addEventListener('change', () => {
     const value = localeSelect.value;
     if (!isLocale(value)) return;
     locale = value;
-    update({ ...settings, locale: value });
-  };
-  const onCount = () => update({ ...settings, count: settings.count + 1 });
-  const onReset = () => update({ ...settings, count: 0 });
+    setLocale(value);
+    settings = { ...settings, locale: value };
+    saveSettings(storage, settings);
+    translatePage(locale);
+    renderPanel();
+    progress.refresh();
+    syncPanel();
+  });
 
-  localeSelect.addEventListener('change', onLocale);
-  countButton.addEventListener('click', onCount);
-  resetButton.addEventListener('click', onReset);
-  render();
+  setupAdjustmentButtons(panel);
+  translatePage(locale);
+  renderPanel();
+  syncPanel();
+}
 
-  return () => {
-    localeSelect.removeEventListener('change', onLocale);
-    countButton.removeEventListener('click', onCount);
-    resetButton.removeEventListener('click', onReset);
-  };
+function withNormals(mesh: IndexedMesh): SurfaceMesh {
+  return { ...mesh, normals: meshNormals(mesh.positions, mesh.indices) };
+}
+
+/** A part's mesh from the worker's answer — the buffers came by transfer, no copies. */
+function toMesh(part: JobPart): SurfaceMesh {
+  return { positions: part.positions, indices: part.indices, normals: part.normals };
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function download(data: BlobPart, filename: string): void {
+  const url = URL.createObjectURL(new Blob([data], { type: 'model/stl' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

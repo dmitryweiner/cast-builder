@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, STORAGE_KEY, type KeyValueStorage } from './storage';
+import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
+import { loadSettings, saveSettings, STORAGE_KEY, type KeyValueStorage } from './storage';
 
 class MemoryStorage implements KeyValueStorage {
   data = new Map<string, string>();
@@ -22,40 +23,62 @@ const broken: KeyValueStorage = {
 
 describe('settings storage', () => {
   it('uses the package name as the key', () => {
-    expect(STORAGE_KEY).toBe('web-app-template');
+    expect(STORAGE_KEY).toBe('cast-builder');
   });
 
   it('returns defaults when nothing is saved or storage is unavailable', () => {
-    expect(loadSettings(new MemoryStorage())).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(broken)).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings(new MemoryStorage())).toEqual(defaultSettings());
+    expect(loadSettings(null)).toEqual(defaultSettings());
+    expect(loadSettings(broken)).toEqual(defaultSettings());
   });
 
   it('saves and loads settings', () => {
     const storage = new MemoryStorage();
-    const settings = { locale: 'he', count: 3 } as const;
+    const settings = { ...defaultSettings(), locale: 'ru' as const, mode: 'slump' as const, scheme: 'halves' as const, resolution: 256 };
     saveSettings(storage, settings);
     expect(loadSettings(storage)).toEqual(settings);
   });
 
   it('ignores write errors', () => {
-    expect(() => saveSettings(broken, DEFAULT_SETTINGS)).not.toThrow();
-    expect(() => saveSettings(null, DEFAULT_SETTINGS)).not.toThrow();
+    expect(() => saveSettings(broken, defaultSettings())).not.toThrow();
+    expect(() => saveSettings(null, defaultSettings())).not.toThrow();
   });
 
   it.each(['not json', '[]', '{"version":2,"settings":{"locale":"ru"}}', '{"version":1}'])('resets unreadable data: %s', (raw) => {
     const storage = new MemoryStorage();
     storage.setItem(STORAGE_KEY, raw);
-    expect(loadSettings(storage)).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings(storage)).toEqual(defaultSettings());
   });
 
   it('replaces bad fields with defaults one by one', () => {
     const storage = new MemoryStorage();
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: { locale: 'xx', count: 7 } }));
-    expect(loadSettings(storage)).toEqual({ locale: null, count: 7 });
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: { locale: 'ru', count: -1 } }));
-    expect(loadSettings(storage)).toEqual({ locale: 'ru', count: 0 });
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: { locale: 'ru', count: 1.5 } }));
-    expect(loadSettings(storage)).toEqual({ locale: 'ru', count: 0 });
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: 1, settings: { locale: 'xx', mode: 'slump', resolution: 7, mold: { shrinkPct: 99 } } }),
+    );
+    const settings = loadSettings(storage);
+    expect(settings.locale).toBeNull();
+    expect(settings.mode).toBe('slump');
+    expect(settings.resolution).toBe(defaultSettings().resolution);
+    expect(settings.mold.shrinkPct).toBe(30);
+  });
+});
+
+describe('sanitizers', () => {
+  const junk = [null, undefined, 42, 'x', [], { mode: 'vessel' }, { mouth: { zMm: NaN, auto: 'yes' }, plug: { recessMm: -5 } }];
+
+  it('never throw and are idempotent', () => {
+    for (const raw of junk) {
+      const settings = sanitizeSettings(raw);
+      expect(sanitizeSettings(settings)).toEqual(settings);
+      const setup = sanitizeSetup(raw);
+      expect(sanitizeSetup(setup)).toEqual(setup);
+    }
+  });
+
+  it('keep what is valid', () => {
+    const setup = { ...defaultSetup(), mouth: { auto: false, zMm: 120, radiusMm: 40 }, plug: { on: true, recessMm: 8, galleryMm: 44 } };
+    expect(sanitizeSetup(setup)).toEqual(setup);
+    expect(sanitizeSetup({ plug: { recessMm: -5 } }).plug.recessMm).toBe(0);
   });
 });

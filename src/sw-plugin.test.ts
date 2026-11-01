@@ -20,7 +20,7 @@ function runWorker(source: string, network: (url: string) => Promise<string>) {
   const listeners = new Map<string, Listener>();
   const origin = 'https://example.org';
   const scope = `${origin}/app/`;
-  const key = (r: string | FakeRequest) => new URL(typeof r === 'string' ? r : r.url, scope).href.split('?')[0]!;
+  const key = (r: string | FakeRequest) => new URL(typeof r === 'string' ? r : r.url, scope).href.split('?')[0];
   const caches = {
     open: async (name: string) => {
       const store = stores.get(name) ?? new Map<string, string>();
@@ -137,7 +137,7 @@ function emit(code: string) {
   const plugin = serviceWorkerPlugin({ appId: 'app', publicDir: resolve(__dirname, '../public') });
   const hook = plugin.generateBundle as (this: unknown, o: unknown, b: unknown) => void;
   hook.call({ emitFile }, {}, { 'index.html': { type: 'asset', fileName: 'index.html', source: code } });
-  return emitFile.mock.calls[0]![0];
+  return emitFile.mock.calls[0][0];
 }
 
 describe('serviceWorkerPlugin', () => {
@@ -161,7 +161,7 @@ describe('web app manifest', () => {
   });
 
   it('describes an installable standalone app with existing icons', () => {
-    expect(manifest).toMatchObject({ name: 'Web App Template', start_url: './', scope: './', display: 'standalone', lang: 'en' });
+    expect(manifest).toMatchObject({ name: 'Cast Builder', start_url: './', scope: './', display: 'standalone', lang: 'en' });
     const sizes = manifest.icons.map((i: { sizes: string }) => i.sizes);
     expect(sizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
     for (const icon of manifest.icons)

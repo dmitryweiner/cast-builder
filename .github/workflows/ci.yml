@@ -27,6 +27,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # builds dist/ and checks it in a browser, offline included
       - run: npm run smoke -- --preview
+      # the main thread never loads the WASM (AGENTS.md, invariants): the main chunk must not mention manifold
+      - run: '! grep -l manifold dist/assets/index-*.js'
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:

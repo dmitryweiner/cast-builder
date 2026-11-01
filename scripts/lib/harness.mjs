@@ -9,8 +9,8 @@ import { chromium } from 'playwright';
  * Ports of this project's own, with --strictPort: another project's server
  * on Vite's default 5173 is never tested by mistake. Pick new ones per project.
  */
-const DEV_PORT = 5390;
-const PREVIEW_PORT = 4390;
+const DEV_PORT = 5291;
+const PREVIEW_PORT = 4291;
 
 /** Phone and desktop viewports every layout check runs at. */
 export const VIEWPORTS = {

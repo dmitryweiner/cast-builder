@@ -18,7 +18,13 @@
     {
       // Test doubles implement only the part of a browser API that the code uses.
       "files": ["**/*.test.ts"],
-      "rules": { "typescript/no-unsafe-type-assertion": "off" }
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off",
+        // vitest takes a message as the second argument: it names the case that failed in a loop.
+        "vitest/valid-expect": ["error", { "maxArgs": 2 }],
+        // Helpers of a describe block live next to the tests that use them.
+        "unicorn/consistent-function-scoping": "off"
+      }
     },
     {
       // Browser scripts run their steps one after another on purpose: they share

@@ -1,50 +1,41 @@
-# Web App Template
+# Cast Builder
 
-A starting point for small static web apps that work offline:
+Slip-casting tooling for a ready piece. Open an STL of a vessel — from
+[Clayform](https://dmitryweiner.github.io/clayform/) or anywhere else — and
+get printable files:
 
-- TypeScript 7 + Vite, no framework
-- i18n without a library: English (default), Russian, Hebrew (RTL);
-  detected from the browser, the choice kept in localStorage
-- PWA: manifest, icons, a service worker that precaches the build
-- TDD: Vitest (node + jsdom) and a Playwright smoke, offline included
-- oxlint + prettier
-- GitHub Actions: checks on every PR, GitHub Pages on `main`
-- Mobile-first CSS with light and dark themes
+| Mode       | What you get                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Master     | the piece grown by the slip's shrinkage, with a pouring collar on the rim — take a silicone mold off it by hand                                                                                                           |
+| Pour boxes | the app designs the plaster mold (one part, two halves, halves and a bottom plate, a mouth plug) and gives a printed box for each part with the part's positive inside: pour silicone, get a negative, cast plaster in it |
+| Slump mold | a dished mold for pressing a clay slab in, and the punch that fits it, in one file                                                                                                                                        |
 
-The demo app is a counter: it shows plural forms in three languages, saved
-state and the language switcher.
+Everything runs in the browser, offline too. The model is read as
+millimetres with its axis up; it can be turned by quarter turns and spun
+about the axis so a handle or a spout lies in the parting plane. A hollow
+print open at the top is filled by itself; a hollow teapot (open at the
+spout too) has to come solid — Clayform's export has a "Solid" tick for that.
 
-## Start a project from it
+**Live:** https://dmitryweiner.github.io/cast-builder/
 
-With Claude Code: `/new-web-app` (the skill renames everything and trims what
-is not needed).
-
-By hand:
-
-```bash
-gh repo create my-app --public --template dmitryweiner/web-app-template --clone
-cd my-app
-# rename: package.json name, index.html, manifest, footer link, i18n titles,
-# the storage key test, dev/preview ports in scripts/lib/harness.mjs
-npm ci && npm run check && npm run smoke
-```
-
-Then in the repository settings: Pages → Source: GitHub Actions.
+User guide: [docs/](docs/README.md).
 
 ## Development
 
+Node.js from `.node-version`.
+
 ```bash
-fnm use            # Node from .node-version
 npm ci
-npm run dev        # dev server
-npm run check      # typecheck + lint + unit tests
-npm run smoke      # browser smoke (-- --preview for the build and offline)
-npm run build      # → dist/
+npm run dev       # dev server
+npm run check     # typecheck + lint + format check + unit tests
+npm run smoke     # browser smoke; -- --preview for the production build and offline mode
+npm run build     # production build into dist/
 ```
 
-See [AGENTS.md](AGENTS.md) for the layout and conventions, [docs/](docs/)
-for the documentation.
+The boolean operations are [manifold-3d](https://github.com/elalish/manifold)
+(WASM) in a Web Worker; the main thread never loads it. See
+[AGENTS.md](AGENTS.md) for the layout, the invariants and what costs what.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE).
+GPL-3.0-or-later.

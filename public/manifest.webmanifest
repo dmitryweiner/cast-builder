@@ -1,13 +1,13 @@
 {
-  "name": "Web App Template",
-  "short_name": "Template",
-  "description": "A starting point for small offline web apps.",
+  "name": "Cast Builder",
+  "short_name": "Cast Builder",
+  "description": "Slip-casting molds from a ready STL: a master positive, pour boxes for silicone, a slump mold and its punch.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f6fc",
-  "theme_color": "#294edb",
+  "background_color": "#17130f",
+  "theme_color": "#17130f",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

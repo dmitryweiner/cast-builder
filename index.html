@@ -3,35 +3,105 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="description" content="A starting point for small offline web apps." />
-    <title>Web App Template</title>
+    <meta
+      name="description"
+      content="Slip-casting molds from a ready STL: a master positive, pour boxes for silicone, a slump mold and its punch."
+    />
+    <title>Cast Builder</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <meta name="theme-color" content="#294edb" />
+    <meta name="theme-color" content="#17130f" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script type="module" src="./src/main.ts"></script>
   </head>
   <body>
-    <header>
-      <span class="brand" data-i18n="title">Web App Template</span>
-      <select id="locale" aria-label="Language" data-i18n-label="languageLabel">
-        <option value="en" lang="en">English</option>
-        <option value="ru" lang="ru">Русский</option>
-        <option value="he" lang="he">עברית</option>
-      </select>
+    <header class="topbar">
+      <span class="brand"
+        ><b data-i18n="title">Cast Builder</b> <span class="tagline" data-i18n="tagline">molds from a ready STL</span></span
+      >
+      <span class="topbar-actions">
+        <button
+          id="openBtn"
+          type="button"
+          class="btn primary"
+          data-i18n="open"
+          data-i18n-title="open.title"
+          title="Open an STL file of the piece"
+        >
+          Open STL
+        </button>
+        <input id="fileInput" type="file" accept=".stl,model/stl,application/sla" hidden />
+        <select id="locale" aria-label="Language" data-i18n-label="languageLabel">
+          <option value="en" lang="en">English</option>
+          <option value="ru" lang="ru">Русский</option>
+        </select>
+      </span>
     </header>
-    <main>
-      <h1 data-i18n="heading">Web App Template</h1>
-      <p data-i18n="intro">Edit src/app.ts and start with a failing test.</p>
-      <div class="counter">
-        <button id="count" type="button" data-i18n="count">Count</button>
-        <button id="reset" type="button" class="secondary" data-i18n="reset">Reset</button>
-      </div>
-      <output id="clicked" for="count" aria-live="polite"></output>
+    <main class="layout">
+      <section id="stage" class="stage">
+        <canvas id="view"></canvas>
+        <div id="empty" class="empty">
+          <h1 data-i18n="drop.title">Bring a ready piece</h1>
+          <p data-i18n="drop.hint">
+            Drop an STL here or open one. Units are millimetres, the axis of the piece goes up; a hollow print open at the top is filled by
+            itself.
+          </p>
+          <button id="exampleBtn" type="button" class="btn" data-i18n="example">Try a sample teapot</button>
+        </div>
+        <div id="progressWrap" class="progress" hidden>
+          <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+          <span id="progressLabel"></span>
+        </div>
+      </section>
+      <aside id="panel" class="panel">
+        <section class="card">
+          <h2 data-i18n="panel.model">Model</h2>
+          <p id="modelInfo" class="note"></p>
+          <div class="buttons">
+            <button id="turnX" type="button" class="btn" data-i18n="turn.x">Turn about X</button>
+            <button id="turnY" type="button" class="btn" data-i18n="turn.y">Turn about Y</button>
+            <button id="turnFlip" type="button" class="btn" data-i18n="turn.flip">Upside down</button>
+            <button id="turnReset" type="button" class="btn" data-i18n="turn.reset">Reset</button>
+          </div>
+          <p class="note" data-i18n="turn.hint">
+            Stand the piece upright, then spin it so a handle or a spout lies along X, where the mold parts.
+          </p>
+          <div id="modelControls"></div>
+        </section>
+        <section class="card">
+          <h2 data-i18n="panel.tooling">Tooling</h2>
+          <div class="tabs" role="tablist">
+            <button id="tabMaster" type="button" class="tab" role="tab" data-i18n="tab.master" data-i18n-title="tab.master.title">
+              Master
+            </button>
+            <button id="tabBath" type="button" class="tab" role="tab" data-i18n="tab.bath" data-i18n-title="tab.bath.title">
+              Pour boxes
+            </button>
+            <button id="tabSlump" type="button" class="tab" role="tab" data-i18n="tab.slump" data-i18n-title="tab.slump.title">
+              Slump mold
+            </button>
+          </div>
+          <div id="toolingControls"></div>
+        </section>
+        <section id="mouthCard" class="card">
+          <h2 data-i18n="panel.mouth">Mouth and parting</h2>
+          <div id="mouthControls"></div>
+          <p id="mouthNote" class="note"></p>
+        </section>
+        <section class="card">
+          <h2 data-i18n="panel.export">Export</h2>
+          <p id="schemeNote" class="note"></p>
+          <ul id="partList" class="parts"></ul>
+          <p id="warnings" class="warnings"></p>
+          <p id="blockers" class="blockers"></p>
+          <p id="audit" class="note"></p>
+          <button id="exportBtn" type="button" class="btn primary wide" disabled>Export pour boxes</button>
+        </section>
+      </aside>
     </main>
     <footer>
-      <a href="https://github.com/dmitryweiner/web-app-template" data-i18n="source">Source code</a>
-      · GPL-3.0-or-later
+      <a href="https://dmitryweiner.github.io/clayform/" data-i18n="clayform">Design a piece in Clayform</a>
+      · <a href="https://github.com/dmitryweiner/cast-builder" data-i18n="source">Source code</a> · GPL-3.0-or-later
     </footer>
   </body>
 </html>
