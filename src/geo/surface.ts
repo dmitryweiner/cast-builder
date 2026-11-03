@@ -284,6 +284,16 @@ export function mirrorZ(mesh: SurfaceMesh): SurfaceMesh {
   return { positions, normals, indices };
 }
 
+/** A shift in the plane of the bed. */
+export function translateMesh(mesh: SurfaceMesh, dx: number, dy: number): SurfaceMesh {
+  const positions = new Float32Array(mesh.positions);
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] += dx;
+    positions[i + 1] += dy;
+  }
+  return { ...mesh, positions };
+}
+
 /** Uniform scaling about the origin. */
 export function scaleMesh(mesh: SurfaceMesh, factor: number): SurfaceMesh {
   if (factor === 1) return mesh;

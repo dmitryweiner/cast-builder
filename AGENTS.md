@@ -24,7 +24,7 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
 - `npm run check` — typecheck + oxlint + prettier + unit tests. Must pass before
   any work is called done.
 - `npm run smoke` — browser smoke on the dev server: the sample through every
-  mode, the thumbnail, a file upload, real downloads, turning and spin
+  mode, a slump mold with screw clamps and their printed set (8 pieces), the thumbnail, a file upload, real downloads, turning and spin
   presets, languages, the phone sheet and width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
   included); `-- --shots` saves screenshots to `shots/`. Each step prints its time.
@@ -74,7 +74,11 @@ Regenerate them only on purpose.
   - `solidify.ts` — a hollow model made solid: its openings found and
     capped (CSG);
   - `revolve.ts` — a mesh read as a body of revolution for the slump mold;
-  - `press.ts` — the slump mold and its punch (no CSG);
+  - `press.ts` — the slump mold and its punch, the layout of their screw
+    clamps (`screwLayout`; no CSG);
+  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, fit, tab, gap,
+    screw, stop; `screwSolids.ts` — the threaded rod, the screw, the stop,
+    the mold's lugs and the punch's tabs as solids (worker only);
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
@@ -84,7 +88,8 @@ Regenerate them only on purpose.
     messages as codes;
   - `testing.ts` — helpers of the geometry tests (fixtures, analytic
     bodies), never imported by the app.
-- `src/worker/` — `tooling.ts` runs one job (tested in node), `csg.worker.ts`
+- `src/worker/` — `tooling.ts` runs one job (tested in node; `slumpTooling`
+  the slump mold with its clamps), `csg.worker.ts`
   is its thin adapter, `client.ts` the main thread's queue, `protocol.ts` the
   types of both sides.
 - `src/render/` — Three.js: `scene.ts` the main view (tooling only, on a
@@ -92,7 +97,8 @@ Regenerate them only on purpose.
   card (drawn once per change, no controls, the three axes labelled),
   `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
   the bed and the axes (tested in node). `src/ui/`
-  — controls (a range may carry preset buttons), progress bar, the panel as
+  — controls (a range may carry preset buttons; `screws.ts` the clamps'
+  two checkboxes), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
@@ -112,6 +118,10 @@ Regenerate them only on purpose.
 
 - `plans/TODO-SOLID.md` — what Clayform's printable export needs here.
 - `plans/PLAN-SOLID.md` — how it was done, decisions and results.
+- `plans/PLAN-SCREWS.md` — screw clamps for the slump mold: printed M10 × 2
+  screws and stops, lugs and tabs; decisions, measurements.
+- `plans/TODO-PUNCH-LEGS.md` — the punch's legs graze the corners of the
+  ears (found 2026-11-03, in `main` too): what, how much, what to do.
 - `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
   `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
   burgundy theme, the model thumbnail).
@@ -157,11 +167,29 @@ Regenerate them only on purpose.
   through hole (genus > 0) rules out a one-part mold.
 - The slump mold reads the model as a body of revolution (`meshSource`):
   rays from the axis take the outermost face per row and angle; the mean
-  radius per row is the silhouette the punch is built from; the lowest
+  radius per row, smoothed along the curve (σ 2.5 mm: relief running round
+  the piece does not cancel in the mean), is the silhouette the punch is
+  built from; the punch is its honest offset by the slab (points that come
+  nearer than the slab are dropped, never clamped into shelves); the lowest
   down-facing face over the foot is the relief of the mold's floor. A model
   that is not round gets a warning, not a refusal.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
   measure — the legs never miss the ears.
+- The screw clamps' screws, stops, holes, the gap under the tab and the
+  tab's thickness are constants (`geo/thread.ts`) and never scaled by the
+  shrinkage: one printed set fits every mold. The lugs and tabs are built
+  after the scaling, in the mm of the print, as prisms: in plan the hull of
+  a boss and of the ear's (the leg's) side, with a flat top. A lug's boss stands 2 mm into the ear's cheek,
+  and the cheek is cut down round the stop. A lug's underside rises at 45°
+  away from the ear and stays within the ear's outline widened up at 45°
+  (`support`): it prints without supports. The thread starts where that
+  envelope holds the hole (`threadZ`, 12 mm or less, never under 8; a plain
+  bore below); only below 8 mm does the ear's face go lower
+  (`earShortfall`), and not at all when that would not help. A lug is cut
+  back off the cavity with half a shell and off the clay over the rim; a tab
+  off the clay under the flange and off the ear's cheeks. An export fuses
+  them on; a preview lays them over unfused (the cheeks' cut needs the
+  shell's import even there).
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 
@@ -170,16 +198,17 @@ Regenerate them only on purpose.
 Measured on an M1 Max in node (`runJob`), the clayform fixtures (5–16k
 triangles):
 
-| Job                                               | Time                                              |
-| ------------------------------------------------- | ------------------------------------------------- |
-| master (teapot)                                   | 30–50 ms                                          |
-| pour boxes, 2–3 parts (teapot, pot with a handle) | 1.1–1.6 s, half of it the void under the positive |
-| pour boxes, a hollow cup (fill included)          | 0.5 s                                             |
-| filling: a solid model / a hollow cup             | 5–10 ms / 25–35 ms                                |
-| filling a hollow teapot (spout tip included)      | 0.1 s; its master 0.15 s, its pour boxes 1.4 s    |
-| a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                    |
-| slump mold + punch, preview grid 128              | 0.03–0.1 s                                        |
-| slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                          |
+| Job                                               | Time                                               |
+| ------------------------------------------------- | -------------------------------------------------- |
+| master (teapot)                                   | 30–50 ms                                           |
+| pour boxes, 2–3 parts (teapot, pot with a handle) | 1.1–1.6 s, half of it the void under the positive  |
+| pour boxes, a hollow cup (fill included)          | 0.5 s                                              |
+| filling: a solid model / a hollow cup             | 5–10 ms / 25–35 ms                                 |
+| filling a hollow teapot (spout tip included)      | 0.1 s; its master 0.15 s, its pour boxes 1.4 s     |
+| a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                     |
+| slump mold + punch, preview grid 128              | 0.03–0.1 s                                         |
+| slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                           |
+| the same with screw clamps (bowl, cup, vase…)     | preview 0.3–0.5 s (teapot 0.9 s); export 2.8–3.8 s |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
 deep, a waiting preview is replaced by a fresher one, an export never.
@@ -191,6 +220,9 @@ deep, a waiting preview is replaced by a fresher one, an export never.
 - A seating cylinder below the plug's ledge: the plug casts the ledge and
   the gallery over it; lower the wall comes out at its usual thickness.
 - Pour boxes for the slump mold: the mold itself is printed, as a shell.
+- Screw clamps of another size, pitch or fit, more than three of them; a lug
+  held at 45° on a shape that widens below its rim; the jacking screws need
+  room under the lugs for their heads (a low mold stands on blocks).
 - A slump mold on a hump ("+"); handles on the punch; adjustable clearance
   and leg sizes other than the ear's seat (constants in `geo/press.ts`);
   separate objects in the STL (mold and punch are one mesh — "split into

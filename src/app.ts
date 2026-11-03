@@ -37,6 +37,7 @@ import { defaultSetup, MODES, RECESS_MAX_MM, RESOLUTIONS, sanitizeSettings, sani
 import type { KeyValueStorage } from './storage';
 import { loadSettings, saveSettings } from './storage';
 import type { Control } from './ui/controls';
+import { screwControls } from './ui/screws';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -100,6 +101,10 @@ export function partLabel(id: string): string {
   return tDynamic(`part.${id}`);
 }
 
+type MoldState = Settings['mold'];
+/** The fields of the mold's parameters that are numbers — the sliders'. */
+type MoldNumber = { [K in keyof MoldState]: MoldState[K] extends number ? K : never }[keyof MoldState];
+
 /** A slider over one field of the mold's parameters, shown in the given modes. */
 function range(
   key: string,
@@ -108,7 +113,7 @@ function range(
   min: number,
   max: number,
   step: number,
-  field: keyof Settings['mold'],
+  field: MoldNumber,
   modes: readonly Mode[],
 ): Control<Settings> {
   return {
@@ -200,6 +205,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     range('ear', 'ctl.ear', 'ctl.ear.hint', EAR_MIN_MM, EAR_MAX_MM, 0.5, 'earMm', ['slump']),
     range('round', 'ctl.round', 'ctl.round.hint', 0, 100, 5, 'punchRoundPct', ['slump']),
     range('vent', 'ctl.vent', 'ctl.vent.hint', VENT_MIN_MM, VENT_MAX_MM, 0.5, 'ventMm', ['slump']),
+    ...screwControls,
     {
       kind: 'select',
       key: 'resolution',

@@ -140,10 +140,62 @@ grooves under the mold keep the table from closing its vent.
 | Round bottom | 0–100 %   | 100     | the punch's bottom: 100 — a cap from the axis, 0 — a flat floor; the slab is nowhere thinner than set |
 | Vents        | 1–8 mm    | 2.5     | the holes in the mold and the punch                                                                   |
 | Detail       | 128–384   | 192     | the grid of the exported mold; the preview uses 128                                                   |
+| Screw clamps | on / off  | off     | lugs with a thread on the mold beside the ears, tabs with holes on the punch beside the legs          |
+| Print screws | on / off  | off     | three screws and three stops in the same STL (only with the clamps)                                   |
 
 How to work: lay the slab on the mold and press it in by hand; cut the
 overhang to under a centimetre; lower the punch until its legs stop on the
 ears; lift the punch and trim the slab along the rim.
+
+### Screw clamps
+
+**Screw clamps** (a checkbox) press the punch in without a press and push
+it back off with the same screws. Beside each ear the mold gets a **lug**
+with an M10 × 2 thread through it, and beside each leg the punch gets a
+**tab** with a plain 11 mm hole over it. The ears and legs stay as they
+are: they still centre the punch and stop it at the slab's thickness.
+
+Both are plain blocks: in plan a round boss round the screw joined by
+straight sides to the ear (the leg). The lug leans on the ear's cheek, its
+boss 2 mm into it, and meets the wall only by the ear; the cheek is cut
+down round the stop. Its top is exactly 10 mm under the tab of the pressed
+punch; it keeps out of the cavity and, above the ears' top, out of the clay
+hanging over the rim. Its underside slopes at 45° up away from the ear and
+is cut along the ear's own 45° slope, so **the mold prints standing without
+supports**. The thread is 12 mm (six turns) where the ear's slope holds the
+whole hole; with a thin slab or a small ear it starts higher, down to 8 mm
+(a plain bore under it). Only if it would be shorter still does the ear's
+outer face go a little lower. On a shape that widens below the rim (no
+slump mold takes it out anyway) the ear cannot hold the lug: the ring round
+the hole overhangs there. The tab is 8 mm thick from the flange's top and
+lies flat on the bed with it; over the clay it is only as thick as the
+flange.
+
+**Print screws and stops** (under it) adds three screws and three stops to
+the same STL, to the right of the punch:
+
+- **screw** — M10 × 2, 45 mm under a knurled head Ø24 with a slot, the tip
+  chamfered;
+- **stop** — a disc Ø18 × 9.7 mm with a boss on top that enters the
+  tab's hole and a conical dimple below for the screw's tip.
+
+They do not depend on the model or the shrinkage — print them once and use
+them with every later mold, leaving the second box off. The pitch, the
+thread's fit (0.35 mm) and the 10 mm gap are fixed for that reason.
+
+How to work with the clamps:
+
+1. Slab in the mold, the punch on top. Put a screw through each tab into
+   its lug and tighten them in turn until the legs stand on the ears.
+2. To part the two: take the screws out, put a stop into each gap — the
+   boss up into the tab's hole — and turn the screws into the lugs from
+   below. Tightened in turn, they lift the punch evenly. The heads need
+   3–4 cm under the lugs: stand a low mold on a ring or two blocks.
+
+Print the screws standing on their heads and the stops dimple down, both
+with 100 % infill or five walls or more; the threads print best at 0.2 mm
+layers or finer. If a printed screw is tight, run it in and out a few
+times. The fit is not a setting: one set of screws has to fit every mold.
 
 ## Export
 

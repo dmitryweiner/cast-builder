@@ -14,6 +14,9 @@ import {
   PUNCH_CLEARANCE_MM,
   PUNCH_LEG_WIDTH_MM,
   punchLayout,
+  punchSection,
+  BOSS_R_MM,
+  screwLayout,
   slabThickness,
   VENT_MM,
 } from './press';
@@ -22,6 +25,7 @@ import { meshSource } from './revolve';
 import type { PressSource } from './revolve';
 import { analyticSource, fixture, withNormals } from './testing';
 import { signedVolume, validateMesh } from './validate';
+import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM } from './thread';
 
 const N = 96;
 const families = ['bowl', 'cup', 'pot', 'vase'];
@@ -42,6 +46,7 @@ const options = (over: Partial<PressOptions> = {}): PressOptions => ({
   earMm: EAR_SEAT_MM,
   ventMm: VENT_MM,
   roundPct: 0,
+  screws: false,
   ...over,
 });
 
@@ -549,5 +554,161 @@ describe('punch', () => {
   it('the slab is clamped: no thicker than 0.4 of the height', () => {
     expect(slabThickness(60, 50)).toBe(20);
     expect(slabThickness(0.1, 50)).toBeGreaterThan(0.5);
+  });
+});
+
+describe('screw clamps', () => {
+  const cases = [
+    { shrinkPct: 0, slabMm: 3 },
+    { shrinkPct: 12, slabMm: 8 },
+  ];
+  const each = (check: (family: string, over: Partial<PressOptions>) => void): void => {
+    for (const family of families) for (const over of cases) check(family, { ...over, screws: true });
+  };
+  const at = (family: string, over: Partial<PressOptions>) => {
+    const source = sourceOf(family);
+    const { fit } = buildSlumpShell(source, options(over));
+    return { source, fit, layout: screwLayout(source, options(over), fit), k: 1 + (over.shrinkPct ?? 0) / 100 };
+  };
+  const head = SCREW.headD / 2;
+
+  it('a lug beside each ear, its boss 2 mm into the cheek, clear of the groove', () => {
+    each((family, over) => {
+      const { fit, layout } = at(family, over);
+      expect(layout.angles).toHaveLength(3);
+      for (const [i, angle] of layout.angles.entries()) {
+        expect(angle - layout.angles[0]).toBeCloseTo((i * 2 * Math.PI) / 3, 9);
+        const fromEar = angle - layout.ears[i];
+        expect(layout.axisMm * Math.sin(fromEar - fit.ear.reach), family).toBeCloseTo(BOSS_R_MM - 2, 6);
+        // the grooves of the sole are halfway between the ears
+        expect(fromEar + Math.asin(BOSS_R_MM / layout.axisMm), family).toBeLessThan(Math.PI / 3 - 0.02);
+      }
+    });
+  });
+
+  it('the stop lies on the boss outside the clay; a screw from below passes the mold with its head', () => {
+    each((family, over) => {
+      const { fit, layout, k } = at(family, over);
+      expect(layout.seatInMm).toBeCloseTo(fit.ear.seatInMm * k, 6);
+      expect(layout.axisMm - BOSS_R_MM).toBeGreaterThanOrEqual(layout.seatInMm - 1e-9);
+      expect(BOSS_R_MM).toBeGreaterThanOrEqual(PAD.d / 2);
+      for (const ring of fit.outer) {
+        if (ring.z * k > layout.seatZ) continue;
+        expect(ring.r * k + head, `${family} z=${ring.z}`).toBeLessThan(layout.axisMm);
+      }
+    });
+  });
+
+  it('fixed sizes: the tab TAB_T thick from the flange top, the gap, the thread under the seat', () => {
+    each((family, over) => {
+      const { source, fit, layout, k } = at(family, over);
+      const punch = punchLayout(source, options(over), fit);
+      expect(punch.flangeT).toBe(Math.max(shell, 3));
+      expect(layout.tabTopZ).toBeCloseTo((punch.flangeZ + punch.flangeT) * k, 6);
+      expect(layout.tabTopZ - layout.tabBottomZ).toBeCloseTo(TAB_T_MM, 9);
+      expect(layout.tabBottomZ - layout.seatZ).toBeCloseTo(PAD_GAP_MM, 9);
+      expect(layout.seatZ - layout.lugBottomZ).toBeCloseTo(LUG_THREAD_MM, 9);
+      expect(layout.shelfZ).toBeCloseTo(fit.ear.topZ * k, 6);
+    });
+  });
+
+  it('the thread is whole where the ear can hold the hole: 12 mm as a rule, never under 8, the ears as they were', () => {
+    // (a pot and a vase widen below their rim: no slump mold takes them out, and their ears cannot hold the lugs)
+    for (const family of ['bowl', 'cup']) {
+      for (const slabMm of [6, 3, 0.8]) {
+        const over = { slabMm, shrinkPct: 12, screws: true };
+        const { fit, layout } = at(family, over);
+        const plain = buildSlumpShell(sourceOf(family), options({ ...over, screws: false })).fit;
+        const thread = layout.seatZ - layout.threadZ;
+        expect(thread, `${family} slab ${slabMm}`).toBeLessThanOrEqual(LUG_THREAD_MM + 1e-9);
+        expect(thread, `${family} slab ${slabMm}`).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 0.3);
+        // the ear's face goes lower only when the thread would be shorter than the least
+        const lowered = fit.ear.faceZ < plain.ear.faceZ - 1e-9;
+        expect(lowered && thread > LUG_THREAD_MIN_MM + 0.3, `${family} slab ${slabMm}`).toBe(false);
+        // the hole and its wall lie within the ear's 45° envelope from the thread up
+        const rise = layout.support.find((p) => p.z >= layout.threadZ - 1e-9);
+        expect(rise?.r ?? 0).toBeGreaterThanOrEqual(layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.3);
+      }
+    }
+  });
+
+  it('an ear goes lower only when that holds the hole: otherwise it stays as it was, no plastic for nothing', () => {
+    for (const family of ['pot', 'vase']) {
+      const over = { slabMm: 6, shrinkPct: 12, screws: true };
+      const { fit, layout } = at(family, over);
+      const plain = buildSlumpShell(sourceOf(family), options({ ...over, screws: false })).fit;
+      // the ear's slope at 45° from the bottom of its face, at the height the thread starts
+      const k = 1.12;
+      const slope = fit.ear.outerMm * k + (layout.threadZ - fit.ear.faceZ * k);
+      const holds = slope >= layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.6;
+      const lowered = fit.ear.faceZ < plain.ear.faceZ - 1e-9;
+      expect(lowered && !holds, family).toBe(false);
+      expect(layout.seatZ - layout.threadZ, family).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 1e-6);
+    }
+  });
+
+  it('the region a lug keeps out of is the relief and half a shell, up past the tab', () => {
+    each((family, over) => {
+      const { source, layout, k } = at(family, over);
+      for (const p of layout.cavity) {
+        if (p.r === 0 || p.z < 0 || p.z > (source.heightMm + shell) * k) continue;
+        const v = Math.min(1, Math.max(0, (p.z / k - shell) / source.heightMm));
+        const relief = (source.radiusAt(v) + source.outwardMm) * k;
+        expect(p.r - relief).toBeCloseTo((shell * k) / 2, 6);
+      }
+      expect(layout.cavity[layout.cavity.length - 1].z).toBeGreaterThan(layout.tabTopZ);
+      expect(layout.innerMm).toBeLessThan(layout.seatInMm);
+    });
+  });
+});
+
+describe("the punch's section", () => {
+  type RZ = { r: number; z: number };
+  const distance = (curve: readonly RZ[], p: RZ): number => {
+    let best = Infinity;
+    for (let k = 0; k + 1 < curve.length; k++) {
+      const a = curve[k];
+      const b = curve[k + 1];
+      const dr = b.r - a.r;
+      const dz = b.z - a.z;
+      const t = Math.min(1, Math.max(0, ((p.r - a.r) * dr + (p.z - a.z) * dz) / (dr * dr + dz * dz || 1)));
+      best = Math.min(best, Math.hypot(p.r - a.r - dr * t, p.z - a.z - dz * t));
+    }
+    return best;
+  };
+  const H = 50;
+  const sectionOf = (silhouette: (v: number) => number, over: Partial<PressOptions> = {}) => {
+    const source = analyticSource((_, v) => silhouette(v), silhouette, H);
+    const { fit } = buildSlumpShell(source, options(over));
+    // the mold's working surface in its frame: the floor, then the silhouette lifted by the bottom
+    const mold: RZ[] = [{ r: 0, z: shell }];
+    for (let i = 0; i <= 1000; i++) mold.push({ r: silhouette(i / 1000), z: (i / 1000) * H + shell });
+    return { fit, mold, ...punchSection(source, options(over), fit) };
+  };
+
+  it('a rounded lip that curls in: the arc goes over the inside of the rim, not round its outside', () => {
+    // a wall straight up to the top, then a lip coming in by 1.2 mm over the last millimetre
+    const lip = (v: number): number => 40 - 1.2 * Math.max(0, 1 - (1 - v) * H) ** 2;
+    const { fit, surface, arc } = sectionOf(lip, { slabMm: 6 });
+    for (const p of [...surface, ...arc]) {
+      const outsideBelow = p.r > fit.rimMm + 1e-6 && p.z < fit.rimZ - 1e-6;
+      expect(outsideBelow, `(${p.r.toFixed(2)}, ${p.z.toFixed(2)})`).toBe(false);
+    }
+    for (const p of arc.slice(0, -1)) expect(Math.hypot(p.r - fit.rimMm, p.z - fit.rimZ)).toBeCloseTo(6, 6);
+  });
+
+  it('rings finer than the slab: no point nearer the mold than the slab, no shelves, the inner shell clear', () => {
+    const ringed = (v: number): number => 30 + 12 * v + 0.25 * Math.sin((2 * Math.PI * v * H) / 4.5);
+    for (const slabMm of [3, 6]) {
+      const { mold, surface, inner } = sectionOf(ringed, { slabMm });
+      for (const p of surface) expect(distance(mold, p), `slab ${slabMm} at z ${p.z.toFixed(2)}`).toBeGreaterThan(slabMm * 0.99);
+      const floorZ = shell + slabMm;
+      for (let k = 1; k < surface.length; k++) {
+        const shelf =
+          surface[k].z > floorZ + 1 && Math.abs(surface[k].z - surface[k - 1].z) < 1e-6 && Math.abs(surface[k].r - surface[k - 1].r) > 0.3;
+        expect(shelf, `slab ${slabMm}: a shelf at z ${surface[k].z.toFixed(2)}`).toBe(false);
+      }
+      for (const p of inner) expect(distance(surface, p), `slab ${slabMm}: inner at z ${p.z.toFixed(2)}`).toBeGreaterThan(shell * 0.99);
+    }
   });
 });

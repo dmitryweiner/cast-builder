@@ -23,6 +23,10 @@ export interface MoldState {
   punchRoundPct: number;
   /** diameter of the slump vents — in the mold's bottom and along the punch's axis, mm */
   ventMm: number;
+  /** screw clamps on the slump mold: lugs with threaded holes beside the ears, tabs of the punch with plain ones */
+  screws: boolean;
+  /** the screws and stops for them in the same file — they are reusable, printed once */
+  printScrews: boolean;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -48,6 +52,8 @@ export function defaultMold(): MoldState {
     earMm: EAR_SEAT_MM,
     punchRoundPct: 100,
     ventMm: VENT_MM,
+    screws: false,
+    printScrews: false,
   };
 }
 
@@ -72,5 +78,7 @@ export function sanitizeMold(raw: unknown): MoldState {
     earMm: clamp(num(source.earMm, fallback.earMm), EAR_MIN_MM, EAR_MAX_MM),
     punchRoundPct: clamp(num(source.punchRoundPct, fallback.punchRoundPct), 0, 100),
     ventMm: clamp(num(source.ventMm, fallback.ventMm), VENT_MIN_MM, VENT_MAX_MM),
+    screws: typeof source.screws === 'boolean' ? source.screws : fallback.screws,
+    printScrews: typeof source.printScrews === 'boolean' ? source.printScrews : fallback.printScrews,
   };
 }

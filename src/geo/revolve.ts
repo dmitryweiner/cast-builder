@@ -8,7 +8,11 @@
 // height of a grid row and every angle, a ray from the axis outwards hits
 // the outermost face. That gives the outer surface as a grid r(u, z) —
 // exactly the outside a slab of clay can touch when it is pressed in and
-// lifted out — and the mean radius of each row gives the smooth silhouette.
+// lifted out — and the mean radius of each row, smoothed, gives the
+// silhouette. Smoothed, because relief that runs round the piece (throwing
+// rings, grooves) does not cancel out in the mean: a punch built from it
+// copied the rings onto the inside of the piece, and its offset by the slab
+// turned them into steps.
 //
 // The bottom of the piece is read separately, from below: the lowest face
 // over each point of the table. A foot ring or a maker's mark there becomes
@@ -38,6 +42,14 @@ export const MIN_RADIUS_MM = 1.5;
 export const FLOOR_CELL_MM = 0.5;
 /** A bottom lifted less than this over the table is flat, mm. */
 const FLOOR_RELIEF_MM = 0.05;
+/**
+ * Width of the silhouette's smoothing along its own length, mm (σ of a
+ * Gaussian): rings 4–5 mm apart are gone to a thousandth; a bend of 5 mm
+ * radius moves by about half a millimetre. The slab's offset magnifies
+ * what ripple is left — at σ = 1.5 the punch of a ringed bowl still showed
+ * bands.
+ */
+export const SILHOUETTE_SMOOTH_MM = 2.5;
 
 /** Samples the outer surface of a placed model (axis through the origin, bottom on z = 0). */
 export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSource {
@@ -71,8 +83,8 @@ export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSour
   }
   fillMisses(radii, nu, nv);
 
-  const means: number[] = [];
-  let outwardMm = 0;
+  const raw: number[] = [];
+  const highs: number[] = [];
   let outOfRoundMm = 0;
   for (let j = 0; j <= nv; j++) {
     let sum = 0;
@@ -84,11 +96,13 @@ export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSour
       lo = Math.min(lo, r);
       hi = Math.max(hi, r);
     }
-    const mean = sum / nu;
-    means.push(mean);
-    outwardMm = Math.max(outwardMm, hi - mean);
+    raw.push(sum / nu);
+    highs.push(hi);
     outOfRoundMm = Math.max(outOfRoundMm, hi - lo);
   }
+  const means = smoothSilhouette(raw, heightMm / nv, SILHOUETTE_SMOOTH_MM);
+  let outwardMm = 0;
+  for (let j = 0; j <= nv; j++) outwardMm = Math.max(outwardMm, highs[j] - means[j]);
 
   const grid: Grid = { nu, nv, positions: new Float32Array(nu * (nv + 1) * 3) };
   for (let j = 0; j <= nv; j++) {
@@ -118,6 +132,60 @@ export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSour
     outOfRoundMm,
     ...(floorAt ? { floorAt } : {}),
   };
+}
+
+/**
+ * Radii of rows `dz` apart smoothed by a Gaussian along the length of the
+ * section's curve — not along the height: where the curve runs nearly flat
+ * (a bowl's bottom turning into its wall) a millimetre of height is many
+ * millimetres of curve, and the shape must stay. Both coordinates are
+ * smoothed, the curve as a curve, and its radius is read back at the rows'
+ * heights: put back at the old heights, the radius kept a kink wherever
+ * the raw curve had one. Past the ends the curve is continued by its point
+ * reflection, so the ends and their slopes stay put: the rim is not pulled
+ * in, the foot not out.
+ */
+function smoothSilhouette(radii: readonly number[], dz: number, sigma: number): number[] {
+  const n = radii.length;
+  if (n < 3 || !(sigma > 0)) return [...radii];
+  const last = n - 1;
+  const heights = radii.map((_, j) => j * dz);
+  const along = [0];
+  for (let j = 1; j < n; j++) along.push(along[j - 1] + Math.hypot(radii[j] - radii[j - 1], dz));
+  const reach = 3 * sigma;
+  // each sample weighs as much curve as it stands for: where the radius
+  // climbs, rows lie farther apart along the curve
+  const share = along.map((_, k) => (along[Math.min(last, k + 1)] - along[Math.max(0, k - 1)]) / 2);
+  const r: number[] = [];
+  const z: number[] = [];
+  for (let j = 0; j < n; j++) {
+    let sr = 0;
+    let sz = 0;
+    let weights = 0;
+    const add = (s: number, pr: number, pz: number, ds: number): void => {
+      const d = s - along[j];
+      if (Math.abs(d) > reach) return;
+      const w = Math.exp((-d * d) / (2 * sigma * sigma)) * ds;
+      sr += w * pr;
+      sz += w * pz;
+      weights += w;
+    };
+    for (let k = 0; k < n; k++) {
+      add(along[k], radii[k], heights[k], share[k]);
+      // reflections through the ends: s → 2·end − s, (r, z) → 2·end − (r, z)
+      if (k > 0) add(-along[k], 2 * radii[0] - radii[k], 2 * heights[0] - heights[k], share[k]);
+      if (k < last) add(2 * along[last] - along[k], 2 * radii[last] - radii[k], 2 * heights[last] - heights[k], share[k]);
+    }
+    r.push(sr / weights);
+    z.push(sz / weights);
+  }
+  // the smoothed heights still rise (an average of rising ones): read r back at the rows
+  let k = 0;
+  return heights.map((h) => {
+    while (k < last - 1 && z[k + 1] < h) k++;
+    const t = z[k + 1] > z[k] ? Math.min(1, Math.max(0, (h - z[k]) / (z[k + 1] - z[k]))) : 0;
+    return r[k] + (r[k + 1] - r[k]) * t;
+  });
 }
 
 /** Segments of the slice at height z, x0 y0 x1 y1 in a row. */

@@ -36,6 +36,7 @@ export type MessageCode =
   | 'progress.checkMeshes'
   | 'progress.slump'
   | 'progress.punch'
+  | 'progress.screws'
   | 'progress.analyze'
   | 'progress.master'
   | 'progress.block'

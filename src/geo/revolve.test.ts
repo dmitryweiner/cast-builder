@@ -47,6 +47,29 @@ describe('meshSource', () => {
     for (const v of [0.2, 0.5, 0.9]) expect(source.radiusAt(v)).toBeCloseTo(40, 0);
   });
 
+  it('the silhouette is smooth: rings of relief stay on the surface, not in the mean radius', () => {
+    // throwing rings outside, 0.5 mm deep every 4.5 mm, and a rounded lip: the last millimetre comes in by 1.2 mm
+    const H = 50;
+    const shape = (v: number): number => 30 + 12 * v - 1.2 * Math.max(0, 1 - (1 - v) * H) ** 2;
+    const ringed = (v: number): number => shape(v) + 0.5 * Math.max(0, Math.sin((2 * Math.PI * v * H) / 4.5));
+    const source = meshSource(revolveMesh(ringed, { nu: 64, nv: 500, height: H }), 32, 384);
+    // away from the lip: within 3σ of it the smoothing rounds the lip itself
+    let ripple = 0;
+    for (let i = 1; i < 200; i++) {
+      const v = 0.05 + (0.8 * i) / 200;
+      // the rings' mean over a period is a quarter of their depth over the bare shape
+      ripple = Math.max(ripple, Math.abs(source.radiusAt(v) - shape(v) - 0.5 / Math.PI));
+    }
+    expect(ripple).toBeLessThan(0.03);
+    // the ends stay where they are: the rim and the foot are not pulled in by the smoothing
+    // (the end rows are sampled 0.05 mm inside, on the lip that is 0.1 mm)
+    expect(Math.abs(source.radiusAt(1) - ringed(1))).toBeLessThan(0.15);
+    expect(Math.abs(source.radiusAt(0) - ringed(0))).toBeLessThan(0.15);
+    // the relief is measured from the smooth silhouette (by the lip that is rounded off a little too)
+    expect(source.outwardMm).toBeGreaterThan(0.3);
+    expect(source.outwardMm).toBeLessThan(0.8);
+  });
+
   it('measures the relief and how far the piece is from round', () => {
     const wavy = sampleGrid(96, 24, (u, v, out) => {
       const r = 40 + 3 * Math.sin(6 * u);

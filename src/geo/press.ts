@@ -19,6 +19,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
+import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -114,6 +115,8 @@ export interface PressOptions {
   ventMm: number;
   /** rounding of the punch's bottom, % of the largest */
   roundPct: number;
+  /** screw clamps: lugs on the mold, tabs on the punch beside the ears (geo/thread.ts) */
+  screws: boolean;
 }
 
 /**
@@ -160,8 +163,16 @@ function offsetSamples(radiusAt: (v: number) => number, heightMm: number, wall: 
   let previous = floorZ;
   let below: { r: number; z: number } | null = null;
   let floorR = NaN;
+  // The silhouette with the floor: a point moved along its normal may still
+  // come nearer than `wall` to another part of it — where the curve bends
+  // tighter than `wall` (rings of relief, a sharp step) the moved points
+  // loop back. Those are dropped: the rest is the honest offset, with a
+  // corner where a loop was.
+  const curve = [{ r: 0, z: 0 }];
+  for (let i = 0; i <= INSET_SAMPLES; i++) curve.push({ r: radiusAt(i / INSET_SAMPLES), z: (i / INSET_SAMPLES) * heightMm });
   for (let i = 0; i <= INSET_SAMPLES; i++) {
     const point = offsetPoint(radiusAt, heightMm, wall, i / INSET_SAMPLES);
+    if (point.z >= floorZ && tooNear(curve, point, wall)) continue;
     const z = Math.min(Math.max(point.z, floorZ, previous), zMax);
     previous = z;
     // below the floor the offset lies under it: the floor takes its place
@@ -173,7 +184,9 @@ function offsetSamples(radiusAt: (v: number) => number, heightMm: number, wall: 
       const t = below && point.z > below.z ? (floorZ - below.z) / (point.z - below.z) : 1;
       floorR = below ? below.r + (point.r - below.r) * t : point.r;
     }
-    samples.push({ r: Math.max(MIN_RADIUS_MM, point.r), z });
+    const next = { r: Math.max(MIN_RADIUS_MM, point.r), z };
+    if (samples.length > 0 && coincide(samples[samples.length - 1], next)) continue;
+    samples.push(next);
   }
   return { samples, floorR: Math.max(MIN_RADIUS_MM, Number.isFinite(floorR) ? floorR : MIN_RADIUS_MM) };
 }
@@ -194,6 +207,8 @@ export interface SlumpFit {
   /** diameter of the vent in the mold's bottom; the punch has the same one, mm */
   ventMm: number;
   ear: EarFit;
+  /** the outer silhouette of the mold without ears and grooves, from the table up */
+  outer: { r: number; z: number }[];
 }
 
 /**
@@ -212,6 +227,10 @@ export interface EarFit {
   wallZ: number;
   /** where the leg's seat begins: the wall + the slab + a gap */
   seatInMm: number;
+  /** bottom of the ear's vertical outer face; below it a 45° chamfer to the wall */
+  faceZ: number;
+  /** how far the ear stands out of the wall at most below its face: on a gentle wall a rib this deep */
+  depthMm: number;
   /** reach of a leg: the punch lowers vertices with legDistance ≤ legReach */
   legReach: number;
   /**
@@ -275,7 +294,40 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
   fillWaists(rings);
   spreadDuplicates(rings);
   const outerMaxMm = rings.reduce((max, ring) => Math.max(max, ring.r), 0);
-  const ears = slumpEars(rings, nu, slabThickness(options.slabMm, heightMm), heightMm, options.earMm);
+  // a vent no wider than a third of the bottom: the bottom must stay a bottom
+  const vent = clamp(options.ventMm, 0.5, radiusAt(0) * 0.66);
+  const slab = slabThickness(options.slabMm, heightMm);
+  const fitOf = (ears: SlumpEars): SlumpFit => ({
+    rimMm: radiusAt(1),
+    rimZ: heightMm + shellMm,
+    outerMaxMm,
+    topOuterMm: rings[nv].r,
+    ventMm: vent,
+    outer: rings.map(({ r, z }) => ({ r, z: z + shellMm })),
+    ear: {
+      ...ears.fit,
+      topZ: ears.fit.topZ + shellMm,
+      wallZ: ears.fit.wallZ + shellMm,
+      faceZ: ears.fit.faceZ + shellMm,
+      cheekZ: ears.fit.cheekZ + shellMm,
+    },
+  });
+  let ears = slumpEars(rings, nu, slab, heightMm, options.earMm);
+  if (options.screws) {
+    // The lugs lean on the ears at 45°: an ear's outer face goes down until
+    // its chamfer, widened upwards at 45°, holds the whole boss (screwLayout).
+    const plain = ears;
+    let drop = 0;
+    let short = earShortfall(source, options, fitOf(ears));
+    for (let pass = 0; pass < 4 && short > 1e-6; pass++) {
+      drop += short;
+      ears = slumpEars(rings, nu, slab, heightMm, options.earMm, drop);
+      short = earShortfall(source, options, fitOf(ears));
+    }
+    // a face that still falls short (a narrowing neck caps the ear above its face) is plastic for nothing
+    if (short > 0.5) ears = plain;
+  }
+  const fit = fitOf(ears);
   for (let j = 0; j <= nv; j++) {
     const { r, z } = rings[j];
     for (let i = 0; i < nu; i++) {
@@ -287,8 +339,6 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
       positions[k + 2] = z;
     }
   }
-  // a vent no wider than a third of the bottom: the bottom must stay a bottom
-  const vent = clamp(options.ventMm, 0.5, radiusAt(0) * 0.66);
   const grooves = ventGrooves(vent, shellMm);
   if (grooves) liftGrooveExits(positions, nu, nv, grooves);
   const outer: Grid = { nu, nv, positions };
@@ -308,22 +358,22 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
   // the bottom onto the table
   for (let i = 2; i < shell.positions.length; i += 3) shell.positions[i] += shellMm;
   const mesh = { ...shell, normals: meshNormals(shell.positions, shell.indices) };
-  return {
-    mesh: scaleMesh(mesh, 1 + shrinkPct / 100),
-    fit: {
-      rimMm: radiusAt(1),
-      rimZ: heightMm + shellMm,
-      outerMaxMm,
-      topOuterMm: rings[nv].r,
-      ventMm: vent,
-      ear: {
-        ...ears.fit,
-        topZ: ears.fit.topZ + shellMm,
-        wallZ: ears.fit.wallZ + shellMm,
-        cheekZ: ears.fit.cheekZ + shellMm,
-      },
-    },
-  };
+  return { mesh: scaleMesh(mesh, 1 + shrinkPct / 100), fit };
+}
+
+/**
+ * How much lower an ear's outer face must go, mm before the shrinkage, for
+ * its 45° envelope to hold the threaded hole of the lug beside it, with its
+ * wall, LUG_THREAD_MIN_MM down from the seat; 0 when it does. A lower face
+ * makes the whole ear heavier — on a gentle wall its rib all the way down —
+ * so it goes only as low as the least thread needs.
+ */
+function earShortfall(source: PressSource, options: PressOptions, fit: SlumpFit): number {
+  const grow = 1 + options.shrinkPct / 100;
+  const layout = screwLayout(source, options, fit);
+  const beyond = layout.axisMm + HOLE_WALL_R_MM - fit.ear.outerMm * grow;
+  const faceZ = layout.seatZ - LUG_THREAD_MIN_MM - beyond;
+  return Math.max(0, (fit.ear.faceZ * grow - faceZ) / grow);
 }
 
 /** Grooves of the sole: the lift of the sole over the table at (x, y). */
@@ -396,20 +446,27 @@ function liftGrooveExits(positions: Float32Array, nu: number, nv: number, groove
  * and the punch neither misses the ears nor tilts on its way. Heights are
  * before the lift by the shell.
  */
+interface SlumpEars {
+  radiusAt: (j: number, z: number, angle: number) => number;
+  fit: EarFit;
+}
+
 function slumpEars(
   rings: readonly { r: number; z: number }[],
   nu: number,
   slabMm: number,
   heightMm: number,
   seatMm: number,
-): { radiusAt: (j: number, z: number, angle: number) => number; fit: EarFit } {
+  /** the outer face goes this much lower than usual: a screw lug leans on the ear (earShortfall) */
+  faceDrop = 0,
+): SlumpEars {
   const nv = rings.length - 1;
   let ring = 1;
   for (let j = 1; j < nv; j++) if (rings[j].z <= heightMm - EAR_DROP_MM) ring = j;
   let cheekRing = ring;
   for (let j = ring + 1; j < nv; j++) if (rings[j].z <= heightMm - CHEEK_BELOW_RIM_MM) cheekRing = j;
   const topZ = rings[ring].z;
-  const faceZ = topZ - PUNCH_LIP_MM - EAR_FACE_SPARE_MM;
+  const faceZ = Math.max(rings[0].z, topZ - PUNCH_LIP_MM - EAR_FACE_SPARE_MM - faceDrop);
 
   let above = 0;
   for (let j = ring + 1; j <= nv; j++) above = Math.max(above, rings[j].r);
@@ -456,6 +513,8 @@ function slumpEars(
       wallMm: rings[ring + 1].r,
       wallZ: rings[ring + 1].z,
       seatInMm,
+      faceZ,
+      depthMm,
       legReach,
       slotReach,
       reach,
@@ -572,6 +631,182 @@ export function legDistance(u: number): number {
 }
 
 /**
+ * The screw clamps — a lug on the mold and a tab on the punch beside each
+ * ear — in the mm of the print (after the shrinkage: the screws and stops
+ * do not shrink) and in the mold's frame with the punch pressed down.
+ *
+ * Both are prisms of the convex hull, in plan, of a boss round the screw's
+ * axis and of the side of the ear (the leg) they lean on. The lug leans on the
+ * ear's cheek, its boss BOSS_IN_CHEEK_MM into it, and touches the wall only
+ * by the ear; the cheek is cut down to the seat round the stop. The lug is
+ * cut back off the cavity (`cavity`: the relief plus half a shell, so its
+ * face lies inside the wall) and off the clay hanging over the rim (inside
+ * `seatInMm` above the ears' top, `shelfZ`). Its underside leans on the ear
+ * at 45° (`footZ`, `support`): the mold prints standing without supports.
+ * Its seat is exactly PAD_GAP_MM
+ * under the tab, the tab TAB_T_MM thick, the thread under the seat
+ * LUG_THREAD_MM long: one set of screws and stops fits every mold.
+ */
+export interface ScrewLayout {
+  /** centres of the ears the lugs lean on, radians */
+  ears: number[];
+  /** the screws' axes: their angles and radius */
+  angles: number[];
+  axisMm: number;
+  /** inside it the clay hangs over the rim */
+  seatInMm: number;
+  /** the ears' top: the clay may lie on what is no higher */
+  shelfZ: number;
+  /**
+   * The lug's top (the stop stands on it); LUG_THREAD_MM under it, `lugBottomZ`;
+   * the thread is whole from `threadZ` up — there or higher, where the ear's
+   * 45° envelope holds the hole, never fewer than LUG_THREAD_MIN_MM; under
+   * it a plain bore.
+   */
+  seatZ: number;
+  lugBottomZ: number;
+  threadZ: number;
+  /**
+   * The lug's underside, so that it prints without supports: it rises at 45°
+   * away from the ear's side — from `footZ` at the side's plane — and stays
+   * within `support`, the ear's outline widened upwards at 45°.
+   */
+  footZ: number;
+  support: RZ[];
+  /** the lug leans on the ear this angle inside its side */
+  inCheek: number;
+  /** the tab: its top is the punch's flange top, flat on the bed in print */
+  tabTopZ: number;
+  tabBottomZ: number;
+  /** underside of the punch's flange over the clay */
+  flangeZ: number;
+  /** the slot's cheeks reach this high: the tab clears them */
+  cheekZ: number;
+  /** angles from an ear's centre: the leg's side, the slot's edge, the cheek's outer side */
+  legSide: number;
+  slotSide: number;
+  earSide: number;
+  /** outer radius of the ear and of the leg's flange */
+  earOuterMm: number;
+  legOuterMm: number;
+  /** radius inside the punch's flange ring the tab holds on to */
+  bodyMm: number;
+  /** a lug reaches this deep in plan before the cavity is cut off it */
+  innerMm: number;
+  /** the region a lug keeps out of, as an axial section from the axis: the cavity with its relief, half a shell more */
+  cavity: RZ[];
+}
+
+/** Radius of the boss round a screw's axis — the lug's and the tab's; the stop stands on it whole. */
+export const BOSS_R_MM = PAD.d / 2;
+/** How far a lug's boss goes into the ear's cheek, mm: the lug leans on the ear, not on the wall. */
+export const BOSS_IN_CHEEK_MM = 2;
+/** Step in height of the lug's support envelope, mm. */
+const SUPPORT_STEP_MM = 0.25;
+/** The threaded hole with a millimetre of wall round it: what the ear's envelope must hold, mm from the axis. */
+const HOLE_WALL_R_MM = THREAD.d / 2 + THREAD_FIT_MM + 1;
+
+export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
+  const grow = 1 + options.shrinkPct / 100;
+  const pitch = (2 * Math.PI) / PUNCH_LEGS;
+  const { ear } = fit;
+  const outer = fit.outer.map(({ r, z }) => ({ r: r * grow, z: z * grow }));
+  const punch = punchLayout(source, options, fit);
+
+  const tabTopZ = (punch.flangeZ + punch.flangeT) * grow;
+  const tabBottomZ = tabTopZ - TAB_T_MM;
+  const seatZ = tabBottomZ - PAD_GAP_MM;
+  const lugBottomZ = seatZ - LUG_THREAD_MM;
+  const seatInMm = ear.seatInMm * grow;
+  let below = 0;
+  for (const ring of outer) if (ring.z <= seatZ) below = Math.max(below, ring.r);
+  // the stop outside the clay; a screw turned in from below passes the mold's wall with its head
+  const axisMm = Math.max(seatInMm + BOSS_R_MM, below + SCREW.headD / 2 + 1);
+  // beside the ear, the boss a little into its cheek: the cheek is cut round the stop
+  // (lugSolids), and the head of a screw from below passes far under the ear
+  const ears = Array.from({ length: PUNCH_LEGS }, (_, i) => -Math.PI / 2 + i * pitch);
+  const angles = ears.map((c) => c + ear.reach + Math.asin(Math.min(1, (BOSS_R_MM - BOSS_IN_CHEEK_MM) / axisMm)));
+
+  const sink = (options.shellMm * grow) / 2;
+  const cavity: RZ[] = [{ r: 0, z: -1 }];
+  for (let i = 0; i <= INSET_SAMPLES; i++) {
+    const v = i / INSET_SAMPLES;
+    const r = (source.radiusAt(v) + source.outwardMm) * grow + sink;
+    const z = (v * source.heightMm + options.shellMm) * grow;
+    if (i === 0) cavity.push({ r, z: -1 });
+    cavity.push({ r, z });
+  }
+  const high = tabTopZ + 100;
+  cavity.push({ r: cavity[cavity.length - 1].r, z: high }, { r: 0, z: high });
+  // The underside rises at 45° away from the ear's side, from footZ at the
+  // side's plane — deep enough for the whole thread under the hole's far
+  // edge — and stays within `support`: the ear's outline (under its face a
+  // 45° chamfer, on a gentle wall a rib along it, slumpEars) widened upwards
+  // at 45°. Whatever lies in it leans on the ear; the ear's face goes as low
+  // as the boss needs (earShortfall).
+  const inCheek = (ear.reach - ear.slotReach) / 2;
+  const wallAt = (z: number): number => {
+    let r = fit.outer[0].r;
+    for (let j = 1; j < fit.outer.length; j++) {
+      const a = fit.outer[j - 1];
+      const b = fit.outer[j];
+      if (z < a.z || z > b.z) continue;
+      r = b.z > a.z ? a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z) : Math.max(a.r, b.r);
+    }
+    return r;
+  };
+  const earAt = (z: number): number => Math.min(ear.outerMm - Math.max(0, ear.faceZ - z), wallAt(z) + ear.depthMm) * grow;
+  const toAxis = BOSS_R_MM - BOSS_IN_CHEEK_MM;
+  const from = Math.max(0, lugBottomZ - toAxis - THREAD.d / 2 - THREAD_FIT_MM - 2);
+  const support: RZ[] = [{ r: 0, z: from }];
+  let widest = 0;
+  for (let z = from; z <= seatZ + 1 + 1e-9; z += SUPPORT_STEP_MM) {
+    widest = Math.max(support.length === 1 ? 0 : widest + SUPPORT_STEP_MM, earAt(z / grow));
+    support.push({ r: widest, z });
+  }
+  support.push({ r: 0, z: support[support.length - 1].z });
+  // the thread starts where the envelope holds the hole with its wall
+  const holds = support.find((p) => p.z > from && p.r >= axisMm + HOLE_WALL_R_MM);
+  const threadZ = Math.min(seatZ - LUG_THREAD_MIN_MM, Math.max(lugBottomZ, holds ? holds.z : seatZ));
+  // Where even the lowered face cannot hold it (a belly pushes the axis far
+  // out, a narrowing neck thins the ear above its face) the hole keeps its
+  // wall anyway: that ring overhangs, but the thread stays whole.
+  for (const p of support) if (p.r > 0 && p.z >= threadZ) p.r = Math.max(p.r, axisMm + HOLE_WALL_R_MM);
+  // deep enough at the ear's side for the whole thread under the hole's far edge
+  const footZ = threadZ - toAxis - THREAD.d / 2 - THREAD_FIT_MM;
+
+  let innerMm = Infinity;
+  for (const p of cavity) if (p.r > 0 && p.z >= footZ && p.z <= seatZ) innerMm = Math.min(innerMm, p.r);
+  if (!Number.isFinite(innerMm)) innerMm = seatInMm - 2;
+
+  return {
+    ears,
+    angles,
+    axisMm,
+    seatInMm,
+    shelfZ: ear.topZ * grow,
+    seatZ,
+    lugBottomZ,
+    threadZ,
+    footZ,
+    support,
+    inCheek,
+    tabTopZ,
+    tabBottomZ,
+    flangeZ: punch.flangeZ * grow,
+    cheekZ: ear.cheekZ * grow,
+    legSide: ear.legReach,
+    slotSide: ear.slotReach,
+    earSide: ear.reach,
+    earOuterMm: ear.outerMm * grow,
+    legOuterMm: punch.flangeMm * grow,
+    bodyMm: fit.rimMm * grow,
+    innerMm: innerMm - 1,
+    cavity,
+  };
+}
+
+/**
  * A polyline moved into the material (to the left going up) by `d`, with the
  * same limits a cavity has: not below the floor (a point under it is dropped
  * and the crossing with the floor interpolated), not below the previous one
@@ -589,6 +824,8 @@ function offsetPolyline(points: readonly { r: number; z: number }[], d: number, 
     const len = Math.hypot(dr, dz) || 1;
     // the outward normal of a polyline going up with the material on the left: (dz, −dr)
     const raw = { r: points[k].r - (d * dz) / len, z: points[k].z + (d * dr) / len };
+    // a loop of the offset where the polyline bends tighter than d: dropped
+    if (raw.z >= floorZ && tooNear(points, raw, d)) continue;
     if (raw.z < floorZ) {
       below = raw;
       continue;
@@ -605,12 +842,24 @@ function offsetPolyline(points: readonly { r: number; z: number }[], d: number, 
       return out;
     }
     previous = z;
+    if (out.length > 0 && coincide(out[out.length - 1], { r: raw.r, z })) continue;
     out.push({ r: raw.r, z });
   }
   return out;
 }
 
 type RZ = { r: number; z: number };
+
+/**
+ * Two points of an offset this close are one: a pair a hair apart (a point
+ * held at the previous height next to its neighbour) made needle triangles.
+ */
+const coincide = (a: RZ, b: RZ): boolean => Math.hypot(a.r - b.r, a.z - b.z) < 1e-4;
+
+/** A point of an offset by `d` that came nearer than `d` to the curve it was moved from. */
+function tooNear(curve: readonly RZ[], p: RZ, d: number): boolean {
+  return nearestOn(curve, p).distance < d * (1 - 1e-3) - 1e-6;
+}
 
 /** Distance from a point to a polyline in the axial section and the nearest point on it. */
 function nearestOn(points: readonly RZ[], p: RZ): { distance: number; point: RZ; segment: number } {
@@ -698,6 +947,49 @@ function fromVent(points: RZ[], ventMm: number): RZ[] {
 }
 
 /**
+ * The punch's axial section in the mold's frame, before the shrinkage: the
+ * working surface from the vent (or the edge of the rounded bottom) up, the
+ * arc round the mold's rim to the flange, and the inner shell from the vent
+ * up to the rim.
+ */
+export function punchSection(source: PressSource, options: PressOptions, fit: SlumpFit): { surface: RZ[]; arc: RZ[]; inner: RZ[] } {
+  const { heightMm, radiusAt } = source;
+  const { shellMm, roundPct } = options;
+  const { slabMm, flangeZ } = punchLayout(source, options, fit);
+  const vent = fit.ventMm / 2;
+
+  // The working surface in the piece's frame, without a cap at the rim: for
+  // a flared rim its end is above the mold's rim, and an arc goes from there round the rim.
+  const work = offsetSamples(radiusAt, heightMm, slabMm, slabMm, Infinity);
+  const lift = (p: RZ): RZ => ({ r: p.r, z: p.z + shellMm });
+  const wall = [{ r: work.floorR, z: slabMm }, ...work.samples].map(lift);
+  const floorZ = shellMm + slabMm;
+  // the rounding's arc ends where it touches the wall — at times right on a wall's point
+  const surface = roundBottom(wall, floorZ, roundPct / 100, vent).filter((p, k, all) => k === 0 || !coincide(all[k - 1], p));
+
+  // An arc of the slab's radius round the mold's rim: an honest offset of the
+  // wall–rim corner, the clay in the corner as thick as everywhere. It goes
+  // over the inside of the rim: when the working surface ends below the rim
+  // (a rounded lip curls in), the angle is below −90° and the plain way to
+  // +90° went round the outside, through the mold's wall — a torus.
+  const top = surface[surface.length - 1];
+  let from = Math.atan2(top.z - fit.rimZ, top.r - fit.rimMm);
+  if (from < -Math.PI / 2) from += 2 * Math.PI;
+  const arc: RZ[] = [];
+  const to = Math.PI / 2;
+  for (let k = 1; k <= PUNCH_ARC_STEPS; k++) {
+    const a = from + ((to - from) * k) / PUNCH_ARC_STEPS;
+    arc.push({ r: fit.rimMm + slabMm * Math.cos(a), z: fit.rimZ + slabMm * Math.sin(a) });
+  }
+  arc[arc.length - 1] = { r: fit.rimMm, z: flangeZ };
+
+  // The inner shell — the working surface moved by one more shell up to the
+  // rim; above it a vertical up to the flange's top.
+  const inner = fromVent(offsetPolyline(surface, shellMm, floorZ + shellMm, fit.rimZ), vent);
+  return { surface, arc, inner };
+}
+
+/**
  * The punch for the dished mold: goes into the mold from above and presses
  * the slab against its working surface so that there is exactly the slab
  * between them everywhere.
@@ -720,38 +1012,16 @@ function fromVent(points: RZ[], ventMm: number): RZ[] {
  * the shrinkage, as the mold is.
  */
 export function buildPunch(source: PressSource, options: PressOptions, fit: SlumpFit): SurfaceMesh {
-  const { heightMm, radiusAt } = source;
   const { nu } = source.grid;
-  const { shellMm, shrinkPct, roundPct } = options;
+  const { shrinkPct } = options;
   const layout = punchLayout(source, options, fit);
   const { slabMm, lipInMm, lipZ, flangeMm, flangeZ, legReach: reach } = layout;
   const { ear } = fit;
   const flangeTop = flangeZ + layout.flangeT;
   const vent = fit.ventMm / 2;
+  const floorZ = options.shellMm + slabMm;
 
-  // The working surface in the piece's frame, without a cap at the rim: for
-  // a flared rim its end is above the mold's rim, and an arc goes from there round the rim.
-  const work = offsetSamples(radiusAt, heightMm, slabMm, slabMm, Infinity);
-  const lift = (p: { r: number; z: number }): { r: number; z: number } => ({ r: p.r, z: p.z + shellMm });
-  const wall = [{ r: work.floorR, z: slabMm }, ...work.samples].map(lift);
-  const floorZ = shellMm + slabMm;
-  const surface = roundBottom(wall, floorZ, roundPct / 100, vent);
-
-  // An arc of the slab's radius round the mold's rim: an honest offset of the
-  // wall–rim corner, the clay in the corner as thick as everywhere.
-  const top = surface[surface.length - 1];
-  const from = Math.atan2(top.z - fit.rimZ, top.r - fit.rimMm);
-  const arc: { r: number; z: number }[] = [];
-  const to = Math.PI / 2;
-  for (let k = 1; k <= PUNCH_ARC_STEPS; k++) {
-    const a = from + ((to - from) * k) / PUNCH_ARC_STEPS;
-    arc.push({ r: fit.rimMm + slabMm * Math.cos(a), z: fit.rimZ + slabMm * Math.sin(a) });
-  }
-  arc[arc.length - 1] = { r: fit.rimMm, z: flangeZ };
-
-  // The inner shell — the working surface moved by one more shell up to the
-  // rim; above it a vertical up to the flange's top.
-  const inner = fromVent(offsetPolyline(surface, shellMm, floorZ + shellMm, fit.rimZ), vent);
+  const { surface, arc, inner } = punchSection(source, options, fit);
   const shellTop = inner[inner.length - 1];
 
   // The flange and the legs. In the legs' sectors the points of the flange's

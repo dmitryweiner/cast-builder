@@ -1,5 +1,6 @@
 // Browser smoke of the real app: the sample model through every mode, its
-// thumbnail, an STL opened from a file (a hollow print gets filled),
+// thumbnail, an STL opened from a file (a hollow print gets filled), a
+// slump mold with screw clamps and its printed screws and stops,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
 // the model turned and spun by a preset, language detection and memory, the
 // panel as a sheet and no horizontal scroll on a phone, no console errors. With --preview it runs against a fresh
@@ -55,6 +56,30 @@ async function thumbPixels(page) {
     }
     return count;
   });
+}
+
+/** Connected pieces of a binary STL: triangles sharing a vertex (welded by its exact coordinates) are one piece. */
+function stlBodies(buffer) {
+  const count = buffer.readUInt32LE(80);
+  const ids = new Map();
+  const parent = [];
+  const find = (i) => {
+    while (parent[i] !== i) i = parent[i] = parent[parent[i]];
+    return i;
+  };
+  for (let t = 0; t < count; t++) {
+    const base = 84 + t * 50 + 12;
+    const corners = [0, 1, 2].map((k) => {
+      const key = buffer.subarray(base + k * 12, base + k * 12 + 12).toString('hex');
+      if (!ids.has(key)) {
+        ids.set(key, parent.length);
+        parent.push(parent.length);
+      }
+      return ids.get(key);
+    });
+    for (const corner of corners.slice(1)) parent[find(corner)] = find(corners[0]);
+  }
+  return new Set(parent.map((_, i) => find(i))).size;
 }
 
 /** Clicks a tab and waits for the parts of the new mode. */
@@ -138,6 +163,28 @@ try {
     check(downloads[0].suggestedFilename() === 'cup-hollow-master.stl', `file named ${downloads[0].suggestedFilename()}`);
     const size = readFileSync(await downloads[0].path()).length;
     check(size > 84 + 50 * 1000, `the STL is only ${size} bytes`);
+    await context.close();
+  });
+
+  await step('a bowl as a slump mold with screw clamps: the screws and stops come in the same STL', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('bowl'));
+    await mode(page, '#tabSlump', 1);
+    check(!(await page.locator('#mold_printScrews').isVisible()), 'the print box is shown with the clamps off');
+    const plain = await page.locator('#partList li').first().textContent();
+    await page.check('#mold_screws');
+    check(await page.locator('#mold_printScrews').isVisible(), 'no print box with the clamps on');
+    await page.check('#mold_printScrews');
+    // the screws and stops stand beside the punch: the part grows along x
+    await page.waitForFunction((before) => document.querySelector('#partList li')?.textContent !== before, plain, { timeout: 60000 });
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    await page.click('#exportBtn');
+    await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    check(downloads.length === 1, `${downloads.length} downloads instead of 1`);
+    const pieces = stlBodies(readFileSync(await downloads[0].path()));
+    check(pieces === 8, `${pieces} pieces in the STL instead of mold, punch, 3 screws and 3 stops`);
     await context.close();
   });
 
