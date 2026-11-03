@@ -41,6 +41,20 @@ describe('solidify', () => {
     expect(result.rim?.radiusMm).toBeCloseTo(rim, 0);
   });
 
+  it('finds the mouth of a hollow teapot at the rim, not at the higher tip of the spout', () => {
+    const result = solidify(csg, scope, solidOf('teapot-hollow'));
+    expect(solidOf('teapot-hollow').boundingBox().max[2]).toBeGreaterThan(124);
+    expect(result.rim?.zMm).toBeCloseTo(120, 1);
+    // the outer radius of the rim: the body's vertices near the top, the spout left out
+    const { positions } = placeModel(fixture('teapot-hollow'), defaultOrientation());
+    let rim = 0;
+    for (let i = 0; i < positions.length; i += 3) {
+      const r = Math.hypot(positions[i], positions[i + 1]);
+      if (positions[i + 2] > 118 && r < 80) rim = Math.max(rim, r);
+    }
+    expect(result.rim?.radiusMm).toBeCloseTo(rim, 0);
+  });
+
   it('drops a closed void inside a model', () => {
     const outer = scope.keep(csg.Manifold.cube([40, 40, 40], true));
     const inner = scope.keep(csg.Manifold.cube([20, 20, 20], true));
