@@ -16,7 +16,8 @@ export type MessageCode =
   | 'mold.noPlug'
   | 'press.undercut'
   | 'press.notRound'
-  // the loaded model (solidify, model)
+  // the loaded model (pieces, solidify, model)
+  | 'model.pieces'
   | 'model.notSolid'
   | 'model.filled'
   | 'model.openTop'

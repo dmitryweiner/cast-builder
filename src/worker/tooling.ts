@@ -7,6 +7,7 @@ import type { Message } from '../geo/message';
 import { guessMouth, gateRadius } from '../geo/mouth';
 import type { Mouth } from '../geo/mouth';
 import { solidify } from '../geo/solidify';
+import { bodies } from '../geo/pieces';
 import { meshSource } from '../geo/revolve';
 import { buildPunch, buildSlumpShell } from '../geo/press';
 import type { PressOptions } from '../geo/press';
@@ -76,6 +77,9 @@ class Progress {
 }
 
 export function runJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void = () => {}): JobResult {
+  // one piece per mold, whatever the mode: "Lid beside" in Clayform makes two
+  const pieces = bodies(job.model);
+  if (pieces > 1) return { parts: [], info: { ...emptyInfo(), blocking: [{ code: 'model.pieces', params: { n: pieces } }] } };
   return job.mode === 'slump' ? slumpJob(job, onProgress) : moldJob(csg, job, onProgress);
 }
 

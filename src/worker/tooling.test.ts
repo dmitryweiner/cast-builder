@@ -69,6 +69,14 @@ describe('runJob', () => {
     expect(info.blocking.map((m) => m.code)).toEqual(['model.notSolid']);
   });
 
+  it('refuses two pieces in one file in every mode', () => {
+    for (const mode of ['master', 'bath', 'slump'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('teapot-lid-beside', { mode }));
+      expect(parts, mode).toEqual([]);
+      expect(info.blocking, mode).toEqual([{ code: 'model.pieces', params: { n: 2 } }]);
+    }
+  });
+
   it('takes the parting picked by hand and a mouth set by hand', () => {
     const { parts, info } = runJob(
       csg,

@@ -32,6 +32,8 @@ export const en = {
   'ctl.spin.hint': 'about the vertical axis, degrees',
 
   'model.info': '{name} · {dims} mm · {k}k triangles',
+  'model.pieces':
+    'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid beside”.',
   'model.notSolid': 'The model is not a closed solid: it has holes or loose edges. Repair it in the program it came from.',
   'model.filled': 'The model was hollow: its inside is filled, the plaster only sees the outside.',
   'model.openTop':
