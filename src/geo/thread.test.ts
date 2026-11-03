@@ -1,0 +1,78 @@
+// The printed screw of the slump mold's clamps and its thread: the sizes
+// that make one set of screws and stops serve every mold.
+
+import { describe, expect, it } from 'vitest';
+import {
+  CLEAR_HOLE_MM,
+  LUG_THREAD_MM,
+  PAD,
+  PAD_GAP_MM,
+  PETAL_T_MM,
+  SCREW,
+  THREAD,
+  THREAD_FIT_MM,
+  minorRadius,
+  threadPoints,
+  threadSection,
+} from './thread';
+
+describe('thread', () => {
+  it('is M10 × 2, a 60° profile half a pitch deep', () => {
+    expect(THREAD.d).toBe(10);
+    expect(THREAD.pitch).toBe(2);
+    expect(minorRadius(THREAD)).toBeCloseTo(4);
+  });
+
+  it('a printed screw in a printed hole still bites: the flanks overlap by more than 0.6 mm', () => {
+    const overlap = THREAD.d / 2 - (minorRadius(THREAD) + THREAD_FIT_MM);
+    expect(overlap).toBeGreaterThan(0.6);
+  });
+
+  it('the section lies between the minor and the major radius, grown by the fit, and reaches both', () => {
+    for (const grow of [0, THREAD_FIT_MM]) {
+      const radii = threadSection(THREAD, grow, 48).map(([x, y]) => Math.hypot(x, y));
+      expect(radii).toHaveLength(48);
+      expect(Math.min(...radii)).toBeCloseTo(minorRadius(THREAD) + grow, 6);
+      expect(Math.max(...radii)).toBeCloseTo(THREAD.d / 2 + grow, 6);
+    }
+  });
+
+  it('the section goes counter-clockwise (screwSolids checks that the twist makes it right-hand)', () => {
+    const section = threadSection(THREAD, 0, 48);
+    let area = 0;
+    section.forEach(([x0, y0], i) => {
+      const [x1, y1] = section[(i + 1) % section.length];
+      area += x0 * y1 - x1 * y0;
+    });
+    expect(area).toBeGreaterThan(0);
+  });
+
+  it('a preview takes fewer points per turn than an export', () => {
+    expect(threadPoints(false)).toBe(16);
+    expect(threadPoints(true)).toBe(48);
+  });
+});
+
+describe('screw, petal, stop', () => {
+  it('the screw passes the petal’s hole freely', () => {
+    expect(CLEAR_HOLE_MM - THREAD.d).toBeGreaterThanOrEqual(0.8);
+    expect(SCREW.headD).toBeGreaterThan(CLEAR_HOLE_MM + 8);
+  });
+
+  it('the shank crosses the petal and the gap and takes all the lug’s thread, with travel to spare', () => {
+    const pressed = PETAL_T_MM + PAD_GAP_MM + LUG_THREAD_MM;
+    expect(SCREW.shank).toBeGreaterThanOrEqual(pressed + 8);
+  });
+
+  it('the stop fits the gap, its boss enters the petal’s hole and the screw’s tip sits in its dimple', () => {
+    expect(PAD.h).toBeLessThan(PAD_GAP_MM);
+    expect(PAD_GAP_MM - PAD.h).toBeLessThanOrEqual(0.5);
+    expect(PAD.bossD).toBeLessThan(CLEAR_HOLE_MM);
+    expect(CLEAR_HOLE_MM - PAD.bossD).toBeLessThanOrEqual(0.8);
+    expect(PAD.bossH).toBeLessThan(PETAL_T_MM);
+    // the tip is chamfered from the major radius down to SCREW.tipR: it enters the dimple and stops on its cone
+    expect(PAD.dimpleD / 2).toBeGreaterThan(SCREW.tipR);
+    expect(PAD.dimpleD / 2).toBeLessThan(THREAD.d / 2);
+    expect(PAD.dimpleDepth).toBeLessThan(PAD.h / 2);
+  });
+});
