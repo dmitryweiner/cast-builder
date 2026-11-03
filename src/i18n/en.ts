@@ -20,7 +20,7 @@ export const en = {
   'panel.model': 'Model',
   'panel.tooling': 'Tooling',
   'panel.mouth': 'Mouth and parting',
-  'panel.export': 'Export',
+  'panel.open': 'Settings',
 
   'turn.x': 'Turn about X',
   'turn.y': 'Turn about Y',

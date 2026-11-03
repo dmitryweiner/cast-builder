@@ -24,7 +24,8 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
 - `npm run check` — typecheck + oxlint + prettier + unit tests. Must pass before
   any work is called done.
 - `npm run smoke` — browser smoke on the dev server: the sample through every
-  mode, a file upload, real downloads, turning, languages, phone width;
+  mode, the thumbnail, a file upload, real downloads, turning and spin
+  presets, languages, the phone sheet and width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
   included); `-- --shots` saves screenshots to `shots/`. Each step prints its time.
 - `npm run build` — typecheck and build into `dist/`.
@@ -86,8 +87,11 @@ Regenerate them only on purpose.
 - `src/worker/` — `tooling.ts` runs one job (tested in node), `csg.worker.ts`
   is its thin adapter, `client.ts` the main thread's queue, `protocol.ts` the
   types of both sides.
-- `src/render/scene.ts` — Three.js view. `src/ui/` — controls, progress bar,
-  typed DOM access (`dom.ts`).
+- `src/render/` — Three.js: `scene.ts` the main view (tooling only, orbit
+  camera), `thumb.ts` the model thumbnail in the Model card (drawn once per
+  change, no controls), `look.ts` their shared colours and lights. `src/ui/`
+  — controls (a range may carry preset buttons), progress bar, the panel as
+  a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
 - `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
@@ -106,6 +110,9 @@ Regenerate them only on purpose.
 
 - `plans/TODO-SOLID.md` — what Clayform's printable export needs here.
 - `plans/PLAN-SOLID.md` — how it was done, decisions and results.
+- `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
+  `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
+  burgundy theme, the model thumbnail).
 
 ## Architectural invariants
 

@@ -9,21 +9,21 @@
     />
     <title>Cast Builder</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <meta name="theme-color" content="#17130f" />
+    <meta name="theme-color" content="#221719" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script type="module" src="./src/main.ts"></script>
   </head>
   <body>
-    <header class="topbar">
-      <span class="brand"
-        ><b data-i18n="title">Cast Builder</b> <span class="tagline" data-i18n="tagline">molds from a ready STL</span></span
-      >
-      <span class="topbar-actions">
+    <div id="app">
+      <header id="topbar">
+        <span class="brand"
+          ><b data-i18n="title">Cast Builder</b> <span class="tagline" data-i18n="tagline">molds from a ready STL</span></span
+        >
         <button
           id="openBtn"
           type="button"
-          class="btn primary"
+          class="tb-btn primary"
           data-i18n="open"
           data-i18n-title="open.title"
           title="Open an STL file of the piece"
@@ -31,76 +31,137 @@
           Open STL
         </button>
         <input id="fileInput" type="file" accept=".stl,model/stl,application/sla" hidden />
+        <span class="tb-spacer"></span>
         <select id="locale" aria-label="Language" data-i18n-label="languageLabel">
           <option value="en" lang="en">English</option>
           <option value="ru" lang="ru">Русский</option>
         </select>
-      </span>
-    </header>
-    <main class="layout">
-      <section id="stage" class="stage">
-        <canvas id="view"></canvas>
-        <div id="empty" class="empty">
-          <h1 data-i18n="drop.title">Bring a ready piece</h1>
-          <p data-i18n="drop.hint">
-            Drop an STL here or open one. Units are millimetres, the axis of the piece goes up; a hollow print is filled by itself.
-          </p>
-          <button id="exampleBtn" type="button" class="btn" data-i18n="example">Try a sample teapot</button>
-        </div>
-        <div id="progressWrap" class="progress" hidden>
-          <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
-          <span id="progressLabel"></span>
-        </div>
-      </section>
-      <aside id="panel" class="panel">
-        <section class="card">
-          <h2 data-i18n="panel.model">Model</h2>
-          <p id="modelInfo" class="note"></p>
-          <div class="buttons">
-            <button id="turnX" type="button" class="btn" data-i18n="turn.x">Turn about X</button>
-            <button id="turnY" type="button" class="btn" data-i18n="turn.y">Turn about Y</button>
-            <button id="turnFlip" type="button" class="btn" data-i18n="turn.flip">Upside down</button>
-            <button id="turnReset" type="button" class="btn" data-i18n="turn.reset">Reset</button>
+      </header>
+      <div id="content">
+        <aside id="panel" class="open">
+          <section class="card">
+            <h2 data-i18n="panel.model">Model</h2>
+            <canvas id="thumb" class="thumb" hidden></canvas>
+            <p id="modelInfo" class="note"></p>
+            <div class="icon-buttons">
+              <button
+                id="turnX"
+                type="button"
+                class="icon-btn"
+                data-i18n-title="turn.x"
+                data-i18n-label="turn.x"
+                title="Turn about X"
+                aria-label="Turn about X"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path class="stroke" d="M16.25 4.64A8.5 8.5 0 1 1 7.75 4.64" />
+                  <polygon points="10.35,3.14 8.36,7.29 5.76,2.79" />
+                  <text x="12" y="15.6">X</text>
+                </svg>
+              </button>
+              <button
+                id="turnY"
+                type="button"
+                class="icon-btn"
+                data-i18n-title="turn.y"
+                data-i18n-label="turn.y"
+                title="Turn about Y"
+                aria-label="Turn about Y"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path class="stroke" d="M16.25 4.64A8.5 8.5 0 1 1 7.75 4.64" />
+                  <polygon points="10.35,3.14 8.36,7.29 5.76,2.79" />
+                  <text x="12" y="15.6">Y</text>
+                </svg>
+              </button>
+              <button
+                id="turnFlip"
+                type="button"
+                class="icon-btn"
+                data-i18n-title="turn.flip"
+                data-i18n-label="turn.flip"
+                title="Upside down"
+                aria-label="Upside down"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <polygon points="5,2.5 19,2.5 12,9.8" />
+                  <polygon class="hollow" points="5,21.5 19,21.5 12,14.2" />
+                  <path class="stroke dashed" d="M2 12h20" />
+                </svg>
+              </button>
+              <button
+                id="turnReset"
+                type="button"
+                class="icon-btn"
+                data-i18n-title="turn.reset"
+                data-i18n-label="turn.reset"
+                title="Reset"
+                aria-label="Reset"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path class="stroke" d="M7.75 4.64A8.5 8.5 0 1 0 16.25 4.64" />
+                  <polygon points="13.65,3.14 15.64,7.29 18.24,2.79" />
+                  <circle cx="12" cy="12" r="2.2" />
+                </svg>
+              </button>
+            </div>
+            <p class="note" data-i18n="turn.hint">
+              Stand the piece upright, then spin it so a handle or a spout lies along X, where the mold parts.
+            </p>
+            <div id="modelControls"></div>
+          </section>
+          <section class="card">
+            <h2 data-i18n="panel.tooling">Tooling</h2>
+            <div class="tabs" role="tablist">
+              <button id="tabMaster" type="button" class="tab" role="tab" data-i18n="tab.master" data-i18n-title="tab.master.title">
+                Master
+              </button>
+              <button id="tabBath" type="button" class="tab" role="tab" data-i18n="tab.bath" data-i18n-title="tab.bath.title">
+                Pour boxes
+              </button>
+              <button id="tabSlump" type="button" class="tab" role="tab" data-i18n="tab.slump" data-i18n-title="tab.slump.title">
+                Slump mold
+              </button>
+            </div>
+            <div id="toolingControls"></div>
+            <div id="mouthCard" class="sub">
+              <h3 class="sub-title" data-i18n="panel.mouth">Mouth and parting</h3>
+              <div id="mouthControls"></div>
+              <p id="mouthNote" class="note"></p>
+            </div>
+            <div class="sub">
+              <p id="schemeNote" class="note"></p>
+              <ul id="partList" class="parts"></ul>
+              <p id="warnings" class="warnings"></p>
+              <p id="blockers" class="blockers"></p>
+              <p id="audit" class="note"></p>
+              <button id="exportBtn" type="button" class="tb-btn primary wide" disabled>Export pour boxes</button>
+            </div>
+          </section>
+          <footer>
+            <a href="https://dmitryweiner.github.io/clayform/" data-i18n="clayform">Design a piece in Clayform</a>
+            · <a href="https://github.com/dmitryweiner/cast-builder" data-i18n="source">Source code</a> · GPL-3.0-or-later
+          </footer>
+        </aside>
+        <main id="stage" class="stage">
+          <canvas id="view"></canvas>
+          <div id="empty" class="empty">
+            <h1 data-i18n="drop.title">Bring a ready piece</h1>
+            <p data-i18n="drop.hint">
+              Drop an STL here or open one. Units are millimetres, the axis of the piece goes up; a hollow print is filled by itself.
+            </p>
+            <button id="exampleBtn" type="button" class="tb-btn" data-i18n="example">Try a sample teapot</button>
           </div>
-          <p class="note" data-i18n="turn.hint">
-            Stand the piece upright, then spin it so a handle or a spout lies along X, where the mold parts.
-          </p>
-          <div id="modelControls"></div>
-        </section>
-        <section class="card">
-          <h2 data-i18n="panel.tooling">Tooling</h2>
-          <div class="tabs" role="tablist">
-            <button id="tabMaster" type="button" class="tab" role="tab" data-i18n="tab.master" data-i18n-title="tab.master.title">
-              Master
-            </button>
-            <button id="tabBath" type="button" class="tab" role="tab" data-i18n="tab.bath" data-i18n-title="tab.bath.title">
-              Pour boxes
-            </button>
-            <button id="tabSlump" type="button" class="tab" role="tab" data-i18n="tab.slump" data-i18n-title="tab.slump.title">
-              Slump mold
-            </button>
+          <p id="stageNote" class="stage-note" aria-live="polite"></p>
+          <div id="progressWrap" class="progress" hidden>
+            <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+            <span id="progressLabel"></span>
           </div>
-          <div id="toolingControls"></div>
-        </section>
-        <section id="mouthCard" class="card">
-          <h2 data-i18n="panel.mouth">Mouth and parting</h2>
-          <div id="mouthControls"></div>
-          <p id="mouthNote" class="note"></p>
-        </section>
-        <section class="card">
-          <h2 data-i18n="panel.export">Export</h2>
-          <p id="schemeNote" class="note"></p>
-          <ul id="partList" class="parts"></ul>
-          <p id="warnings" class="warnings"></p>
-          <p id="blockers" class="blockers"></p>
-          <p id="audit" class="note"></p>
-          <button id="exportBtn" type="button" class="btn primary wide" disabled>Export pour boxes</button>
-        </section>
-      </aside>
-    </main>
-    <footer>
-      <a href="https://dmitryweiner.github.io/clayform/" data-i18n="clayform">Design a piece in Clayform</a>
-      · <a href="https://github.com/dmitryweiner/cast-builder" data-i18n="source">Source code</a> · GPL-3.0-or-later
-    </footer>
+          <button id="panelBtn" type="button" class="tb-btn panel-btn" hidden>
+            <span aria-hidden="true">⚙</span> <span data-i18n="panel.open">Settings</span>
+          </button>
+        </main>
+      </div>
+    </div>
   </body>
 </html>

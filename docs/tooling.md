@@ -7,13 +7,22 @@ and ASCII STL are read; the units are taken as millimetres. The model must
 be a closed solid — an STL with holes or loose edges is refused with a
 reason; repair it where it came from.
 
+The panel is on the left; on a phone it is a sheet over the view: a tap on
+the view hides it, **Settings** brings it back. The main view shows only
+the tooling. The model itself is the small picture in the **Model** card:
+seen from in front of the parting plane, X running left to right, with a
+line along X on the floor where the mold parts. It is not turned with the
+mouse — the buttons under it turn the model itself.
+
 The tooling assumes the piece stands upright with its axis vertical, and
 that a handle or a spout lies along X — the mold parts in the XZ plane.
 
-- **Turn about X / Y**, **Upside down** — quarter turns for a model that
-  comes lying on its side or upside down. **Reset** undoes them.
-- **Spin** — about the vertical axis, in 5° steps: put the handle and the
-  spout along X.
+- **Turn about X / Y**, **Upside down** (the icon buttons, named in their
+  tooltips) — quarter turns for a model that comes lying on its side or
+  upside down. **Reset** undoes them and the spin.
+- **Spin** — about the vertical axis, in 5° steps, or a quarter turn at
+  once by the **0° / 90° / 180° / 270°** buttons: put the handle and the
+  spout along X, left to right in the picture.
 
 The axis is found by the foot (the down-facing faces at the very bottom),
 so a handle does not pull it to one side; the model is dropped onto the
@@ -135,7 +144,8 @@ ears; lift the punch and trim the slab along the rim.
 
 ## Export
 
-The part list shows what the download will hold, with sizes. **Export**
+At the bottom of the **Tooling** card, under the settings of the chosen
+mode: the part list shows what the download will hold, with sizes. **Export**
 builds the parts at full detail, checks each mesh (closed, normals out) and
 downloads one STL per part, named after the model.
 
