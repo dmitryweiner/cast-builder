@@ -163,8 +163,16 @@ function offsetSamples(radiusAt: (v: number) => number, heightMm: number, wall: 
   let previous = floorZ;
   let below: { r: number; z: number } | null = null;
   let floorR = NaN;
+  // The silhouette with the floor: a point moved along its normal may still
+  // come nearer than `wall` to another part of it — where the curve bends
+  // tighter than `wall` (rings of relief, a sharp step) the moved points
+  // loop back. Those are dropped: the rest is the honest offset, with a
+  // corner where a loop was.
+  const curve = [{ r: 0, z: 0 }];
+  for (let i = 0; i <= INSET_SAMPLES; i++) curve.push({ r: radiusAt(i / INSET_SAMPLES), z: (i / INSET_SAMPLES) * heightMm });
   for (let i = 0; i <= INSET_SAMPLES; i++) {
     const point = offsetPoint(radiusAt, heightMm, wall, i / INSET_SAMPLES);
+    if (point.z >= floorZ && tooNear(curve, point, wall)) continue;
     const z = Math.min(Math.max(point.z, floorZ, previous), zMax);
     previous = z;
     // below the floor the offset lies under it: the floor takes its place
@@ -176,7 +184,9 @@ function offsetSamples(radiusAt: (v: number) => number, heightMm: number, wall: 
       const t = below && point.z > below.z ? (floorZ - below.z) / (point.z - below.z) : 1;
       floorR = below ? below.r + (point.r - below.r) * t : point.r;
     }
-    samples.push({ r: Math.max(MIN_RADIUS_MM, point.r), z });
+    const next = { r: Math.max(MIN_RADIUS_MM, point.r), z };
+    if (samples.length > 0 && coincide(samples[samples.length - 1], next)) continue;
+    samples.push(next);
   }
   return { samples, floorR: Math.max(MIN_RADIUS_MM, Number.isFinite(floorR) ? floorR : MIN_RADIUS_MM) };
 }
@@ -749,6 +759,8 @@ function offsetPolyline(points: readonly { r: number; z: number }[], d: number, 
     const len = Math.hypot(dr, dz) || 1;
     // the outward normal of a polyline going up with the material on the left: (dz, −dr)
     const raw = { r: points[k].r - (d * dz) / len, z: points[k].z + (d * dr) / len };
+    // a loop of the offset where the polyline bends tighter than d: dropped
+    if (raw.z >= floorZ && tooNear(points, raw, d)) continue;
     if (raw.z < floorZ) {
       below = raw;
       continue;
@@ -765,12 +777,24 @@ function offsetPolyline(points: readonly { r: number; z: number }[], d: number, 
       return out;
     }
     previous = z;
+    if (out.length > 0 && coincide(out[out.length - 1], { r: raw.r, z })) continue;
     out.push({ r: raw.r, z });
   }
   return out;
 }
 
 type RZ = { r: number; z: number };
+
+/**
+ * Two points of an offset this close are one: a pair a hair apart (a point
+ * held at the previous height next to its neighbour) made needle triangles.
+ */
+const coincide = (a: RZ, b: RZ): boolean => Math.hypot(a.r - b.r, a.z - b.z) < 1e-4;
+
+/** A point of an offset by `d` that came nearer than `d` to the curve it was moved from. */
+function tooNear(curve: readonly RZ[], p: RZ, d: number): boolean {
+  return nearestOn(curve, p).distance < d * (1 - 1e-3) - 1e-6;
+}
 
 /** Distance from a point to a polyline in the axial section and the nearest point on it. */
 function nearestOn(points: readonly RZ[], p: RZ): { distance: number; point: RZ; segment: number } {
@@ -858,6 +882,49 @@ function fromVent(points: RZ[], ventMm: number): RZ[] {
 }
 
 /**
+ * The punch's axial section in the mold's frame, before the shrinkage: the
+ * working surface from the vent (or the edge of the rounded bottom) up, the
+ * arc round the mold's rim to the flange, and the inner shell from the vent
+ * up to the rim.
+ */
+export function punchSection(source: PressSource, options: PressOptions, fit: SlumpFit): { surface: RZ[]; arc: RZ[]; inner: RZ[] } {
+  const { heightMm, radiusAt } = source;
+  const { shellMm, roundPct } = options;
+  const { slabMm, flangeZ } = punchLayout(source, options, fit);
+  const vent = fit.ventMm / 2;
+
+  // The working surface in the piece's frame, without a cap at the rim: for
+  // a flared rim its end is above the mold's rim, and an arc goes from there round the rim.
+  const work = offsetSamples(radiusAt, heightMm, slabMm, slabMm, Infinity);
+  const lift = (p: RZ): RZ => ({ r: p.r, z: p.z + shellMm });
+  const wall = [{ r: work.floorR, z: slabMm }, ...work.samples].map(lift);
+  const floorZ = shellMm + slabMm;
+  // the rounding's arc ends where it touches the wall — at times right on a wall's point
+  const surface = roundBottom(wall, floorZ, roundPct / 100, vent).filter((p, k, all) => k === 0 || !coincide(all[k - 1], p));
+
+  // An arc of the slab's radius round the mold's rim: an honest offset of the
+  // wall–rim corner, the clay in the corner as thick as everywhere. It goes
+  // over the inside of the rim: when the working surface ends below the rim
+  // (a rounded lip curls in), the angle is below −90° and the plain way to
+  // +90° went round the outside, through the mold's wall — a torus.
+  const top = surface[surface.length - 1];
+  let from = Math.atan2(top.z - fit.rimZ, top.r - fit.rimMm);
+  if (from < -Math.PI / 2) from += 2 * Math.PI;
+  const arc: RZ[] = [];
+  const to = Math.PI / 2;
+  for (let k = 1; k <= PUNCH_ARC_STEPS; k++) {
+    const a = from + ((to - from) * k) / PUNCH_ARC_STEPS;
+    arc.push({ r: fit.rimMm + slabMm * Math.cos(a), z: fit.rimZ + slabMm * Math.sin(a) });
+  }
+  arc[arc.length - 1] = { r: fit.rimMm, z: flangeZ };
+
+  // The inner shell — the working surface moved by one more shell up to the
+  // rim; above it a vertical up to the flange's top.
+  const inner = fromVent(offsetPolyline(surface, shellMm, floorZ + shellMm, fit.rimZ), vent);
+  return { surface, arc, inner };
+}
+
+/**
  * The punch for the dished mold: goes into the mold from above and presses
  * the slab against its working surface so that there is exactly the slab
  * between them everywhere.
@@ -880,38 +947,16 @@ function fromVent(points: RZ[], ventMm: number): RZ[] {
  * the shrinkage, as the mold is.
  */
 export function buildPunch(source: PressSource, options: PressOptions, fit: SlumpFit): SurfaceMesh {
-  const { heightMm, radiusAt } = source;
   const { nu } = source.grid;
-  const { shellMm, shrinkPct, roundPct } = options;
+  const { shrinkPct } = options;
   const layout = punchLayout(source, options, fit);
   const { slabMm, lipInMm, lipZ, flangeMm, flangeZ, legReach: reach } = layout;
   const { ear } = fit;
   const flangeTop = flangeZ + layout.flangeT;
   const vent = fit.ventMm / 2;
+  const floorZ = options.shellMm + slabMm;
 
-  // The working surface in the piece's frame, without a cap at the rim: for
-  // a flared rim its end is above the mold's rim, and an arc goes from there round the rim.
-  const work = offsetSamples(radiusAt, heightMm, slabMm, slabMm, Infinity);
-  const lift = (p: { r: number; z: number }): { r: number; z: number } => ({ r: p.r, z: p.z + shellMm });
-  const wall = [{ r: work.floorR, z: slabMm }, ...work.samples].map(lift);
-  const floorZ = shellMm + slabMm;
-  const surface = roundBottom(wall, floorZ, roundPct / 100, vent);
-
-  // An arc of the slab's radius round the mold's rim: an honest offset of the
-  // wall–rim corner, the clay in the corner as thick as everywhere.
-  const top = surface[surface.length - 1];
-  const from = Math.atan2(top.z - fit.rimZ, top.r - fit.rimMm);
-  const arc: { r: number; z: number }[] = [];
-  const to = Math.PI / 2;
-  for (let k = 1; k <= PUNCH_ARC_STEPS; k++) {
-    const a = from + ((to - from) * k) / PUNCH_ARC_STEPS;
-    arc.push({ r: fit.rimMm + slabMm * Math.cos(a), z: fit.rimZ + slabMm * Math.sin(a) });
-  }
-  arc[arc.length - 1] = { r: fit.rimMm, z: flangeZ };
-
-  // The inner shell — the working surface moved by one more shell up to the
-  // rim; above it a vertical up to the flange's top.
-  const inner = fromVent(offsetPolyline(surface, shellMm, floorZ + shellMm, fit.rimZ), vent);
+  const { surface, arc, inner } = punchSection(source, options, fit);
   const shellTop = inner[inner.length - 1];
 
   // The flange and the legs. In the legs' sectors the points of the flange's

@@ -15,6 +15,7 @@ import {
   PUNCH_CLEARANCE_MM,
   PUNCH_LEG_WIDTH_MM,
   punchLayout,
+  punchSection,
   screwLayout,
   slabThickness,
   VENT_MM,
@@ -683,5 +684,56 @@ describe('screw clamps', () => {
       if (lugDistance(Math.atan2(y, x), layout.angles) <= layout.halfAngle) reach = Math.max(reach, Math.hypot(x, y));
     }
     expect(reach).toBeLessThan(layout.seatInMm);
+  });
+});
+
+describe("the punch's section", () => {
+  type RZ = { r: number; z: number };
+  const distance = (curve: readonly RZ[], p: RZ): number => {
+    let best = Infinity;
+    for (let k = 0; k + 1 < curve.length; k++) {
+      const a = curve[k];
+      const b = curve[k + 1];
+      const dr = b.r - a.r;
+      const dz = b.z - a.z;
+      const t = Math.min(1, Math.max(0, ((p.r - a.r) * dr + (p.z - a.z) * dz) / (dr * dr + dz * dz || 1)));
+      best = Math.min(best, Math.hypot(p.r - a.r - dr * t, p.z - a.z - dz * t));
+    }
+    return best;
+  };
+  const H = 50;
+  const sectionOf = (silhouette: (v: number) => number, over: Partial<PressOptions> = {}) => {
+    const source = analyticSource((_, v) => silhouette(v), silhouette, H);
+    const { fit } = buildSlumpShell(source, options(over));
+    // the mold's working surface in its frame: the floor, then the silhouette lifted by the bottom
+    const mold: RZ[] = [{ r: 0, z: shell }];
+    for (let i = 0; i <= 1000; i++) mold.push({ r: silhouette(i / 1000), z: (i / 1000) * H + shell });
+    return { fit, mold, ...punchSection(source, options(over), fit) };
+  };
+
+  it('a rounded lip that curls in: the arc goes over the inside of the rim, not round its outside', () => {
+    // a wall straight up to the top, then a lip coming in by 1.2 mm over the last millimetre
+    const lip = (v: number): number => 40 - 1.2 * Math.max(0, 1 - (1 - v) * H) ** 2;
+    const { fit, surface, arc } = sectionOf(lip, { slabMm: 6 });
+    for (const p of [...surface, ...arc]) {
+      const outsideBelow = p.r > fit.rimMm + 1e-6 && p.z < fit.rimZ - 1e-6;
+      expect(outsideBelow, `(${p.r.toFixed(2)}, ${p.z.toFixed(2)})`).toBe(false);
+    }
+    for (const p of arc.slice(0, -1)) expect(Math.hypot(p.r - fit.rimMm, p.z - fit.rimZ)).toBeCloseTo(6, 6);
+  });
+
+  it('rings finer than the slab: no point nearer the mold than the slab, no shelves, the inner shell clear', () => {
+    const ringed = (v: number): number => 30 + 12 * v + 0.25 * Math.sin((2 * Math.PI * v * H) / 4.5);
+    for (const slabMm of [3, 6]) {
+      const { mold, surface, inner } = sectionOf(ringed, { slabMm });
+      for (const p of surface) expect(distance(mold, p), `slab ${slabMm} at z ${p.z.toFixed(2)}`).toBeGreaterThan(slabMm * 0.99);
+      const floorZ = shell + slabMm;
+      for (let k = 1; k < surface.length; k++) {
+        const shelf =
+          surface[k].z > floorZ + 1 && Math.abs(surface[k].z - surface[k - 1].z) < 1e-6 && Math.abs(surface[k].r - surface[k - 1].r) > 0.3;
+        expect(shelf, `slab ${slabMm}: a shelf at z ${surface[k].z.toFixed(2)}`).toBe(false);
+      }
+      for (const p of inner) expect(distance(surface, p), `slab ${slabMm}: inner at z ${p.z.toFixed(2)}`).toBeGreaterThan(shell * 0.99);
+    }
   });
 });

@@ -165,7 +165,10 @@ Regenerate them only on purpose.
   through hole (genus > 0) rules out a one-part mold.
 - The slump mold reads the model as a body of revolution (`meshSource`):
   rays from the axis take the outermost face per row and angle; the mean
-  radius per row is the silhouette the punch is built from; the lowest
+  radius per row, smoothed along the curve (σ 2.5 mm: relief running round
+  the piece does not cancel in the mean), is the silhouette the punch is
+  built from; the punch is its honest offset by the slab (points that come
+  nearer than the slab are dropped, never clamped into shelves); the lowest
   down-facing face over the foot is the relief of the mold's floor. A model
   that is not round gets a warning, not a refusal.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
