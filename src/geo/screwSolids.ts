@@ -127,10 +127,10 @@ function column(csg: CsgApi, scope: CsgScope, radius: number, z0: number, z1: nu
 }
 
 /**
- * The lugs of the mold, one beside each ear, in the corner between its
- * cheek and the wall (screwLayout): the hull of the boss and of points deep
- * in the cheek and the wall, from the bottom to the seat, cut back off the
- * cavity and off the clay over the rim, with a threaded hole through it.
+ * The lugs of the mold, one beside each ear (screwLayout): the hull of the
+ * boss and of the cheek's side down into the wall, from the bottom to the
+ * seat, cut back off the cavity and off the clay over the rim, with a
+ * threaded hole through it.
  */
 export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: number): Manifold {
   // only the heights of the lugs: the whole cavity made every preview twice as slow
@@ -160,15 +160,26 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   const inCheek = (layout.earSide - layout.slotSide) / 2;
   const blocks = layout.angles.map((angle, i) => {
     const side = layout.ears[i] + layout.earSide - inCheek;
-    const footprint = plan(csg, scope, layout, angle, [
-      polar(layout.innerMm, side),
-      polar(layout.earOuterMm - 0.5, side),
-      polar(layout.innerMm, angle),
-    ]);
+    const footprint = plan(csg, scope, layout, angle, [polar(layout.innerMm, side), polar(layout.earOuterMm - 0.5, side)]);
     return prism(scope, footprint, layout.lugBottomZ, layout.seatZ);
   });
   const holes = layout.angles.map((angle) => scope.keep(rod.translate([...polar(layout.axisMm, angle), 0])));
   return scope.keep(csg.Manifold.difference([scope.keep(csg.Manifold.union(blocks)), cavity, clay, ...holes]));
+}
+
+/**
+ * What is cut off the mold round each stop: the ear's cheek rises above the
+ * seat, and the boss stands in it. null when the cheeks end below the seat.
+ */
+export function cheekCuts(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold | null {
+  const top = layout.cheekZ + 2;
+  if (top <= layout.seatZ) return null;
+  const r = PAD.d / 2 + 0.5;
+  return scope.keep(
+    csg.Manifold.union(
+      layout.angles.map((angle) => column(csg, scope, r, layout.seatZ, top).translate([...polar(layout.axisMm, angle), 0])),
+    ),
+  );
 }
 
 /**

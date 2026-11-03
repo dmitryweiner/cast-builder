@@ -178,10 +178,12 @@ Regenerate them only on purpose.
   shrinkage: one printed set fits every mold. The lugs and tabs are built
   after the scaling, in the mm of the print, as prisms: in plan the hull of
   a boss and of the ear's (the leg's) side, flat top and bottom (the lug's
-  bottom needs supports). A lug is cut back off the cavity with half a
-  shell and off the clay over the rim; a tab off the clay under the flange
-  and off the ear's cheeks. An export fuses them on; a preview lays them
-  over unfused.
+  bottom needs supports). A lug's boss stands 2 mm into the ear's cheek,
+  and the cheek is cut down round the stop. A lug is cut back off the
+  cavity with half a shell and off the clay over the rim; a tab off the
+  clay under the flange and off the ear's cheeks. An export fuses them on;
+  a preview lays them over unfused (the cheeks' cut needs the shell's import
+  even there).
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 
@@ -190,17 +192,17 @@ Regenerate them only on purpose.
 Measured on an M1 Max in node (`runJob`), the clayform fixtures (5–16k
 triangles):
 
-| Job                                               | Time                                              |
-| ------------------------------------------------- | ------------------------------------------------- |
-| master (teapot)                                   | 30–50 ms                                          |
-| pour boxes, 2–3 parts (teapot, pot with a handle) | 1.1–1.6 s, half of it the void under the positive |
-| pour boxes, a hollow cup (fill included)          | 0.5 s                                             |
-| filling: a solid model / a hollow cup             | 5–10 ms / 25–35 ms                                |
-| filling a hollow teapot (spout tip included)      | 0.1 s; its master 0.15 s, its pour boxes 1.4 s    |
-| a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                    |
-| slump mold + punch, preview grid 128              | 0.03–0.1 s                                        |
-| slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                          |
-| the same with screw clamps (bowl, cup, vase…)     | preview 0.15–0.3 s; export 2.3–3.7 s              |
+| Job                                               | Time                                               |
+| ------------------------------------------------- | -------------------------------------------------- |
+| master (teapot)                                   | 30–50 ms                                           |
+| pour boxes, 2–3 parts (teapot, pot with a handle) | 1.1–1.6 s, half of it the void under the positive  |
+| pour boxes, a hollow cup (fill included)          | 0.5 s                                              |
+| filling: a solid model / a hollow cup             | 5–10 ms / 25–35 ms                                 |
+| filling a hollow teapot (spout tip included)      | 0.1 s; its master 0.15 s, its pour boxes 1.4 s     |
+| a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                     |
+| slump mold + punch, preview grid 128              | 0.03–0.1 s                                         |
+| slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                           |
+| the same with screw clamps (bowl, cup, vase…)     | preview 0.25–0.35 s (teapot 0.9 s); export 2.6–4 s |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
 deep, a waiting preview is replaced by a fresher one, an export never.

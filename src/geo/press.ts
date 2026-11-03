@@ -594,8 +594,9 @@ export function legDistance(u: number): number {
  *
  * Both are plain prisms: in plan the convex hull of a boss round the screw's
  * axis and of the side of the ear (the leg) it leans on, with flat tops and
- * bottoms — the lug's bottom needs supports in print. The lug stands in the
- * corner between the ear's cheek and the wall: it reaches into both and is
+ * bottoms — the lug's bottom needs supports in print. The lug leans on the
+ * ear's cheek, its boss BOSS_IN_CHEEK_MM into it, and touches the wall only
+ * by the ear; the cheek is cut down to the seat round the stop. The lug is
  * cut back off the cavity (`cavity`: the relief plus half a shell, so its
  * face lies inside the wall) and off the clay hanging over the rim (inside
  * `seatInMm` above the ears' top, `shelfZ`). Its seat is exactly PAD_GAP_MM
@@ -639,6 +640,8 @@ export interface ScrewLayout {
 
 /** Radius of the boss round a screw's axis — the lug's and the tab's; the stop stands on it whole. */
 export const BOSS_R_MM = PAD.d / 2;
+/** How far a lug's boss goes into the ear's cheek, mm: the lug leans on the ear, not on the wall. */
+export const BOSS_IN_CHEEK_MM = 2;
 
 export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
   const grow = 1 + options.shrinkPct / 100;
@@ -655,11 +658,11 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   let below = 0;
   for (const ring of outer) if (ring.z <= seatZ) below = Math.max(below, ring.r);
   // the stop outside the clay; a screw turned in from below passes the mold's wall with its head
-  const head = SCREW.headD / 2 + 1;
-  const axisMm = Math.max(seatInMm + BOSS_R_MM + 0.5, below + head);
-  // beside the ear: the head of a screw from below clears the ear's side
+  const axisMm = Math.max(seatInMm + BOSS_R_MM, below + SCREW.headD / 2 + 1);
+  // beside the ear, the boss a little into its cheek: the cheek is cut round the stop
+  // (lugSolids), and the head of a screw from below passes far under the ear
   const ears = Array.from({ length: PUNCH_LEGS }, (_, i) => -Math.PI / 2 + i * pitch);
-  const angles = ears.map((c) => c + ear.reach + Math.asin(Math.min(1, head / axisMm)));
+  const angles = ears.map((c) => c + ear.reach + Math.asin(Math.min(1, (BOSS_R_MM - BOSS_IN_CHEEK_MM) / axisMm)));
 
   const sink = (options.shellMm * grow) / 2;
   const cavity: RZ[] = [{ r: 0, z: -1 }];

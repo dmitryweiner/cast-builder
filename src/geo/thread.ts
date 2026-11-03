@@ -42,8 +42,11 @@ export const TAB_T_MM = 8;
 /** Gap between the tab of the pressed punch and the seat of the mold's lug, mm: the stop goes there. */
 export const PAD_GAP_MM = 10;
 
-/** Thread in a lug under its seat, at least, mm: one and a half diameters. */
-export const LUG_THREAD_MM = 16;
+/**
+ * Thread in a lug under its seat, mm: six turns. A lug is that high, so it is
+ * kept short — 16 mm (one and a half diameters) cost a third more plastic.
+ */
+export const LUG_THREAD_MM = 12;
 
 /**
  * The printed screw: a knurled thumb head with a slot, the threaded shank

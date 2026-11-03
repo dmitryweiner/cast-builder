@@ -250,6 +250,38 @@ describe('slumpTooling with screws', () => {
     scope.dispose();
   });
 
+  it('a screw turned in from below passes the mold: its shank under the lug, its head lower', () => {
+    for (const [name, slabMm] of [
+      ['bowl', 6],
+      ['cup', 2],
+      ['vase', 10],
+      ['pot', 6],
+    ] as const) {
+      const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
+      const options = { ...pressOptions({ ...defaultMold(), slabMm }), screws: true };
+      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
+      const layout = built.layout;
+      if (!layout) throw new Error('no layout');
+      const scope = new CsgScope();
+      const mold = solidOf(scope, built.mold);
+      for (const angle of layout.angles) {
+        const x = layout.axisMm * Math.cos(angle);
+        const y = layout.axisMm * Math.sin(angle);
+        // the tip goes from the lug's bottom to 2 mm over the seat, pushing the stop
+        const shank = scope.keep(
+          csg.Manifold.cylinder(SCREW.shank, THREAD.d / 2 + 0.2, THREAD.d / 2 + 0.2, 32).translate([x, y, layout.lugBottomZ - SCREW.shank]),
+        );
+        // the head down to the table at most: a low mold stands on blocks
+        const low = Math.max(0, layout.lugBottomZ - SCREW.shank - SCREW.headH);
+        const high = Math.max(low + 0.01, layout.seatZ + 2 - SCREW.shank);
+        const head = scope.keep(csg.Manifold.cylinder(high - low, SCREW.headD / 2, SCREW.headD / 2, 48).translate([x, y, low]));
+        expect(scope.keep(mold.intersect(shank)).volume(), `${name} shank`).toBeLessThan(1e-2);
+        expect(scope.keep(mold.intersect(head)).volume(), `${name} head`).toBeLessThan(1e-2);
+      }
+      scope.dispose();
+    }
+  });
+
   it('three screws on their heads and three stops; the same for any model and shrinkage', () => {
     const a = build('bowl', 12, true);
     const b = build('cup', 0, true);

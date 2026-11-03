@@ -572,14 +572,14 @@ describe('screw clamps', () => {
   };
   const head = SCREW.headD / 2;
 
-  it('a lug beside each ear: the head of a screw from below clears the ear, the boss clears the groove', () => {
+  it('a lug beside each ear, its boss 2 mm into the cheek, clear of the groove', () => {
     each((family, over) => {
       const { fit, layout } = at(family, over);
       expect(layout.angles).toHaveLength(3);
       for (const [i, angle] of layout.angles.entries()) {
         expect(angle - layout.angles[0]).toBeCloseTo((i * 2 * Math.PI) / 3, 9);
         const fromEar = angle - layout.ears[i];
-        expect(fromEar - Math.asin(head / layout.axisMm), family).toBeGreaterThanOrEqual(fit.ear.reach - 1e-9);
+        expect(layout.axisMm * Math.sin(fromEar - fit.ear.reach), family).toBeCloseTo(BOSS_R_MM - 2, 6);
         // the grooves of the sole are halfway between the ears
         expect(fromEar + Math.asin(BOSS_R_MM / layout.axisMm), family).toBeLessThan(Math.PI / 3 - 0.02);
       }
@@ -590,7 +590,7 @@ describe('screw clamps', () => {
     each((family, over) => {
       const { fit, layout, k } = at(family, over);
       expect(layout.seatInMm).toBeCloseTo(fit.ear.seatInMm * k, 6);
-      expect(layout.axisMm - BOSS_R_MM).toBeGreaterThanOrEqual(layout.seatInMm);
+      expect(layout.axisMm - BOSS_R_MM).toBeGreaterThanOrEqual(layout.seatInMm - 1e-9);
       expect(BOSS_R_MM).toBeGreaterThanOrEqual(PAD.d / 2);
       for (const ring of fit.outer) {
         if (ring.z * k > layout.seatZ) continue;

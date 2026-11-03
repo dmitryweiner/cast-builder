@@ -297,6 +297,27 @@ longer thickened and has no petals in its lathe.
 
 (Volumes are solid; the slicer's infill makes them less.)
 
+**Second round (variant E, picked by the user from rendered variants).**
+Five variants were built on the user's bowl and drawn (above, below, top):
+A as is, B without the fill to the wall, C + the stop right by the cheek,
+D + the boss 2 mm into the cheek with the cheek cut round the stop, E + a
+12 mm thread instead of 16. E was picked:
+
+- the lug leans on the ear only (no hull point at the wall by the axis);
+- the axis is BOSS_R − 2 mm from the cheek's side; the old allowance for a
+  head from below was not needed — a test sweeps a screw turned in from
+  below (shank and head) past the mold on bowl, cup, vase and pot;
+- the cheek is cut by a cylinder round the stop from the seat up, so the
+  preview imports the shell now (0.25–0.35 s; the teapot 0.9 s);
+- LUG_THREAD_MM = 12, six turns; the screws stay the same.
+
+| model     | lugs, first revision | lugs, variant E | tabs     | preview / export (grid 384) |
+| --------- | -------------------- | --------------- | -------- | --------------------------- |
+| user bowl | 18.2 cm³             | 8.1 cm³         | 9.8 cm³  | 0.36 s / 3.3 s              |
+| bowl      | 20.3 cm³             | 8.2 cm³         | 12.7 cm³ | 0.30 s / 2.6 s              |
+| cup       | 16.8 cm³             | 7.9 cm³         | 9.4 cm³  | 0.27 s / 3.1 s              |
+| vase      | 41.4 cm³             | 22.3 cm³        | 24.3 cm³ | 0.26 s / 3.5 s              |
+
 Found on the way, in `main` too, not fixed here: at the angular edge of a
 leg the lathe's face slants from the lip (down at the ear's outer face) to
 the narrow flange point (in at the rim), and grazes the ear's corner — up
