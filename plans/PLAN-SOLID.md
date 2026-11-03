@@ -97,4 +97,37 @@ one too) and blocks with `model.pieces`.
 
 ## Result
 
-(filled in at the end)
+Done on 2026-11-03, all milestones; `npm run check`, `npm run smoke` and
+`npm run smoke -- --preview` pass.
+
+| Fixture                     | Now                                                                |
+| --------------------------- | ------------------------------------------------------------------ |
+| `teapot-hollow`             | `filled`, genus 0, one shell, volume within 1 % of its solid twin  |
+| `lid-printed`, flipped      | `filled`, within 1 % of `lid-upside-down`, the skirt end the mouth |
+| `lid-printed`, as printed   | `openBottom`, the warning to turn it over                          |
+| `teapot-lid-beside`         | blocked in every mode: `model.pieces`                              |
+| `cup-hollow` (rim r 1.5 mm) | `filled`; the master is one closed part, the gate inside the rim   |
+
+What turned out differently from the plan:
+
+- **The old `teapot.stl` is not the twin of the new one.** It was built with
+  another spout (its tip at 154 mm, here 124.6) and a wider rim, so the
+  volume test compares with the solid twin built by `buildSolidVessel` from
+  the same parameters at `710c979` (1 904 740 mm³), written into the test.
+- **Planar patches grow by corners, not normals.** The spout tip split into
+  pieces: the slivers of a boolean cut have normals degrees off in float32.
+  A neighbour joins when all its corners lie on the seed's plane; the
+  largest faces seed first.
+- **A flat rim is a planar annulus too**: its lid fell a hair from the top
+  one. A planar lid that meets the top lid is left out.
+- **T4 found slivers, not a misplaced collar.** On a rim rounded to half the
+  wall the collar cuts the curved strip of the rounding and leaves ~16
+  degenerate triangles (0.3 % of the master, the noise of a boolean
+  operation; the export gate blocks from 1 %). Moving the gate only moves
+  them to the next ring of the rounding; putting it inside the opening
+  exposes the fill lid's edge, which has its own slivers against a rounded
+  lid seat. The gate stays where it was; the test bounds the share.
+- **The bottom check** reuses the top scan on the mirrored model; "more
+  void than material" tells a lid's dome from a foot's recess.
+- The lids stand 0.15 mm under their rims and leave dents that deep (the
+  collar covers the top one; the one on a spout tip is cut open anyway).

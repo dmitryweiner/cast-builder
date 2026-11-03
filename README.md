@@ -12,9 +12,11 @@ get printable files:
 
 Everything runs in the browser, offline too. The model is read as
 millimetres with its axis up; it can be turned by quarter turns and spun
-about the axis so a handle or a spout lies in the parting plane. A hollow
-print open at the top is filled by itself; a hollow teapot (open at the
-spout too) has to come solid — Clayform's export has a "Solid" tick for that.
+about the axis so a handle or a spout lies in the parting plane. Clayform's
+export — a piece as it is printed in clay — goes in as it is: a hollow print
+is filled by itself, across its top and across the flat-cut tip of a spout.
+A lid comes skirt down and has to be turned upside down; a file with the lid
+alongside the piece holds two pieces, so export the lid on its own.
 
 **Live:** https://dmitryweiner.github.io/cast-builder/
 

@@ -15,8 +15,7 @@ export const en = {
   'open.title': 'Open an STL file of the piece',
   example: 'Try a sample teapot',
   'drop.title': 'Bring a ready piece',
-  'drop.hint':
-    'Drop an STL here or open one. Units are millimetres, the axis of the piece goes up; a hollow print open at the top is filled by itself.',
+  'drop.hint': 'Drop an STL here or open one. Units are millimetres, the axis of the piece goes up; a hollow print is filled by itself.',
 
   'panel.model': 'Model',
   'panel.tooling': 'Tooling',
@@ -36,8 +35,8 @@ export const en = {
     'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid alongside”.',
   'model.notSolid': 'The model is not a closed solid: it has holes or loose edges. Repair it in the program it came from.',
   'model.filled': 'The model was hollow: its inside is filled, the plaster only sees the outside.',
-  'model.openTop':
-    'The model is hollow and open in more than one place (a spout?), so it cannot be filled. Export it as a solid piece — in Clayform tick “Solid”.',
+  'model.open':
+    'The model is hollow and open where there is no flat cut, so it cannot be filled: the plaster would get into it. Bring a solid model.',
   'model.openBottom':
     'The model is hollow and open at the bottom — a lid as it is printed? Turn it over (“Upside down”): its opening has to look up to be filled.',
 

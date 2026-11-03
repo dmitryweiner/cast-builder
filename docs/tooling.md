@@ -20,11 +20,20 @@ so a handle does not pull it to one side; the model is dropped onto the
 table.
 
 **Hollow models.** The plaster only sees the outside of the piece — the
-inside of a slip-cast piece is made by draining the slip. A hollow print
-open at the top is therefore filled before the mold is built (the panel
-says so). A hollow model open in more than one place (a teapot with its
-spout channel) cannot be filled: export it solid — in Clayform tick
-**Solid** in the export panel.
+inside of a slip-cast piece is made by draining the slip. A hollow print is
+therefore filled before the mold is built (the panel says so): the opening
+at the top — the highest one around the axis, not the higher tip of a
+spout — and every opening cut by a plane, such as the tip of Clayform's
+applied spout. The master then has a solid spout, as it should: the slip
+makes its inside, and the hole through the wall is cut when the piece is
+leather-hard. An opening that is not a flat cut cannot be filled — bring a
+solid model then.
+
+- **A lid** as it is printed is open at the bottom: the panel asks to turn
+  it **upside down**. Turned over, it is filled up to the end of its skirt,
+  which becomes the mouth.
+- **Two pieces in one file** (Clayform's **Lid alongside**) are refused: a
+  mold is made for one piece. Export the lid on its own.
 
 ## Master
 
@@ -65,7 +74,7 @@ silicone only needs the working surface.
 
 **Find the mouth** finds where the collar stands: the largest flat top of a
 solid piece (the rim of a teapot, not the higher tip of its spout), or the
-rim of a filled hollow piece. The gate is a little narrower than the rim,
+rim of a filled hollow piece — the highest opening around the axis. The gate is a little narrower than the rim,
 so the collar's cylinder never coincides with a straight rim. Untick it to
 set the **mouth height** and the **gate radius** by hand.
 

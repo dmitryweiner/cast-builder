@@ -1,5 +1,8 @@
 # TODO-SOLID — make every Clayform export solid here
 
+**Done** — see `PLAN-SOLID.md` (decisions, results, what turned out
+differently).
+
 Clayform drops its “Solid” export (`clayform/PLAN-EXPORT.md`, 2026-11-03).
 From now on it gives only what is printed in clay, and the solid master is
 Cast Builder's job. What comes in:

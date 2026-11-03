@@ -20,7 +20,7 @@ export type MessageCode =
   | 'model.pieces'
   | 'model.notSolid'
   | 'model.filled'
-  | 'model.openTop'
+  | 'model.open'
   | 'model.openBottom'
   // mesh checks before the download (validate)
   | 'mesh.nonFinite'
