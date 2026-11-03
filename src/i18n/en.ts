@@ -122,6 +122,7 @@ export const en = {
   'progress.checkMeshes': 'checking the meshes',
   'progress.slump': 'slump mold',
   'progress.punch': 'punch',
+  'progress.screws': 'screw clamps',
   'progress.analyze': 'parting analysis',
   'progress.master': 'master positive',
   'progress.block': 'plaster block',

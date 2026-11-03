@@ -115,6 +115,7 @@ export const ru: Messages = {
   'progress.checkMeshes': 'проверка мешей',
   'progress.slump': 'отминочная форма',
   'progress.punch': 'пуансон',
+  'progress.screws': 'винтовые зажимы',
   'progress.analyze': 'анализ разъёма',
   'progress.master': 'мастер-позитив',
   'progress.block': 'гипсовый блок',

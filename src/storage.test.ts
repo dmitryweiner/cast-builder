@@ -62,6 +62,15 @@ describe('settings storage', () => {
     expect(settings.resolution).toBe(defaultSettings().resolution);
     expect(settings.mold.shrinkPct).toBe(30);
   });
+
+  it('settings saved before the screw clamps load with them off and keep the rest', () => {
+    const storage = new MemoryStorage();
+    const before = { ...defaultSettings().mold, slabMm: 7 };
+    const { screws: _screws, printScrews: _printScrews, ...old } = before;
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: { mode: 'slump', mold: old } }));
+    const settings = loadSettings(storage);
+    expect(settings.mold).toEqual({ ...before, screws: false, printScrews: false });
+  });
 });
 
 describe('sanitizers', () => {

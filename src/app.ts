@@ -100,6 +100,10 @@ export function partLabel(id: string): string {
   return tDynamic(`part.${id}`);
 }
 
+type MoldState = Settings['mold'];
+/** The fields of the mold's parameters that are numbers — the sliders'. */
+type MoldNumber = { [K in keyof MoldState]: MoldState[K] extends number ? K : never }[keyof MoldState];
+
 /** A slider over one field of the mold's parameters, shown in the given modes. */
 function range(
   key: string,
@@ -108,7 +112,7 @@ function range(
   min: number,
   max: number,
   step: number,
-  field: keyof Settings['mold'],
+  field: MoldNumber,
   modes: readonly Mode[],
 ): Control<Settings> {
   return {

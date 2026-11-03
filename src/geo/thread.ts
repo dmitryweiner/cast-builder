@@ -106,7 +106,14 @@ export function threadSection(form: ThreadForm, grow: number, n: number): [numbe
   });
 }
 
-/** Points round one turn of a thread, and slices per turn. */
+/** Points round the thread's section. */
 export function threadPoints(exporting: boolean): number {
   return exporting ? 48 : 16;
 }
+
+/**
+ * Slices per turn: a slice every 0.125 mm of height, finer than a layer.
+ * A slice per point (48 per turn) made needle-thin triangles that slowed
+ * every boolean on them several times over.
+ */
+export const THREAD_SLICES = 16;

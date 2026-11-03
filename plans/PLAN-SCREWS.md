@@ -225,6 +225,27 @@ import of the big shell. Decision:
   screw and pad meshes are byte-equal for two different models and
   shrinkages (reusable). Without screws the result is exactly today's.
 
+**Result.** Three things made the first export take 24 s (a bowl, grid 384) and were changed:
+
+- `CrossSection.revolve` of a partial sector came out with ~30× the
+  triangles of the section; the lug is now the section extruded along a
+  unit `t` and bent round the axis (`warp`): 116 triangles, the threaded
+  hole in it 30–70 ms instead of 0.4–1 s.
+- The sunk wall of a lug is thinned by Douglas–Peucker to within half the
+  sink: a dozen long faces instead of one per row of the shell.
+- The thread has 16 slices per turn (48 made needle-thin triangles); the
+  chord costs under 0.1 mm of the profile.
+
+The threaded rod stops where the lug's chamfer passes the hole. The fields
+`screws` and `printScrews` came into `MoldState` here (the job needs them);
+the panel is M4. Measured with `runJob`, preview / export at grid 384:
+
+| model  | without screws | with screws and their print |
+| ------ | -------------- | --------------------------- |
+| bowl   | 33 ms / 0.59 s | 0.18 s / 4.0 s              |
+| cup    | 20 ms / 0.84 s | 0.24 s / 2.7 s              |
+| teapot | 0.1 s / 1.1 s  | 0.25 s / 3.3 s              |
+
 ### M4. Settings and UI
 
 - `MoldState`: `screws: boolean` and `printScrews: boolean` (per Q3), both

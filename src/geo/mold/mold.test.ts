@@ -386,8 +386,14 @@ describe('sanitizeMold', () => {
   });
 
   it('is idempotent', () => {
-    const once = sanitizeMold({ shrinkPct: 9.5, plasterMm: 22, slabMm: 100 });
+    const once = sanitizeMold({ shrinkPct: 9.5, plasterMm: 22, slabMm: 100, screws: true, printScrews: 'yes' });
     expect(sanitizeMold(once)).toEqual(once);
+  });
+
+  it('the screw clamps are off by default and take only booleans', () => {
+    expect(defaultMold()).toMatchObject({ screws: false, printScrews: false });
+    expect(sanitizeMold({ screws: true, printScrews: true })).toMatchObject({ screws: true, printScrews: true });
+    expect(sanitizeMold({ screws: 1, printScrews: 'true' })).toMatchObject({ screws: false, printScrews: false });
   });
 });
 

@@ -7,7 +7,12 @@ import { validateMesh } from '../geo/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
-import { runJob, sanitizeJob } from './tooling';
+import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
+import { meshSource } from '../geo/revolve';
+import type { SurfaceMesh } from '../geo/surface';
+import { bodies } from '../geo/pieces';
+import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, minorRadius } from '../geo/thread';
+import { defaultMold } from '../geo/mold/state';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -162,6 +167,131 @@ describe('runJob', () => {
   it('warns that a piece with a handle is not round for a slump mold', () => {
     const { info } = runJob(csg, jobFor('pot-handle', { mode: 'slump' }));
     expect(info.warnings.map((m) => m.code)).toContain('press.notRound');
+  });
+});
+
+describe('slumpTooling with screws', () => {
+  const N = 96;
+  const build = (name: string, shrinkPct: number, exporting: boolean, print = true) => {
+    const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
+    const options = { ...pressOptions({ ...defaultMold(), shrinkPct }), screws: true };
+    return slumpTooling(csg, source, options, { exporting, print });
+  };
+  const solidOf = (scope: CsgScope, mesh: SurfaceMesh) => scope.keep(toManifold(csg, mesh));
+  /** A vertical cylinder round a screw's axis, the whole height of the part. */
+  const column = (scope: CsgScope, x: number, y: number, radius: number) =>
+    scope.keep(csg.Manifold.cylinder(1000, radius, radius, 48).translate([x, y, -500]));
+
+  it('an export: the mold and the punch closed, three through holes in each, none into the cavity', () => {
+    for (const [name, shrinkPct] of [
+      ['bowl', 12],
+      ['cup', 0],
+    ] as const) {
+      const built = build(name, shrinkPct, true);
+      const scope = new CsgScope();
+      const plain = slumpTooling(
+        csg,
+        meshSource(placeModel(fixture(name), defaultOrientation()), N, N),
+        { ...pressOptions({ ...defaultMold(), shrinkPct }), screws: false },
+        { exporting: true, print: false },
+      );
+      expect(validateMesh(built.mold).watertight, name).toBe(true);
+      expect(validateMesh(built.punch).watertight, name).toBe(true);
+      // the vent along the axis is a hole already
+      expect(solidOf(scope, built.mold).genus(), name).toBe(solidOf(scope, plain.mold).genus() + 3);
+      expect(solidOf(scope, built.punch).genus(), name).toBe(solidOf(scope, plain.punch).genus() + 3);
+      expect(bodies(built.mold), name).toBe(1);
+      scope.dispose();
+    }
+  });
+
+  it('the threaded hole in a lug and the plain one in the petal are on one axis; the thread bites', () => {
+    const built = build('cup', 12, true);
+    const layout = built.layout;
+    expect(layout).not.toBeNull();
+    if (!layout) return;
+    const scope = new CsgScope();
+    const mold = solidOf(scope, built.mold);
+    const punch = solidOf(scope, built.punch);
+    for (const angle of layout.angles) {
+      const x = layout.axisMm * Math.cos(angle);
+      const y = layout.axisMm * Math.sin(angle);
+      // between the slices of the thread its faces cut the helix by a chord: under 0.1 mm at 16 per turn
+      const core = minorRadius(THREAD) + THREAD_FIT_MM - 0.1;
+      expect(scope.keep(mold.intersect(column(scope, x, y, core))).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(mold.intersect(column(scope, x, y, THREAD.d / 2))).volume()).toBeGreaterThan(50);
+      expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 - 0.05))).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 1))).volume()).toBeGreaterThan(1);
+    }
+    scope.dispose();
+  });
+
+  it('a stop on a seat fits under the petal of the pressed punch: it touches neither part', () => {
+    const built = build('bowl', 12, true);
+    const layout = built.layout;
+    if (!layout) throw new Error('no layout');
+    const scope = new CsgScope();
+    const mold = solidOf(scope, built.mold);
+    // the punch as it is printed, turned back into its pressed place: z → top − z
+    const top = layout.petalZ + 8;
+    const pressed = scope.keep(solidOf(scope, built.punch).mirror([0, 0, 1]).translate([0, 0, top]));
+    const pad = solidOf(scope, built.pads[0]);
+    const { min } = pad.boundingBox();
+    for (const angle of layout.angles) {
+      const x = layout.axisMm * Math.cos(angle);
+      const y = layout.axisMm * Math.sin(angle);
+      const placed = scope.keep(pad.translate([x - (min[0] + PAD.d / 2), y - (min[1] + PAD.d / 2), layout.seatZ + 0.01 - min[2]]));
+      expect(scope.keep(placed.intersect(mold)).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(placed.intersect(pressed)).volume()).toBeLessThan(1e-3);
+      // and it fills the gap: lifted by half a millimetre it would hit the petal
+      expect(scope.keep(scope.keep(placed.translate([0, 0, 0.5])).intersect(pressed)).volume()).toBeGreaterThan(1);
+    }
+    scope.dispose();
+  });
+
+  it('three screws on their heads and three stops; the same for any model and shrinkage', () => {
+    const a = build('bowl', 12, true);
+    const b = build('cup', 0, true);
+    expect(a.screws).toHaveLength(3);
+    expect(a.pads).toHaveLength(3);
+    for (const screw of a.screws) {
+      expect(validateMesh(screw).watertight).toBe(true);
+      expect(validateMesh(screw).bbox.min[2]).toBeCloseTo(0, 4);
+      expect(validateMesh(screw).extents[2]).toBeCloseTo(SCREW.headH + SCREW.shank, 3);
+    }
+    for (const pad of a.pads) expect(validateMesh(pad).bbox.min[2]).toBeCloseTo(0, 4);
+    expect([...a.screws[1].positions]).toEqual([...b.screws[1].positions]);
+    expect([...a.pads[2].positions]).toEqual([...b.pads[2].positions]);
+    expect(build('cup', 0, true, false).screws).toEqual([]);
+  });
+
+  it('runJob: one STL — mold and punch, with the screws and stops when they are printed', () => {
+    const settings = defaultSettings();
+    const job = (screws: boolean, printScrews: boolean): ToolingJob =>
+      jobFor('cup', { mode: 'slump', kind: 'export', resolution: 128, mold: { ...settings.mold, screws, printScrews } });
+    const labels: string[] = [];
+    const printed = runJob(csg, job(true, true), (progress) => labels.push(progress.label.code));
+    expect(labels).toEqual(['progress.slump', 'progress.screws', 'progress.punch', 'progress.checkMeshes']);
+    expect(printed.parts[0].blocking).toEqual([]);
+    expect(bodies(printed.parts[0])).toBe(8);
+    expect(bodies(runJob(csg, job(true, false)).parts[0])).toBe(2);
+    // the screws are printed only with the clamps
+    expect(bodies(runJob(csg, job(false, true)).parts[0])).toBe(2);
+  });
+
+  it('a preview: the lugs are merged next to the shell, the punch is holed', () => {
+    const built = build('cup', 0, false);
+    expect(bodies(built.mold)).toBeGreaterThanOrEqual(1);
+    const scope = new CsgScope();
+    const plain = slumpTooling(
+      csg,
+      meshSource(placeModel(fixture('cup'), defaultOrientation()), N, N),
+      { ...pressOptions(defaultMold()), screws: false },
+      { exporting: false, print: false },
+    );
+    expect(built.mold.indices.length).toBeGreaterThan(plain.mold.indices.length);
+    expect(solidOf(scope, built.punch).genus()).toBe(solidOf(scope, plain.punch).genus() + 3);
+    scope.dispose();
   });
 });
 

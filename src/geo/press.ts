@@ -683,10 +683,21 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
           { r: chamfer(meetZ), z: meetZ },
         ]
       : [{ r: inner(meetZ), z: meetZ }];
-  const wall = outer
-    .filter((ring) => ring.z > meetZ + 1e-6 && ring.z < shelfZ - 1e-6)
-    .map((ring) => ({ r: ring.r - sink, z: ring.z }))
-    .toReversed();
+  // The sunk wall, thinned to within half the sink: still inside the
+  // material, and a few long faces instead of one per row of the shell —
+  // hundreds of thin strips along a dense wall made the export's union
+  // several times slower (plans/PLAN-SCREWS.md, M3).
+  const wall = simplify(
+    [
+      { r: inner(shelfZ), z: shelfZ },
+      ...outer
+        .filter((ring) => ring.z > meetZ + 1e-6 && ring.z < shelfZ - 1e-6)
+        .map((ring) => ({ r: ring.r - sink, z: ring.z }))
+        .toReversed(),
+      { r: inner(meetZ), z: meetZ },
+    ],
+    sink / 2,
+  ).slice(1, -1);
   const profile = [
     ...bottom,
     { r: outerMm, z: faceZ },
@@ -697,6 +708,27 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
     ...wall,
   ].filter((p, i, all) => i === 0 || Math.hypot(p.r - all[i - 1].r, p.z - all[i - 1].z) > 1e-6);
   return { angles, halfAngle, axisMm, outerMm, seatInMm, shelfZ, seatZ, faceZ, petalZ, profile };
+}
+
+/** Douglas–Peucker: the polyline with no point farther than `tolerance` from it dropped; the ends stay. */
+function simplify(points: readonly RZ[], tolerance: number): RZ[] {
+  if (points.length < 3) return [...points];
+  const a = points[0];
+  const b = points[points.length - 1];
+  const dr = b.r - a.r;
+  const dz = b.z - a.z;
+  const length = Math.hypot(dr, dz) || 1;
+  let worst = -1;
+  let at = 0;
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = Math.abs((points[i].r - a.r) * dz - (points[i].z - a.z) * dr) / length;
+    if (d > worst) {
+      worst = d;
+      at = i;
+    }
+  }
+  if (worst <= tolerance) return [a, b];
+  return [...simplify(points.slice(0, at + 1), tolerance).slice(0, -1), ...simplify(points.slice(at), tolerance)];
 }
 
 /**

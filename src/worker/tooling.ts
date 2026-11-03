@@ -9,11 +9,14 @@ import type { Mouth } from '../geo/mouth';
 import { solidify } from '../geo/solidify';
 import { bodies } from '../geo/pieces';
 import { meshSource } from '../geo/revolve';
-import { buildPunch, buildSlumpShell } from '../geo/press';
-import type { PressOptions } from '../geo/press';
+import { buildPunch, buildSlumpShell, screwLayout } from '../geo/press';
+import type { PressOptions, ScrewLayout } from '../geo/press';
+import type { PressSource } from '../geo/revolve';
+import { lugSolids, padSolid, petalHoles, screwSolid } from '../geo/screwSolids';
+import { PAD, SCREW, threadPoints } from '../geo/thread';
 import { placeInRow, BESIDE_GAP_MM } from '../geo/layout';
 import type { SurfaceMesh } from '../geo/surface';
-import { mergeMeshes } from '../geo/surface';
+import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
 import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
 import { buildBaths, buildMaster } from '../geo/mold';
@@ -28,6 +31,11 @@ export const PREVIEW_RESOLUTION = 128;
 const MAX_MOLD_PARTS = 4;
 /** A radius varying more than this round the axis makes a slump mold doubtful, mm. */
 const NOT_ROUND_MM = 1;
+/** The screw stands on its head: its own frame has the head below z = 0. */
+const SCREW_HEAD_UP = SCREW.headH;
+/** Screws and stops on the bed, each a column along y with a gap between them, mm. */
+const SCREW_STEP_MM = SCREW.headD + 4;
+const PAD_STEP_MM = PAD.d + 4;
 
 /**
  * Brings anything to a valid job, or null when the model itself is broken:
@@ -80,7 +88,7 @@ export function runJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobP
   // one piece per mold, whatever the mode: "Lid beside" in Clayform makes two
   const pieces = bodies(job.model);
   if (pieces > 1) return { parts: [], info: { ...emptyInfo(), blocking: [{ code: 'model.pieces', params: { n: pieces } }] } };
-  return job.mode === 'slump' ? slumpJob(job, onProgress) : moldJob(csg, job, onProgress);
+  return job.mode === 'slump' ? slumpJob(csg, job, onProgress) : moldJob(csg, job, onProgress);
 }
 
 function emptyInfo(): JobInfo {
@@ -95,26 +103,86 @@ export function pressOptions(mold: MoldState): PressOptions {
     earMm: mold.earMm,
     ventMm: mold.ventMm,
     roundPct: mold.punchRoundPct,
-    screws: false,
+    screws: mold.screws,
   };
+}
+
+/** The slump mold, its punch and the clamps' screws and stops, each in its own frame. */
+export interface SlumpTooling {
+  /** the mold standing on the table */
+  mold: SurfaceMesh;
+  /** the punch flange down, as printed */
+  punch: SurfaceMesh;
+  /** the screws standing on their heads and the stops dimple down, round the z axis on z = 0 */
+  screws: SurfaceMesh[];
+  pads: SurfaceMesh[];
+  /** the clamps, when there are any */
+  layout: ScrewLayout | null;
+}
+
+/**
+ * The slump mold and its punch, with the screw clamps when asked. Without
+ * them — plain geometry, no CSG. With them the lugs and the petals' holes
+ * are made by CSG: an export fuses the lugs onto the shell (one closed
+ * solid), a preview lays them over it unfused — the shell's import alone
+ * would cost it ten times its time (plans/PLAN-SCREWS.md, M0). The screws
+ * and stops are the same for every mold.
+ */
+export function slumpTooling(
+  csg: CsgApi,
+  source: PressSource,
+  options: PressOptions,
+  { exporting, print }: { exporting: boolean; print: boolean },
+): SlumpTooling {
+  const slump = buildSlumpShell(source, options);
+  const punch = buildPunch(source, options, slump.fit);
+  if (!options.screws) return { mold: slump.mesh, punch, screws: [], pads: [], layout: null };
+  const layout = screwLayout(source, options, slump.fit);
+  const scope = new CsgScope();
+  try {
+    const n = threadPoints(exporting);
+    const lugs = lugSolids(csg, scope, layout, n);
+    const mold = exporting
+      ? fromManifold(scope.keep(scope.keep(toManifold(csg, slump.mesh)).add(lugs)))
+      : mergeMeshes([slump.mesh, fromManifold(lugs)]);
+    const holed = fromManifold(scope.keep(scope.keep(toManifold(csg, punch)).subtract(petalHoles(csg, scope, layout))));
+    if (!print) return { mold, punch: holed, screws: [], pads: [], layout };
+    const screw = fromManifold(scope.keep(screwSolid(csg, scope, n).translate([0, 0, SCREW_HEAD_UP])));
+    const pad = fromManifold(padSolid(csg, scope, n));
+    const count = layout.angles.length;
+    return { mold, punch: holed, screws: Array(count).fill(screw), pads: Array(count).fill(pad), layout };
+  } finally {
+    scope.dispose();
+  }
+}
+
+/** Copies of a part in a column along y, `step` apart. */
+function column(meshes: readonly SurfaceMesh[], step: number): SurfaceMesh[] {
+  return meshes.map((mesh, i) => (i === 0 ? mesh : translateMesh(mesh, 0, i * step)));
 }
 
 /**
  * The slump mold with the punch beside it, one file: two closed components
- * in one mesh. Plain geometry without CSG — in the worker only so a large
- * model never holds up the tab.
+ * in one mesh — and with the clamps printed, a column of screws and one of
+ * stops after them.
  */
-function slumpJob(job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
+function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
   const exporting = job.kind === 'export';
-  const progress = new Progress(onProgress, exporting ? 3 : 2);
+  const options = pressOptions(job.mold);
+  const progress = new Progress(onProgress, (exporting ? 3 : 2) + (options.screws ? 1 : 0));
   const segments = exporting ? job.resolution : PREVIEW_RESOLUTION;
   progress.next({ code: 'progress.slump' });
   const source = meshSource(job.model, segments, segments);
-  const options = pressOptions(job.mold);
-  const slump = buildSlumpShell(source, options);
-  progress.next({ code: 'progress.punch' });
-  const punch = buildPunch(source, options, slump.fit);
-  const mesh = mergeMeshes(placeInRow([[slump.mesh], [punch]], BESIDE_GAP_MM).flat());
+  progress.next({ code: options.screws ? 'progress.screws' : 'progress.punch' });
+  const built = slumpTooling(csg, source, options, { exporting, print: job.mold.printScrews });
+  if (options.screws) progress.next({ code: 'progress.punch' });
+  const groups = [[built.mold], [built.punch], column(built.screws, SCREW_STEP_MM), column(built.pads, PAD_STEP_MM)];
+  const mesh = mergeMeshes(
+    placeInRow(
+      groups.filter((group) => group.length > 0),
+      BESIDE_GAP_MM,
+    ).flat(),
+  );
 
   const info = emptyInfo();
   const undercut = pressWarning(job.model);
