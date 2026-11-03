@@ -2,8 +2,7 @@
 
 Press the punch into the slump mold with screws instead of a press, and
 push it back off with the same screws. Branch `slump-screws`, one PR, a
-commit per milestone. Status: **questions answered, waiting for the
-user's approval of the plan.**
+commit per milestone. Status: **done** (approved 2026-11-03; PR #4).
 
 ## Decided with the user
 

@@ -140,10 +140,54 @@ grooves under the mold keep the table from closing its vent.
 | Round bottom | 0–100 %   | 100     | the punch's bottom: 100 — a cap from the axis, 0 — a flat floor; the slab is nowhere thinner than set |
 | Vents        | 1–8 mm    | 2.5     | the holes in the mold and the punch                                                                   |
 | Detail       | 128–384   | 192     | the grid of the exported mold; the preview uses 128                                                   |
+| Screw clamps | on / off  | off     | lugs with a thread on the mold, petals with holes on the punch                                        |
+| Print screws | on / off  | off     | three screws and three stops in the same STL (only with the clamps)                                   |
 
 How to work: lay the slab on the mold and press it in by hand; cut the
 overhang to under a centimetre; lower the punch until its legs stop on the
 ears; lift the punch and trim the slab along the rim.
+
+### Screw clamps
+
+**Screw clamps** (a checkbox) press the punch in without a press and push
+it back off with the same screws. The mold gets three **lugs** between the
+ears with an M10 × 2 thread through each; the punch's flange is 8 mm thick
+and has three **petals** over them with plain 11 mm holes. The ears and
+legs stay as they are: they still centre the punch and stop it at the
+slab's thickness.
+
+A lug is a low shelf by the wall — the clay hanging over the rim lies on it,
+as on the ears — and a raised flat **seat** past the clay, exactly 10 mm
+under the petal of the pressed punch. Below the seat the lug has a vertical
+face and a 45° chamfer back to the wall, so the mold still prints standing
+without supports; on a bowl the chamfer may run down to the table. The
+lugs sit away from the grooves of the sole and from the ears' slots.
+
+**Print screws and stops** (under it) adds three screws and three stops to
+the same STL, to the right of the punch:
+
+- **screw** — M10 × 2, 45 mm under a knurled head Ø24 with a slot, the tip
+  chamfered;
+- **stop** — a disc Ø18 × 9.7 mm with a boss on top that enters the
+  petal's hole and a conical dimple below for the screw's tip.
+
+They do not depend on the model or the shrinkage — print them once and use
+them with every later mold, leaving the second box off. The pitch, the
+thread's fit (0.35 mm) and the 10 mm gap are fixed for that reason.
+
+How to work with the clamps:
+
+1. Slab in the mold, the punch on top. Put a screw through each petal into
+   its lug and tighten them in turn until the legs stand on the ears.
+2. To part the two: take the screws out, put a stop into each gap — the
+   boss up into the petal's hole — and turn the screws into the lugs from
+   below. Tightened in turn, they lift the punch evenly. The heads need
+   3–4 cm under the lugs: stand a low mold on a ring or two blocks.
+
+Print the screws standing on their heads and the stops dimple down, both
+with 100 % infill or five walls or more; the threads print best at 0.2 mm
+layers or finer. If a printed screw is tight, run it in and out a few
+times. The fit is not a setting: one set of screws has to fit every mold.
 
 ## Export
 
