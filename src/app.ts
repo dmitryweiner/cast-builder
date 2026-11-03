@@ -42,6 +42,8 @@ import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
 import { createScene } from './render/scene';
 import type { SceneHandle } from './render/scene';
+import { createThumb } from './render/thumb';
+import { setupSheet } from './ui/sheet';
 import { ToolingClient } from './worker/client';
 import type { JobInfo, JobPart, ToolingJob } from './worker/protocol';
 
@@ -127,6 +129,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const stage = el('stage', HTMLElement);
   const panel = el('panel', HTMLElement);
   const emptyEl = el('empty', HTMLDivElement);
+  const stageNote = el('stageNote', HTMLParagraphElement);
+  const thumbBox = el('thumbBox', HTMLDivElement);
   const fileInput = el('fileInput', HTMLInputElement);
   const localeSelect = el('locale', HTMLSelectElement);
   const modelInfo = el('modelInfo', HTMLParagraphElement);
@@ -148,8 +152,26 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     label: el('progressLabel', HTMLSpanElement),
   });
 
-  const scene: SceneHandle = createScene(el('view', HTMLCanvasElement));
+  const view = el('view', HTMLCanvasElement);
+  const scene: SceneHandle = createScene(view);
+  const thumb = createThumb(el('thumb', HTMLCanvasElement), {
+    x: el('axisX', HTMLSpanElement),
+    y: el('axisY', HTMLSpanElement),
+    z: el('axisZ', HTMLSpanElement),
+  });
   const client = new ToolingClient();
+  const narrow = window.matchMedia('(max-width: 760px)');
+  // on a phone with no model the sheet would cover the invitation; a model opens it
+  const sheet = setupSheet({
+    panel,
+    button: el('panelBtn', HTMLButtonElement),
+    view,
+    narrow,
+    onInset: (px) => scene.setBottomInset(px),
+    open: !narrow.matches,
+  });
+  // the sheet's height follows the window
+  window.addEventListener('resize', () => sheet.refresh());
 
   let settings: Settings = loadSettings(storage);
   let locale: Locale = detectLocale(settings.locale, languages);
@@ -285,6 +307,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       min: 0,
       max: 355,
       step: 5,
+      presets: [0, 90, 180, 270],
       get: (s) => s.orientation.spinDeg,
       set: (s, spinDeg) => ({ ...s, orientation: { ...s.orientation, spinDeg } }),
     },
@@ -345,7 +368,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   function renderResult(): void {
     partList.textContent = '';
     if (!model) {
-      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote]) node.textContent = '';
+      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote, stageNote]) node.textContent = '';
       auditEl.textContent = t('audit.none');
       exportBtn.disabled = true;
       return;
@@ -363,6 +386,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     schemeNote.textContent = settings.mode === 'slump' ? t('slump.note') : info.reason.map(tm).join(' ');
     warningsEl.textContent = info.warnings.map(tm).join('\n');
     blockersEl.textContent = [...info.blocking, ...parts.flatMap((part) => part.blocking)].map(tm).join('\n');
+    // the view is empty then, and on a phone the panel may be out of sight
+    stageNote.textContent = parts.length === 0 ? blockersEl.textContent : '';
     const mouth = setup.mouth.auto ? info.mouth : setup.mouth;
     mouthNote.textContent = mouth ? t('mouth.note', { z: mouth.zMm.toFixed(1), d: (mouth.radiusMm * 2).toFixed(1) }) : '';
     const triangles = parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
@@ -395,7 +420,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const [width, depth, height] = sizeOf(current.placed.positions);
     current.heightMm = height;
     current.radiusMm = Math.hypot(width, depth) / 2;
-    scene.setPiece(withNormals(current.placed));
+    thumbBox.hidden = false;
+    thumb.show(withNormals(current.placed));
   }
 
   function loadModel(name: string, data: ArrayBuffer): void {
@@ -411,6 +437,11 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     setup = defaultSetup();
     model = { name: name.replace(/\.stl$/i, ''), raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
+    // the view shows tooling only: the old model's goes, the new one's is on its way
+    scene.setMeshes([]);
+    stageNote.textContent = '';
+    // the thumbnail and the turns are what to look at first
+    sheet.open();
     place(model);
     syncPanel();
     schedule(0);
@@ -468,6 +499,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       partList.textContent = '';
       auditEl.textContent = '';
       blockersEl.textContent = t('error.build', { error: message(error) });
+      stageNote.textContent = blockersEl.textContent;
       exportBtn.disabled = true;
     }
   }

@@ -16,7 +16,7 @@ export const ru: Messages = {
   'panel.model': 'Модель',
   'panel.tooling': 'Оснастка',
   'panel.mouth': 'Устье и разъём',
-  'panel.export': 'Экспорт',
+  'panel.open': 'Настройки',
 
   'turn.x': 'Повернуть вокруг X',
   'turn.y': 'Повернуть вокруг Y',

@@ -22,6 +22,8 @@ export interface RangeControl<T> {
   min: number | ((state: T) => number);
   max: number | ((state: T) => number);
   step: number;
+  /** values a button away, under the slider: the spin's quarter turns */
+  presets?: readonly number[];
   hint?: Key;
   when?: Visibility<T>;
   get(state: T): number;
@@ -76,6 +78,8 @@ export function renderControls<T>(
 
   for (const control of controls) {
     const row = make('label', 'row');
+    /** what `when` hides along with the row */
+    const nodes: HTMLElement[] = [row];
     const name = make('span', 'row-name', t(control.label));
     if (control.hint) name.title = t(control.hint);
     row.append(name);
@@ -138,17 +142,35 @@ export function renderControls<T>(
       row.append(minus, slider, plus, readout);
       show(read());
       syncers.push(show);
+      // a sibling of the row, not inside the label: a click on its gaps must not reach the slider's buttons
+      if (control.presets) {
+        const presetRow = make('div', 'presets');
+        const buttons = control.presets.map((value) => {
+          const button = make('button', 'preset-btn', `${value}°`);
+          button.type = 'button';
+          button.addEventListener('click', () => onChange(control.set(read(), value)));
+          presetRow.append(button);
+          return { button, value };
+        });
+        const press = (state: T): void => {
+          const current = control.get(state);
+          for (const { button, value } of buttons) button.setAttribute('aria-pressed', String(value === current));
+        };
+        press(read());
+        syncers.push(press);
+        nodes.push(presetRow);
+      }
     }
 
     const when = control.when;
     if (when) {
       const show = (state: T): void => {
-        row.hidden = !when(state);
+        for (const node of nodes) node.hidden = !when(state);
       };
       show(read());
       syncers.push(show);
     }
-    container.append(row);
+    container.append(...nodes);
   }
 
   return {

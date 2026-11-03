@@ -1,8 +1,8 @@
-// Browser smoke of the real app: the sample model through every mode, an
-// STL opened from a file (a hollow print gets filled), Clayform's printable
-// teapot, lid and "lid alongside" file, real downloads, the model turned,
-// language detection and memory, no horizontal scroll on a phone, no
-// console errors. With --preview it runs against a fresh
+// Browser smoke of the real app: the sample model through every mode, its
+// thumbnail, an STL opened from a file (a hollow print gets filled),
+// Clayform's printable teapot, lid and "lid alongside" file, real downloads,
+// the model turned and spun by a preset, language detection and memory, the
+// panel as a sheet and no horizontal scroll on a phone, no console errors. With --preview it runs against a fresh
 // production build and also checks that the app — the worker and its WASM
 // included — works offline.
 //
@@ -37,6 +37,26 @@ async function parts(page, count, timeout = 60000) {
   return page.locator('#partList li').allTextContents();
 }
 
+/** How many pixels of the model thumbnail differ from its background — 0 is a blank picture. */
+async function thumbPixels(page) {
+  return page.evaluate(() => {
+    const thumb = document.querySelector('#thumb');
+    if (!(thumb instanceof HTMLCanvasElement) || thumb.width === 0) return 0;
+    const copy = document.createElement('canvas');
+    copy.width = thumb.width;
+    copy.height = thumb.height;
+    const ctx = copy.getContext('2d');
+    ctx.drawImage(thumb, 0, 0);
+    const data = ctx.getImageData(0, 0, copy.width, copy.height).data;
+    const [r, g, b] = data;
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (Math.abs(data[i] - r) + Math.abs(data[i + 1] - g) + Math.abs(data[i + 2] - b) > 30) count++;
+    }
+    return count;
+  });
+}
+
 /** Clicks a tab and waits for the parts of the new mode. */
 async function mode(page, tab, count) {
   await page.click(tab);
@@ -58,6 +78,26 @@ try {
     await page.click('#exampleBtn');
     await page.waitForFunction(() => document.querySelector('#modelInfo')?.textContent?.startsWith('teapot'));
     check(!(await page.locator('#empty').isVisible()), 'the empty stage stays over the model');
+    check(await page.locator('#thumb').isVisible(), 'no thumbnail of the model');
+    await page.waitForFunction(() => document.querySelector('#thumb')?.width > 0);
+    check((await thumbPixels(page)) > 1000, 'the thumbnail is blank');
+    // the axes are labelled inside the picture, X running to the right of the axis
+    const axes = await page.evaluate(() => {
+      const box = document.querySelector('#thumbBox').getBoundingClientRect();
+      return Object.fromEntries(
+        ['X', 'Y', 'Z'].map((name) => {
+          const label = document.querySelector(`#axis${name}`).getBoundingClientRect();
+          const inside =
+            label.width > 0 && label.left >= box.left && label.right <= box.right && label.top >= box.top && label.bottom <= box.bottom;
+          return [name, { inside, x: label.left, y: label.top }];
+        }),
+      );
+    });
+    check(
+      Object.values(axes).every((axis) => axis.inside),
+      `axis labels outside the thumbnail: ${JSON.stringify(axes)}`,
+    );
+    check(axes.X.x > axes.Z.x && axes.Z.y < axes.X.y, `the axes are not X right, Z up: ${JSON.stringify(axes)}`);
     // the spout widens the piece: its bottom counts as narrow, two halves do
     const boxes = await parts(page, 2);
     check(boxes[0].startsWith('Pour box: half A'), `pour boxes: ${boxes.join(' | ')}`);
@@ -115,6 +155,8 @@ try {
     await panel('#warnings', 'was hollow');
     await page.setInputFiles('#fileInput', fixture('teapot-lid-beside'));
     await panel('#blockers', 'separate pieces');
+    // nothing to show in the view: it says why
+    check((await page.locator('#stageNote').textContent()).includes('separate pieces'), 'the empty view gives no reason');
     check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for two pieces');
     await context.close();
   });
@@ -139,9 +181,13 @@ try {
     await parts(page, 2);
     const before = await page.locator('#modelInfo').textContent();
     await page.click('#turnX');
-    await page.waitForFunction((text) => document.querySelector('#modelInfo')?.textContent !== text, before);
     await page.click('#turnReset');
     await page.waitForFunction((text) => document.querySelector('#modelInfo')?.textContent === text, before);
+    check((await page.locator('.preset-btn[aria-pressed="true"]').textContent()) === '0°', 'spin 0 is not pressed');
+    await page.click('.preset-btn:text-is("90°")');
+    check((await page.locator('#model_spin').inputValue()) === '90', 'the 90° preset did not spin the model');
+    check((await page.locator('.preset-btn[aria-pressed="true"]').textContent()) === '90°', 'the 90° preset is not pressed');
+    await page.click('#turnReset');
     await page.uncheck('#mouth_auto');
     check(await page.locator('#mouth_z').isVisible(), 'no mouth height slider');
     await page.selectOption('#mold_scheme', 'halves-bottom');
@@ -172,7 +218,19 @@ try {
         await parts(page, 2);
         const width = await page.evaluate(() => document.documentElement.scrollWidth);
         check(width <= viewport.width, `page is ${width}px wide`);
-        if (shots) await page.screenshot({ path: `shots/${name}-${locale}.png`, fullPage: true });
+        if (shots) await page.screenshot({ path: `shots/${name}-${locale}.png` });
+        if (name === 'phone') {
+          // the panel is a sheet: a tap on the view hides it, "Settings" brings it back
+          check(!(await page.locator('#panelBtn').isVisible()), 'Settings shown over the open sheet');
+          await page.locator('#view').click({ position: { x: 40, y: 40 } });
+          await page.locator('#panelBtn').waitFor();
+          await page.waitForFunction(() => document.querySelector('#panel')?.getBoundingClientRect().top >= innerHeight - 1);
+          if (shots) await page.screenshot({ path: `shots/${name}-${locale}-closed.png` });
+          await page.click('#panelBtn');
+          check(await page.locator('#exportBtn').isVisible(), 'the sheet did not open again');
+        } else {
+          check(!(await page.locator('#panelBtn').isVisible()), 'Settings shown beside the panel');
+        }
         await context.close();
       });
     }
