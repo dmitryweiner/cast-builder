@@ -49,6 +49,13 @@ export const PAD_GAP_MM = 10;
 export const LUG_THREAD_MM = 12;
 
 /**
+ * The least thread in a lug, mm: where the ear's 45° slope cannot hold the
+ * whole hole 12 mm down (a thin slab, a small ear) the thread starts higher,
+ * and below this the ear's face goes lower instead (press.ts, earShortfall).
+ */
+export const LUG_THREAD_MIN_MM = 8;
+
+/**
  * The printed screw: a knurled thumb head with a slot, the threaded shank
  * from under the head to the tip, the tip chamfered at 45° down to `tipR`.
  */

@@ -25,7 +25,7 @@ import { meshSource } from './revolve';
 import type { PressSource } from './revolve';
 import { analyticSource, fixture, withNormals } from './testing';
 import { signedVolume, validateMesh } from './validate';
-import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM } from './thread';
+import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM } from './thread';
 
 const N = 96;
 const families = ['bowl', 'cup', 'pot', 'vase'];
@@ -610,6 +610,41 @@ describe('screw clamps', () => {
       expect(layout.seatZ - layout.lugBottomZ).toBeCloseTo(LUG_THREAD_MM, 9);
       expect(layout.shelfZ).toBeCloseTo(fit.ear.topZ * k, 6);
     });
+  });
+
+  it('the thread is whole where the ear can hold the hole: 12 mm as a rule, never under 8, the ears as they were', () => {
+    // (a pot and a vase widen below their rim: no slump mold takes them out, and their ears cannot hold the lugs)
+    for (const family of ['bowl', 'cup']) {
+      for (const slabMm of [6, 3, 0.8]) {
+        const over = { slabMm, shrinkPct: 12, screws: true };
+        const { fit, layout } = at(family, over);
+        const plain = buildSlumpShell(sourceOf(family), options({ ...over, screws: false })).fit;
+        const thread = layout.seatZ - layout.threadZ;
+        expect(thread, `${family} slab ${slabMm}`).toBeLessThanOrEqual(LUG_THREAD_MM + 1e-9);
+        expect(thread, `${family} slab ${slabMm}`).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 0.3);
+        // the ear's face goes lower only when the thread would be shorter than the least
+        const lowered = fit.ear.faceZ < plain.ear.faceZ - 1e-9;
+        expect(lowered && thread > LUG_THREAD_MIN_MM + 0.3, `${family} slab ${slabMm}`).toBe(false);
+        // the hole and its wall lie within the ear's 45° envelope from the thread up
+        const rise = layout.support.find((p) => p.z >= layout.threadZ - 1e-9);
+        expect(rise?.r ?? 0).toBeGreaterThanOrEqual(layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.3);
+      }
+    }
+  });
+
+  it('an ear goes lower only when that holds the hole: otherwise it stays as it was, no plastic for nothing', () => {
+    for (const family of ['pot', 'vase']) {
+      const over = { slabMm: 6, shrinkPct: 12, screws: true };
+      const { fit, layout } = at(family, over);
+      const plain = buildSlumpShell(sourceOf(family), options({ ...over, screws: false })).fit;
+      // the ear's slope at 45° from the bottom of its face, at the height the thread starts
+      const k = 1.12;
+      const slope = fit.ear.outerMm * k + (layout.threadZ - fit.ear.faceZ * k);
+      const holds = slope >= layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.6;
+      const lowered = fit.ear.faceZ < plain.ear.faceZ - 1e-9;
+      expect(lowered && !holds, family).toBe(false);
+      expect(layout.seatZ - layout.threadZ, family).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 1e-6);
+    }
   });
 
   it('the region a lug keeps out of is the relief and half a shell, up past the tab', () => {

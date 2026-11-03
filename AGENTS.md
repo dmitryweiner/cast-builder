@@ -177,13 +177,17 @@ Regenerate them only on purpose.
   tab's thickness are constants (`geo/thread.ts`) and never scaled by the
   shrinkage: one printed set fits every mold. The lugs and tabs are built
   after the scaling, in the mm of the print, as prisms: in plan the hull of
-  a boss and of the ear's (the leg's) side, flat top and bottom (the lug's
-  bottom needs supports). A lug's boss stands 2 mm into the ear's cheek,
-  and the cheek is cut down round the stop. A lug is cut back off the
-  cavity with half a shell and off the clay over the rim; a tab off the
-  clay under the flange and off the ear's cheeks. An export fuses them on;
-  a preview lays them over unfused (the cheeks' cut needs the shell's import
-  even there).
+  a boss and of the ear's (the leg's) side, with a flat top. A lug's boss stands 2 mm into the ear's cheek,
+  and the cheek is cut down round the stop. A lug's underside rises at 45°
+  away from the ear and stays within the ear's outline widened up at 45°
+  (`support`): it prints without supports. The thread starts where that
+  envelope holds the hole (`threadZ`, 12 mm or less, never under 8; a plain
+  bore below); only below 8 mm does the ear's face go lower
+  (`earShortfall`), and not at all when that would not help. A lug is cut
+  back off the cavity with half a shell and off the clay over the rim; a tab
+  off the clay under the flange and off the ear's cheeks. An export fuses
+  them on; a preview lays them over unfused (the cheeks' cut needs the
+  shell's import even there).
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 
@@ -202,7 +206,7 @@ triangles):
 | a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                     |
 | slump mold + punch, preview grid 128              | 0.03–0.1 s                                         |
 | slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                           |
-| the same with screw clamps (bowl, cup, vase…)     | preview 0.25–0.35 s (teapot 0.9 s); export 2.6–4 s |
+| the same with screw clamps (bowl, cup, vase…)     | preview 0.3–0.5 s (teapot 0.9 s); export 2.8–3.8 s |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
 deep, a waiting preview is replaced by a fresher one, an export never.
@@ -214,9 +218,9 @@ deep, a waiting preview is replaced by a fresher one, an export never.
 - A seating cylinder below the plug's ledge: the plug casts the ledge and
   the gallery over it; lower the wall comes out at its usual thickness.
 - Pour boxes for the slump mold: the mold itself is printed, as a shell.
-- Screw clamps of another size, pitch or fit, more than three of them, a
-  lug that prints without supports; the jacking screws need room under the
-  lugs for their heads (a low mold stands on blocks).
+- Screw clamps of another size, pitch or fit, more than three of them; a lug
+  held at 45° on a shape that widens below its rim; the jacking screws need
+  room under the lugs for their heads (a low mold stands on blocks).
 - A slump mold on a hump ("+"); handles on the punch; adjustable clearance
   and leg sizes other than the ear's seat (constants in `geo/press.ts`);
   separate objects in the STL (mold and punch are one mesh — "split into

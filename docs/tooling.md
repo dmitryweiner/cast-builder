@@ -158,12 +158,18 @@ are: they still centre the punch and stop it at the slab's thickness.
 Both are plain blocks: in plan a round boss round the screw joined by
 straight sides to the ear (the leg). The lug leans on the ear's cheek, its
 boss 2 mm into it, and meets the wall only by the ear; the cheek is cut
-down round the stop. It is 12 mm high (six turns of the thread), its top
-exactly 10 mm under the tab of the pressed punch; it keeps out of the
-cavity and, above the ears' top, out of the clay hanging over the rim. Its
-bottom is flat: **the lug needs supports** when the mold is printed
-standing. The tab is 8 mm thick from the flange's top and lies flat on the
-bed with it; over the clay it is only as thick as the flange.
+down round the stop. Its top is exactly 10 mm under the tab of the pressed
+punch; it keeps out of the cavity and, above the ears' top, out of the clay
+hanging over the rim. Its underside slopes at 45° up away from the ear and
+is cut along the ear's own 45° slope, so **the mold prints standing without
+supports**. The thread is 12 mm (six turns) where the ear's slope holds the
+whole hole; with a thin slab or a small ear it starts higher, down to 8 mm
+(a plain bore under it). Only if it would be shorter still does the ear's
+outer face go a little lower. On a shape that widens below the rim (no
+slump mold takes it out anyway) the ear cannot hold the lug: the ring round
+the hole overhangs there. The tab is 8 mm thick from the flange's top and
+lies flat on the bed with it; over the clay it is only as thick as the
+flange.
 
 **Print screws and stops** (under it) adds three screws and three stops to
 the same STL, to the right of the punch:

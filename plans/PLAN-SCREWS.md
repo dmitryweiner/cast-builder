@@ -318,6 +318,27 @@ D + the boss 2 mm into the cheek with the cheek cut round the stop, E + a
 | cup       | 16.8 cm³             | 7.9 cm³         | 9.4 cm³  | 0.27 s / 3.1 s              |
 | vase      | 41.4 cm³             | 22.3 cm³        | 24.3 cm³ | 0.26 s / 3.5 s              |
 
+**Third round: no supports under the lugs.** The flat bottom of a lug
+needed supports. Three options were drawn on the user's bowl; the second
+was picked: the underside rises at 45° away from the ear's side (a plane
+through `footZ`) and is cut along the ear's outline widened up at 45°
+(`support`) — every point of it leans on the ear. The ear's slope cannot
+reach the boss's outer edge (it stands ~3 mm past it at default settings),
+so the thread starts where the envelope holds the hole with a millimetre of
+wall (`threadZ`), a plain bore below it — a slanted cut through the thread
+left arches of its teeth (an extra genus in the tests). Only if the thread
+would be shorter than LUG_THREAD_MIN_MM = 8 does the ear's outer face go
+lower (`earShortfall`), and only when that actually helps: a lower face
+thickens the ear's whole rib on a gentle wall (+24 cm³ on the bowl for the
+full 12 mm, rejected), and on a vase a narrowing neck caps the ear above its
+face anyway. A test checks no face round a lug overhangs past 45°.
+
+| model     | thread, slab 6 / 3 | lugs, slab 6 / 3 | ears         | preview / export (grid 384) |
+| --------- | ------------------ | ---------------- | ------------ | --------------------------- |
+| user bowl | 11.4 / 8.1 mm      | 11.5 / 9.1 cm³   | as they were | 0.49 s / 3.8 s              |
+| bowl      | 11.9 / 8.3 mm      | 12.1 / 9.4 cm³   | as they were | 0.40 s / 2.8 s              |
+| cup       | 11.8 / 8.6 mm      | 10.6 / 8.1 cm³   | as they were | 0.37 s / 3.2 s              |
+
 Found on the way, in `main` too, not fixed here: at the angular edge of a
 leg the lathe's face slants from the lip (down at the ear's outer face) to
 the narrow flange point (in at the rim), and grazes the ear's corner — up

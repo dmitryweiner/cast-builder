@@ -13,6 +13,8 @@ import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, THREAD_SLICES, thread
 const ROUND_SEGMENTS = 192;
 /** Segments of a boss. */
 const BOSS_SEGMENTS = 48;
+/** The plain bore under a lug's thread is this much wider than the thread's hole, mm. */
+const BORE_CLEAR_MM = 0.3;
 
 /**
  * A threaded rod from z0 to z1 along z: the thread's section extruded with
@@ -127,15 +129,16 @@ function column(csg: CsgApi, scope: CsgScope, radius: number, z0: number, z1: nu
 }
 
 /**
- * The lugs of the mold, one beside each ear (screwLayout): the hull of the
- * boss and of the cheek's side down into the wall, from the bottom to the
- * seat, cut back off the cavity and off the clay over the rim, with a
- * threaded hole through it.
+ * The lugs of the mold, one beside each ear (screwLayout): in plan the hull
+ * of the boss and of the cheek's side down into the wall; the underside
+ * rising at 45° away from the ear and kept within the ear's outline widened
+ * at 45°, so it prints without supports; cut back off the cavity and off
+ * the clay over the rim, with a threaded hole through it.
  */
 export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: number): Manifold {
-  // only the heights of the lugs: the whole cavity made every preview twice as slow
-  const z0 = layout.lugBottomZ - 1;
+  const z0 = Math.max(0, layout.footZ - 1);
   const z1 = layout.seatZ + 1;
+  // only the heights of the lugs: the whole cavity made every preview twice as slow
   const band = layout.cavity.filter((p) => p.r > 0 && p.z > z0 && p.z < z1);
   const radiusAt = (z: number): number => {
     for (let k = 1; k < layout.cavity.length; k++) {
@@ -155,16 +158,26 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   ];
   const cavity = scope.keep(scope.keep(new csg.CrossSection([section], 'Positive')).revolve(ROUND_SEGMENTS));
   const clay = column(csg, scope, layout.seatInMm, layout.shelfZ, z1 + 1);
-  const rod = threadRod(csg, scope, THREAD, THREAD_FIT_MM, z0, z1, n);
-  // halfway across the cheek: inside the ear for sure, whatever the grid made of its side
-  const inCheek = (layout.earSide - layout.slotSide) / 2;
-  const blocks = layout.angles.map((angle, i) => {
-    const side = layout.ears[i] + layout.earSide - inCheek;
+  // The thread is whole from threadZ up; under it, where the slanted
+  // underside opens the hole, a plain bore: a slanted cut through the thread
+  // left arches of its teeth hanging over the opening.
+  const thread = threadRod(csg, scope, THREAD, THREAD_FIT_MM, layout.threadZ - 0.5, z1, n);
+  const bore = column(csg, scope, THREAD.d / 2 + THREAD_FIT_MM + BORE_CLEAR_MM, z0 - 1, layout.threadZ, BOSS_SEGMENTS);
+  const rod = scope.keep(thread.add(bore));
+  const support = scope.keep(
+    scope.keep(new csg.CrossSection([layout.support.map(({ r, z }): [number, number] => [r, z])], 'Positive')).revolve(ROUND_SEGMENTS),
+  );
+  const lugs = layout.angles.map((angle, i) => {
+    const sideAngle = layout.ears[i] + layout.earSide;
+    const side = sideAngle - layout.inCheek;
     const footprint = plan(csg, scope, layout, angle, [polar(layout.innerMm, side), polar(layout.earOuterMm - 0.5, side)]);
-    return prism(scope, footprint, layout.lugBottomZ, layout.seatZ);
+    // above the plane rising at 45° away from the ear's side: z − d ≥ footZ, d the distance from the side's plane
+    const normal: [number, number, number] = [Math.sin(sideAngle) / Math.SQRT2, -Math.cos(sideAngle) / Math.SQRT2, Math.SQRT1_2];
+    return scope.keep(prism(scope, footprint, z0, layout.seatZ).trimByPlane(normal, layout.footZ / Math.SQRT2));
   });
   const holes = layout.angles.map((angle) => scope.keep(rod.translate([...polar(layout.axisMm, angle), 0])));
-  return scope.keep(csg.Manifold.difference([scope.keep(csg.Manifold.union(blocks)), cavity, clay, ...holes]));
+  const leaning = scope.keep(scope.keep(csg.Manifold.union(lugs)).intersect(support));
+  return scope.keep(csg.Manifold.difference([leaning, cavity, clay, ...holes]));
 }
 
 /**

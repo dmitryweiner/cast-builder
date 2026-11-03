@@ -8,6 +8,7 @@ import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
 import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
+import { BOSS_R_MM } from '../geo/press';
 import { lugSolids } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from '../geo/surface';
@@ -279,6 +280,52 @@ describe('slumpTooling with screws', () => {
         expect(scope.keep(mold.intersect(head)).volume(), `${name} head`).toBeLessThan(1e-2);
       }
       scope.dispose();
+    }
+  });
+
+  it('the lugs print without supports: nothing round them overhangs more than 45° or than the wall', () => {
+    // (not on a pot or a vase: they widen below the rim, no slump mold takes them out, and the hole's wall overhangs there)
+    for (const [name, slabMm, earMm] of [
+      ['bowl', 6, 8],
+      ['bowl', 0.8, 8],
+      ['cup', 3, 4],
+      ['cup', 6, 12],
+    ] as const) {
+      const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
+      const options = { ...pressOptions({ ...defaultMold(), slabMm, earMm }), screws: true };
+      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
+      const plain = slumpTooling(csg, source, { ...options, screws: false }, { exporting: true, print: false });
+      const layout = built.layout;
+      if (!layout) throw new Error('no layout');
+      const step = (2 * Math.PI) / N;
+      const bore = THREAD.d / 2 + THREAD_FIT_MM + 1;
+      const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
+      /** the steepest overhang (1 — straight down) among the faces round the lugs, outside the ears and the holes */
+      const worst = (mesh: SurfaceMesh): number => {
+        const { positions: P, indices: I } = mesh;
+        let most = 0;
+        for (let t = 0; t < I.length; t += 3) {
+          const [a, b, c] = [I[t] * 3, I[t + 1] * 3, I[t + 2] * 3];
+          const cx = (P[a] + P[b] + P[c]) / 3;
+          const cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3;
+          const cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3;
+          if (cz < layout.footZ - 1 || cz > layout.seatZ) continue;
+          const near = layout.angles.some((angle, i) => {
+            const rel = wrap(Math.atan2(cy, cx) - layout.ears[i]);
+            const far = angle - layout.ears[i] + Math.asin((BOSS_R_MM + 1.5) / layout.axisMm);
+            const off = Math.hypot(cx - layout.axisMm * Math.cos(angle), cy - layout.axisMm * Math.sin(angle));
+            return rel > layout.earSide + 1.5 * step && rel < far && off > bore;
+          });
+          if (!near) continue;
+          const ab = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]];
+          const ac = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
+          const n = [ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0]];
+          const len = Math.hypot(n[0], n[1], n[2]);
+          if (len > 1e-9) most = Math.max(most, -n[2] / len);
+        }
+        return most;
+      };
+      expect(worst(built.mold), name).toBeLessThan(Math.max(worst(plain.mold), Math.SQRT1_2) + 0.02);
     }
   });
 
