@@ -73,7 +73,7 @@ try {
     await context.close();
   });
 
-  await step('the mode and the plaster survive a reload', async () => {
+  await step('the mode survives a reload', async () => {
     const { page, context } = await app.open();
     await page.click('#tabMaster');
     await page.reload();

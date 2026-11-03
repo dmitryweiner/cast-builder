@@ -129,3 +129,12 @@ ears; lift the punch and trim the slab along the rim.
 The part list shows what the download will hold, with sizes. **Export**
 builds the parts at full detail, checks each mesh (closed, normals out) and
 downloads one STL per part, named after the model.
+
+## What is remembered
+
+The mode, the parameters, the parting choice and the detail are saved in
+the browser and come back on the next visit. The turn, the mouth and the
+plug belong to the model: a newly opened model starts from the defaults.
+
+The interface is in English and Russian: the language comes from the
+browser, the menu in the top bar switches it and is remembered too.

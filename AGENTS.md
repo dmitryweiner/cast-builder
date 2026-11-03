@@ -54,7 +54,9 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
 ## Layout
 
 - `src/main.ts` — entry: starts the app with browser storage and languages,
-  registers the service worker in production.
+  registers the service worker in production (`src/pwa.ts`).
+- `src/sw-plugin.ts` — the Vite plugin that writes `sw.js` with the precache
+  list of the build (the worker chunk and its WASM included).
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
   through the worker, downloads.
 - `src/state.ts` — `Settings` (the user's habits, saved) and `Setup` (the
@@ -72,12 +74,16 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
   - `csg.ts` — the bridge to manifold-3d; `surface.ts`, `bottom.ts`,
-    `lathe.ts` — mesh assembly; `validate.ts` — the export gate;
-    `message.ts` — messages as codes.
+    `lathe.ts`, `normals.ts` — mesh assembly; `layout.ts` — parts side by
+    side on the bed; `validate.ts` — the export gate; `message.ts` —
+    messages as codes;
+  - `testing.ts` — helpers of the geometry tests (fixtures, analytic
+    bodies), never imported by the app.
 - `src/worker/` — `tooling.ts` runs one job (tested in node), `csg.worker.ts`
   is its thin adapter, `client.ts` the main thread's queue, `protocol.ts` the
   types of both sides.
-- `src/render/scene.ts` — Three.js view. `src/ui/` — controls, progress bar.
+- `src/render/scene.ts` — Three.js view. `src/ui/` — controls, progress bar,
+  typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
 - `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
