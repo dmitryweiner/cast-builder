@@ -79,7 +79,7 @@ the legs** (where the vent grooves of the sole are), three of them:
   vertical face long enough for 16 mm of thread, then a 45° chamfer back to
   the wall, so the mold still prints standing without supports.
 - **Screw axis.** Radius `max(seatIn + pad radius, the widest outer ring
-  below the lug + head radius + 1)`: the pad lies wholly outside the clay
+below the lug + head radius + 1)`: the pad lies wholly outside the clay
   zone, and a screw turned in from below — its head too — passes the mold's
   wall on a belly-shaped model. The lug grows outwards as needed.
 - **Threaded hole.** Through, along the whole lug: the clamping screw's tip
@@ -159,6 +159,28 @@ the legs** (where the vent grooves of the sole are), three of them:
   with three sectors and a subtraction of three threaded rods; the thread at
   16 / 48 points per turn. Decide from the numbers whether the preview cuts
   real threads or plain cylinders. Into "What costs what".
+
+**Result (M1 Max, node, default settings).** Lazy booleans, so each stage
+is forced with `numTri()`:
+
+| model, grid | triangles | import both | union 3 lugs | 3 threaded rods, 16 / 48 pts | out       |
+| ----------- | --------- | ----------- | ------------ | ---------------------------- | --------- |
+| teapot, 128 | 547k      | 0.46–0.6 s  | 0.25–0.3 s   | 0.29 / 0.60 s                | 0.1–0.2 s |
+| teapot, 384 | 1.26M     | 0.88 s      | 0.55 s       | 0.59 / 0.89 s                | 0.2–0.3 s |
+| bowl, 384   | 767k      | 0.52 s      | 0.41 s       | 0.41 / 0.73 s                | 0.1–0.2 s |
+| vase, 384   | 1.04M     | 0.76 s      | 0.37 s       | 0.47 / 1.35 s                | 0.3–0.4 s |
+
+Today's preview is 0.03–0.1 s; full CSG would make it 1–1.5 s, mostly the
+import of the big shell. Decision:
+
+- The hole's axis is clear of the shell and of the punch's body (it lies
+  past `seatIn` + the pad's radius), so a hole only ever cuts its lug or
+  petal. The lug and the petal are holed **on their own** (small solids).
+- **Preview:** the holed lugs and petals are merged next to the shell and
+  the punch without a union (they overlap the wall; nobody sees it).
+- **Export:** the shell and the punch are imported and unioned with the
+  holed lugs and petals — a closed, valid STL; ~1.5–2 s on top of today's.
+- The thread: 16 points per turn in a preview, 48 in an export.
 
 ### M1. Thread and screw (pure + worker solids)
 
