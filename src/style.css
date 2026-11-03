@@ -20,6 +20,9 @@
   --bad: #f0806f;
   --line: #3e2a2e;
   --focus: #e3b341;
+  --axis-x: #e5534b;
+  --axis-y: #57ab5a;
+  --axis-z: #539bf5;
   color-scheme: dark;
 }
 
@@ -309,11 +312,37 @@ select {
 
 /* the model as it stands: the user turns it with the buttons, not the mouse */
 .thumb {
-  display: block;
-  inline-size: 100%;
-  block-size: 150px;
+  position: relative;
+  overflow: hidden;
   border-radius: 6px;
   background: var(--bg);
+}
+#thumb {
+  display: block;
+  inline-size: 100%;
+  block-size: 160px;
+}
+/* placed by thumb.ts in the canvas's pixels — physical left/top on purpose */
+.axis-label {
+  position: absolute;
+  padding: 1px 3px;
+  border-radius: 3px;
+  /* readable over the piece, where an axis behind it ends */
+  background: rgb(26 18 20 / 0.7);
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+.axis-x {
+  color: var(--axis-x);
+}
+.axis-y {
+  color: var(--axis-y);
+}
+.axis-z {
+  color: var(--axis-z);
 }
 
 .icon-buttons {

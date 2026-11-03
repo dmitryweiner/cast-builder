@@ -130,7 +130,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const panel = el('panel', HTMLElement);
   const emptyEl = el('empty', HTMLDivElement);
   const stageNote = el('stageNote', HTMLParagraphElement);
-  const thumbCanvas = el('thumb', HTMLCanvasElement);
+  const thumbBox = el('thumbBox', HTMLDivElement);
   const fileInput = el('fileInput', HTMLInputElement);
   const localeSelect = el('locale', HTMLSelectElement);
   const modelInfo = el('modelInfo', HTMLParagraphElement);
@@ -154,7 +154,11 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   const view = el('view', HTMLCanvasElement);
   const scene: SceneHandle = createScene(view);
-  const thumb = createThumb(thumbCanvas);
+  const thumb = createThumb(el('thumb', HTMLCanvasElement), {
+    x: el('axisX', HTMLSpanElement),
+    y: el('axisY', HTMLSpanElement),
+    z: el('axisZ', HTMLSpanElement),
+  });
   const client = new ToolingClient();
   const narrow = window.matchMedia('(max-width: 760px)');
   // on a phone with no model the sheet would cover the invitation; a model opens it
@@ -416,7 +420,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const [width, depth, height] = sizeOf(current.placed.positions);
     current.heightMm = height;
     current.radiusMm = Math.hypot(width, depth) / 2;
-    thumbCanvas.hidden = false;
+    thumbBox.hidden = false;
     thumb.show(withNormals(current.placed));
   }
 

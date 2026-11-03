@@ -41,7 +41,12 @@
         <aside id="panel" class="open">
           <section class="card">
             <h2 data-i18n="panel.model">Model</h2>
-            <canvas id="thumb" class="thumb" hidden></canvas>
+            <div id="thumbBox" class="thumb" hidden>
+              <canvas id="thumb"></canvas>
+              <span id="axisX" class="axis-label axis-x" aria-hidden="true" hidden>X</span>
+              <span id="axisY" class="axis-label axis-y" aria-hidden="true" hidden>Y</span>
+              <span id="axisZ" class="axis-label axis-z" aria-hidden="true" hidden>Z</span>
+            </div>
             <p id="modelInfo" class="note"></p>
             <div class="icon-buttons">
               <button

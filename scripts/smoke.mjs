@@ -81,6 +81,23 @@ try {
     check(await page.locator('#thumb').isVisible(), 'no thumbnail of the model');
     await page.waitForFunction(() => document.querySelector('#thumb')?.width > 0);
     check((await thumbPixels(page)) > 1000, 'the thumbnail is blank');
+    // the axes are labelled inside the picture, X running to the right of the axis
+    const axes = await page.evaluate(() => {
+      const box = document.querySelector('#thumbBox').getBoundingClientRect();
+      return Object.fromEntries(
+        ['X', 'Y', 'Z'].map((name) => {
+          const label = document.querySelector(`#axis${name}`).getBoundingClientRect();
+          const inside =
+            label.width > 0 && label.left >= box.left && label.right <= box.right && label.top >= box.top && label.bottom <= box.bottom;
+          return [name, { inside, x: label.left, y: label.top }];
+        }),
+      );
+    });
+    check(
+      Object.values(axes).every((axis) => axis.inside),
+      `axis labels outside the thumbnail: ${JSON.stringify(axes)}`,
+    );
+    check(axes.X.x > axes.Z.x && axes.Z.y < axes.X.y, `the axes are not X right, Z up: ${JSON.stringify(axes)}`);
     // the spout widens the piece: its bottom counts as narrow, two halves do
     const boxes = await parts(page, 2);
     check(boxes[0].startsWith('Pour box: half A'), `pour boxes: ${boxes.join(' | ')}`);

@@ -87,9 +87,11 @@ Regenerate them only on purpose.
 - `src/worker/` — `tooling.ts` runs one job (tested in node), `csg.worker.ts`
   is its thin adapter, `client.ts` the main thread's queue, `protocol.ts` the
   types of both sides.
-- `src/render/` — Three.js: `scene.ts` the main view (tooling only, orbit
-  camera), `thumb.ts` the model thumbnail in the Model card (drawn once per
-  change, no controls), `look.ts` their shared colours and lights. `src/ui/`
+- `src/render/` — Three.js: `scene.ts` the main view (tooling only, on a
+  print bed grid, orbit camera), `thumb.ts` the model thumbnail in the Model
+  card (drawn once per change, no controls, the three axes labelled),
+  `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
+  the bed and the axes (tested in node). `src/ui/`
   — controls (a range may carry preset buttons), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —

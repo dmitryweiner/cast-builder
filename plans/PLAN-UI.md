@@ -135,3 +135,23 @@ itself, the view filling the rest; on a phone the panel is a bottom sheet.
 - Tests: `ui/sheet.test.ts` (jsdom: taps, drags, pinches, the inset, the
   initial state), `ui/controls.test.ts` (presets); smoke steps for the
   thumbnail, the 90° preset and the sheet on a phone.
+
+## Review round (2026-11-03)
+
+- Tooltips on the icon buttons: already there (`title` from the
+  dictionary); dropped from the round.
+- **The thumbnail draws all three axes**, X red, Y green, Z blue, as thin
+  rods (a WebGL line is one device pixel), labelled by HTML captions over
+  the canvas. The camera stands 20° to the left of straight in front:
+  straight in front, Y ran into the picture along the line of Z. An axis
+  the piece hides shows through it faintly (a second, depth-test-free copy
+  at 30 % opacity), so the caption of Y, which ends behind the piece, is not
+  left hanging over it. The frame fits the axes too, with room for the
+  captions. The red X replaces the earlier parting line.
+- **The main view stands the tooling on a print bed**: a grid as in
+  case-constructor, 1 cm cells, coarser under large tooling (no more than
+  60 cells a side), whole decimetres with a margin round the footprint
+  (`bedGrid`); the camera's target is the middle of the tooling's height.
+- Tests: `render/guides.test.ts` (the bed's size and cells, the axes'
+  ends); the smoke checks the captions are inside the thumbnail, X to the
+  right of Z and Z above X.

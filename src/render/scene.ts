@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { SurfaceMesh } from '../geo/surface';
-import { addLights, CLEAR_COLOR, toGeometry, toolingMaterial } from './look';
+import { bedGrid } from './guides';
+import { addLights, BED_COLORS, CLEAR_COLOR, toGeometry, toolingMaterial } from './look';
 
 export interface SceneHandle {
   /** the tooling, several parts at once — the "exploded" preview of a split mold; none clears the view */
@@ -35,6 +36,28 @@ export function createScene(canvas: HTMLCanvasElement): SceneHandle {
   scene.add(group);
 
   const material = toolingMaterial();
+  /** the print bed under the tooling, in cells: made anew when the tooling outgrows it */
+  let bed: THREE.GridHelper | null = null;
+  let bedSize = 0;
+
+  function setBed(widthMm: number, depthMm: number): void {
+    const { sizeMm, cellMm } = bedGrid(widthMm, depthMm);
+    if (bed && sizeMm === bedSize) return;
+    removeBed();
+    bed = new THREE.GridHelper(sizeMm, sizeMm / cellMm, BED_COLORS.center, BED_COLORS.lines);
+    // a hair below the bottoms of the parts: the faces on the bed would flicker through the lines
+    bed.position.y = -0.3;
+    scene.add(bed);
+    bedSize = sizeMm;
+  }
+
+  function removeBed(): void {
+    if (!bed) return;
+    scene.remove(bed);
+    bed.dispose();
+    bed = null;
+    bedSize = 0;
+  }
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -94,16 +117,22 @@ export function createScene(canvas: HTMLCanvasElement): SceneHandle {
       group.add(obj);
       objects.push(obj);
     }
-    if (bounds.isEmpty()) return;
+    if (bounds.isEmpty()) {
+      removeBed();
+      return;
+    }
 
-    // the middle of the composition to the origin (in the core's z-up frame)
+    // the composition over the middle of the bed, standing on it (in the core's z-up frame)
     const center = new THREE.Vector3();
     bounds.getCenter(center);
-    for (const obj of objects) obj.position.set(-center.x, -center.y, -center.z);
-    controls.target.set(0, 0, 0);
-
+    for (const obj of objects) obj.position.set(-center.x, -center.y, -bounds.min.z);
     const size = new THREE.Vector3();
     bounds.getSize(size);
+    setBed(size.x, size.y);
+
+    // the camera keeps its side and its distance to the target, which rises to the middle of the tooling
+    const offset = camera.position.clone().sub(controls.target);
+    controls.target.set(0, size.z / 2, 0);
     const radius = size.length() / 2;
     const distance = fitDistance(radius);
     camera.near = Math.max(0.1, distance / 500);
@@ -111,9 +140,10 @@ export function createScene(canvas: HTMLCanvasElement): SceneHandle {
     camera.updateProjectionMatrix();
     // a zoom set by the mouse stays while the composition keeps its size
     if (Math.abs(radius - fittedRadius) > fittedRadius * 0.08) {
-      camera.position.setLength(distance);
+      offset.setLength(distance);
       fittedRadius = radius;
     }
+    camera.position.copy(controls.target).add(offset);
   }
 
   return {

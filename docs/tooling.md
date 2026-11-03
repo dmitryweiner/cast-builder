@@ -9,10 +9,13 @@ reason; repair it where it came from.
 
 The panel is on the left; on a phone it is a sheet over the view: a tap on
 the view hides it, **Settings** brings it back. The main view shows only
-the tooling. The model itself is the small picture in the **Model** card:
-seen from in front of the parting plane, X running left to right, with a
-line along X on the floor where the mold parts. It is not turned with the
-mouse — the buttons under it turn the model itself.
+the tooling, standing on a print bed in 1 cm cells (coarser under large
+tooling). The model itself is the small picture in the **Model** card:
+seen from in front of the parting plane, a little from the left, with the
+axes drawn and labelled — X red, Y green, Z blue; where the piece hides an
+axis, it shows through faintly. The red X on the floor is where the mold
+parts. The picture is not turned with the mouse — the buttons under it turn
+the model itself.
 
 The tooling assumes the piece stands upright with its axis vertical, and
 that a handle or a spout lies along X — the mold parts in the XZ plane.
