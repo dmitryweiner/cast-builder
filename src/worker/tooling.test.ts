@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from '../geo/csg';
-import { initCSG } from '../geo/csg';
+import { CsgScope, initCSG, toManifold } from '../geo/csg';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture } from '../geo/testing';
+import { validateMesh } from '../geo/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
@@ -85,6 +86,36 @@ describe('runJob', () => {
     const { info } = runJob(csg, jobFor('lid-printed', { mode: 'master' }));
     expect(info.status).toBe('openBottom');
     expect(info.warnings.map((m) => m.code)).toContain('model.openBottom');
+  });
+
+  it('stands the collar on a rounded rim: one closed part, slivers only as noise', () => {
+    // the rim of the printable cup is rounded to half its wall
+    const mold = { ...defaultSettings().mold, shrinkPct: 0, spareMm: 30 };
+    const { parts, info } = runJob(csg, jobFor('cup-hollow', { kind: 'export', mode: 'master', mold }));
+    expect(info.mouth?.radiusMm).toBeLessThan(info.rimMm ?? 0);
+    const [master] = parts;
+    expect(master.blocking).toEqual([]);
+    const mesh = { ...master, normals: master.normals };
+    const report = validateMesh(mesh);
+    expect(report.watertight).toBe(true);
+    // the collar cuts the curved strip of the rounding and leaves a few
+    // slivers on the joint: the noise of a boolean operation, far under the
+    // export gate's 1 %
+    expect(report.degenerateTriangles / report.triangleCount).toBeLessThan(0.005);
+    // the collar goes up from the rim by the spare height
+    const height = validateMesh({ ...placeModel(fixture('cup-hollow'), defaultOrientation()), normals: new Float32Array(0) }).extents[2];
+    expect(report.extents[2]).toBeCloseTo(height + mold.spareMm, 0);
+    const scope = new CsgScope();
+    try {
+      expect(
+        scope
+          .keep(toManifold(csg, mesh))
+          .decompose()
+          .map((shell) => scope.keep(shell)),
+      ).toHaveLength(1);
+    } finally {
+      scope.dispose();
+    }
   });
 
   it('refuses a model that is not a solid without throwing', () => {

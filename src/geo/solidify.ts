@@ -33,7 +33,14 @@ export interface Solidified {
    */
   status: SolidStatus;
   /** the rim of the opening that was filled: the mouth of the piece */
-  rim?: { zMm: number; radiusMm: number };
+  rim?: Rim;
+}
+
+export interface Rim {
+  /** the crest of the rim */
+  zMm: number;
+  /** the outer radius of the rim */
+  radiusMm: number;
 }
 
 /** How far below the crest of the rim (or a planar cut) the lid stands, mm. */
@@ -66,7 +73,7 @@ export function solidify(csg: CsgApi, scope: CsgScope, model: Manifold): Solidif
   let filled = dropVoids(csg, scope, capped);
   if (filled === capped) {
     // more openings: a spout's tip, for one
-    const lids = planarOpenings(csg, scope, closed);
+    const lids = planarOpenings(csg, scope, closed, top.lid);
     if (lids.length > 0) {
       capped = scope.keep(csg.Manifold.union([capped, ...lids]));
       filled = dropVoids(csg, scope, capped);
@@ -92,7 +99,7 @@ function openAtBottom(csg: CsgApi, scope: CsgScope, solid: Manifold): boolean {
 interface Opening {
   /** a thin slab across the opening, overlapping the wall */
   lid: Manifold;
-  rim: { zMm: number; radiusMm: number };
+  rim: Rim;
 }
 
 /**
@@ -154,11 +161,13 @@ function axisHole(csg: CsgApi, scope: CsgScope, solid: Manifold, z: number): { o
  * like the top one: grown into the wall, sunk a hair under the plane.
  *
  * A patch looking down is left alone: the bottom of a foot ring is an
- * annulus too, but the recess in it is the outside of the piece. Lids that
- * fall inside the cavity (the ledge of a lid seat) do no harm: what they
- * close off is cavity as well and is dropped with it.
+ * annulus too, but the recess in it is the outside of the piece. A flat
+ * rim is a planar annulus as well, but its opening has the top lid already:
+ * a lid that meets the top one is left out, as two lids a hair apart would
+ * leave slivers. Lids that fall inside the cavity (the ledge of a lid seat)
+ * do no harm: what they close off is cavity as well and is dropped with it.
  */
-function planarOpenings(csg: CsgApi, scope: CsgScope, solid: Manifold): Manifold[] {
+function planarOpenings(csg: CsgApi, scope: CsgScope, solid: Manifold, topLid: Manifold): Manifold[] {
   const lids: Manifold[] = [];
   for (const patch of planarPatches(solid)) {
     const [nx, ny, nz] = patch.normal;
@@ -179,7 +188,8 @@ function planarOpenings(csg: CsgApi, scope: CsgScope, solid: Manifold): Manifold
     );
     const d = patch.offset;
     // column-major: the frame's axes, then its origin on the plane
-    lids.push(scope.keep(slab.transform([u[0], u[1], u[2], 0, v[0], v[1], v[2], 0, nx, ny, nz, 0, nx * d, ny * d, nz * d, 1])));
+    const lid = scope.keep(slab.transform([u[0], u[1], u[2], 0, v[0], v[1], v[2], 0, nx, ny, nz, 0, nx * d, ny * d, nz * d, 1]));
+    if (scope.keep(lid.intersect(topLid)).isEmpty()) lids.push(lid);
   }
   return lids;
 }
