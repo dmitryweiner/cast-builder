@@ -120,6 +120,8 @@ Regenerate them only on purpose.
 - `plans/PLAN-SOLID.md` — how it was done, decisions and results.
 - `plans/PLAN-SCREWS.md` — screw clamps for the slump mold: printed M10 × 2
   screws and stops, lugs and tabs; decisions, measurements.
+- `plans/TODO-PUNCH-LEGS.md` — the punch's legs graze the corners of the
+  ears (found 2026-11-03, in `main` too): what, how much, what to do.
 - `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
   `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
   burgundy theme, the model thumbnail).
