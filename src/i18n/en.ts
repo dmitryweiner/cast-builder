@@ -70,6 +70,11 @@ export const en = {
   'ctl.round.hint': 'the punch bottom, %: 100 — a cap from the axis, nearly a hemisphere for a bowl; 0 — a flat floor',
   'ctl.vent': 'Vents',
   'ctl.vent.hint': 'holes in the mold bottom and along the punch axis, mm: they let air out and break the suction',
+  'ctl.screws': 'Screw clamps',
+  'ctl.screws.hint':
+    'lugs with an M10 × 2 thread on the mold and petals with holes on the punch: pull the punch down with screws instead of a press, push it off with the same screws turned in from below',
+  'ctl.printScrews': 'Print screws and stops',
+  'ctl.printScrews.hint': 'three M10 × 2 screws and three stops in the same file; they fit every mold, so print them once',
   'ctl.resolution': 'Detail',
   'ctl.resolution.hint': 'grid of the slump mold in the exported file; the preview is coarser',
 

@@ -37,6 +37,7 @@ import { defaultSetup, MODES, RECESS_MAX_MM, RESOLUTIONS, sanitizeSettings, sani
 import type { KeyValueStorage } from './storage';
 import { loadSettings, saveSettings } from './storage';
 import type { Control } from './ui/controls';
+import { screwControls } from './ui/screws';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -204,6 +205,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     range('ear', 'ctl.ear', 'ctl.ear.hint', EAR_MIN_MM, EAR_MAX_MM, 0.5, 'earMm', ['slump']),
     range('round', 'ctl.round', 'ctl.round.hint', 0, 100, 5, 'punchRoundPct', ['slump']),
     range('vent', 'ctl.vent', 'ctl.vent.hint', VENT_MIN_MM, VENT_MAX_MM, 0.5, 'ventMm', ['slump']),
+    ...screwControls,
     {
       kind: 'select',
       key: 'resolution',
