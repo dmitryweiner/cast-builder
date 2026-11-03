@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from '../geo/csg';
-import { initCSG } from '../geo/csg';
-import { defaultOrientation, placeModel } from '../geo/model';
+import { CsgScope, initCSG, toManifold } from '../geo/csg';
+import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture } from '../geo/testing';
+import { validateMesh } from '../geo/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
@@ -61,12 +62,76 @@ describe('runJob', () => {
     expect(parts).toHaveLength(1);
   });
 
+  it('fills a hollow teapot and builds its master and pour boxes', () => {
+    for (const mode of ['master', 'bath'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('teapot-hollow', { kind: 'export', mode }));
+      expect(info.status, mode).toBe('filled');
+      expect(info.mouth?.zMm, mode).toBeCloseTo(120, 1);
+      expect(parts.length, mode).toBeGreaterThan(0);
+      for (const part of parts) expect(part.blocking, `${mode}/${part.id}`).toEqual([]);
+    }
+  });
+
+  it('fills a printed lid turned over and builds its tooling', () => {
+    const model = placeModel(fixture('lid-printed'), { turn: flip(IDENTITY_TURN), spinDeg: 0 });
+    for (const mode of ['master', 'bath'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('lid-printed', { kind: 'export', mode, model }));
+      expect(info.status, mode).toBe('filled');
+      expect(parts.length, mode).toBeGreaterThan(0);
+      for (const part of parts) expect(part.blocking, `${mode}/${part.id}`).toEqual([]);
+    }
+  });
+
+  it('asks to turn over a lid as printed', () => {
+    const { info } = runJob(csg, jobFor('lid-printed', { mode: 'master' }));
+    expect(info.status).toBe('openBottom');
+    expect(info.warnings.map((m) => m.code)).toContain('model.openBottom');
+  });
+
+  it('stands the collar on a rounded rim: one closed part, slivers only as noise', () => {
+    // the rim of the printable cup is rounded to half its wall
+    const mold = { ...defaultSettings().mold, shrinkPct: 0, spareMm: 30 };
+    const { parts, info } = runJob(csg, jobFor('cup-hollow', { kind: 'export', mode: 'master', mold }));
+    expect(info.mouth?.radiusMm).toBeLessThan(info.rimMm ?? 0);
+    const [master] = parts;
+    expect(master.blocking).toEqual([]);
+    const mesh = { ...master, normals: master.normals };
+    const report = validateMesh(mesh);
+    expect(report.watertight).toBe(true);
+    // the collar cuts the curved strip of the rounding and leaves a few
+    // slivers on the joint: the noise of a boolean operation, far under the
+    // export gate's 1 %
+    expect(report.degenerateTriangles / report.triangleCount).toBeLessThan(0.005);
+    // the collar goes up from the rim by the spare height
+    const height = validateMesh({ ...placeModel(fixture('cup-hollow'), defaultOrientation()), normals: new Float32Array(0) }).extents[2];
+    expect(report.extents[2]).toBeCloseTo(height + mold.spareMm, 0);
+    const scope = new CsgScope();
+    try {
+      expect(
+        scope
+          .keep(toManifold(csg, mesh))
+          .decompose()
+          .map((shell) => scope.keep(shell)),
+      ).toHaveLength(1);
+    } finally {
+      scope.dispose();
+    }
+  });
+
   it('refuses a model that is not a solid without throwing', () => {
     const pot = placeModel(fixture('pot'), defaultOrientation());
     const open = { positions: pot.positions, indices: pot.indices.slice(3) };
     const { parts, info } = runJob(csg, jobFor('pot', { model: open, mode: 'bath' }));
     expect(parts).toEqual([]);
     expect(info.blocking.map((m) => m.code)).toEqual(['model.notSolid']);
+  });
+
+  it('refuses two pieces in one file in every mode', () => {
+    for (const mode of ['master', 'bath', 'slump'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('teapot-lid-beside', { mode }));
+      expect(parts, mode).toEqual([]);
+      expect(info.blocking, mode).toEqual([{ code: 'model.pieces', params: { n: 2 } }]);
+    }
   });
 
   it('takes the parting picked by hand and a mouth set by hand', () => {

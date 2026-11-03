@@ -11,9 +11,10 @@ import { meshNormals } from './normals';
 import type { PressSource } from './revolve';
 
 /**
- * Fixtures are solids built by clayform's core at 48 segments (see
- * fixtures/README.md): bowl, pot, cup, vase, pot-handle, teapot,
- * lid-upside-down, cup-hollow.
+ * Fixtures are meshes built by clayform's core at 48 segments (see
+ * fixtures/README.md). Solid: bowl, pot, cup, vase, pot-handle, teapot,
+ * lid-upside-down. Printable, hollow: cup-hollow, teapot-hollow,
+ * lid-printed, teapot-lid-beside.
  */
 export function fixture(name: string): IndexedMesh {
   const bytes = readFileSync(resolve(import.meta.dirname, '../../fixtures', `${name}.stl`));

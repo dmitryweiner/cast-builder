@@ -1,7 +1,8 @@
 // Browser smoke of the real app: the sample model through every mode, an
-// STL opened from a file (a hollow print gets filled), real downloads, the
-// model turned, language detection and memory, no horizontal scroll on a
-// phone, no console errors. With --preview it runs against a fresh
+// STL opened from a file (a hollow print gets filled), Clayform's printable
+// teapot, lid and "lid alongside" file, real downloads, the model turned,
+// language detection and memory, no horizontal scroll on a phone, no
+// console errors. With --preview it runs against a fresh
 // production build and also checks that the app — the worker and its WASM
 // included — works offline.
 //
@@ -97,6 +98,24 @@ try {
     check(downloads[0].suggestedFilename() === 'cup-hollow-master.stl', `file named ${downloads[0].suggestedFilename()}`);
     const size = readFileSync(await downloads[0].path()).length;
     check(size > 84 + 50 * 1000, `the STL is only ${size} bytes`);
+    await context.close();
+  });
+
+  await step("Clayform's printable files: the teapot fills, the lid asks to be turned, two pieces are refused", async () => {
+    const { page, context } = await app.open();
+    const panel = (selector, text) =>
+      page.waitForFunction(([sel, words]) => document.querySelector(sel)?.textContent?.includes(words), [selector, text], {
+        timeout: 60000,
+      });
+    await page.setInputFiles('#fileInput', fixture('teapot-hollow'));
+    await panel('#warnings', 'was hollow');
+    await page.setInputFiles('#fileInput', fixture('lid-printed'));
+    await panel('#warnings', 'open at the bottom');
+    await page.click('#turnFlip');
+    await panel('#warnings', 'was hollow');
+    await page.setInputFiles('#fileInput', fixture('teapot-lid-beside'));
+    await panel('#blockers', 'separate pieces');
+    check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for two pieces');
     await context.close();
   });
 

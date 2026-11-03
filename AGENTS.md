@@ -9,7 +9,8 @@ operations in a worker. Tests on Vitest (node and jsdom) and a Playwright
 smoke. UI in English and Russian. Deployed to GitHub Pages.
 
 It was split out of [clayform](https://github.com/dmitryweiner/clayform),
-which designs the pieces; clayform's "Solid" export is the hand-off.
+which designs the pieces; clayform's export — the piece as it is printed in
+clay, hollow — is the hand-off, and the solid master is made here.
 
 The shared conventions behind this setup are in `~/projects/CLAUDE.md` and
 `~/projects/_conventions/`; this file is what holds for this repository.
@@ -48,8 +49,9 @@ Pure logic → `*.test.ts` in node; anything touching the DOM → jsdom
 browser (the worker, WebGL, downloads, the service worker, layout) → a step
 in `scripts/smoke.mjs`. The CSG tests run the real WASM in node.
 
-Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
-`fixtures/README.md`). Regenerate them only on purpose.
+Geometry tests use `fixtures/*.stl` — meshes built by clayform's core, the
+printable hollow ones and the older solid ones (see `fixtures/README.md`).
+Regenerate them only on purpose.
 
 ## Layout
 
@@ -66,8 +68,10 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
   - `stl.ts` — read (binary and ASCII, vertices welded) and write STL;
   - `model.ts` — quarter turns, spin, placement (axis through the origin,
     bottom on z = 0);
+  - `pieces.ts` — how many separate pieces are in a file;
   - `mouth.ts` — the mouth of a solid model and the gate radius;
-  - `solidify.ts` — a hollow model made solid (CSG);
+  - `solidify.ts` — a hollow model made solid: its openings found and
+    capped (CSG);
   - `revolve.ts` — a mesh read as a body of revolution for the slump mold;
   - `press.ts` — the slump mold and its punch (no CSG);
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
@@ -87,8 +91,15 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
 - `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
-  smoke; `scripts/icons.mjs` — icon rendering.
+  smoke; `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
+  printable fixtures from clayform's sources, run with clayform's vite-node
+  (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`).
 - `docs/` — user documentation.
+
+## Plans
+
+- `plans/TODO-SOLID.md` — what Clayform's printable export needs here.
+- `plans/PLAN-SOLID.md` — how it was done, decisions and results.
 
 ## Architectural invariants
 
@@ -112,12 +123,21 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
   of touching it.
 - A void inside a cavity is more cavity: `buildCavity` drops closed voids
   (`dropVoids`) after the collar is fused on.
-- A hollow model is filled by a lid across its top opening and dropping the
-  closed void; with a second opening (a spout) it stays `open` and the user
-  is told to bring a solid one.
+- One file, one piece: `bodies` counts the connected parts of positive
+  volume, and two of them (Clayform's "Lid alongside") block every mode.
+- A hollow model is filled by lids across its openings and dropping the
+  closed void. The top opening is the highest slice with a hole **around the
+  axis** — not the top of the mesh: a spout's tip is higher. If that lid
+  leaves the inside open, every planar patch with a hole (a spout's tip cut
+  by a plane) gets a lid too, except patches looking down (a foot ring's
+  recess is the outside) and lids meeting the top one (a flat rim). Still
+  open → `open`, the user is told to bring a solid model. No top opening
+  but a bottom one closing more void than there is material → `openBottom`:
+  a lid as printed, the user is asked to turn it over. The model is never
+  turned by the app.
 - The mouth is where the collar stands: the largest up-facing flat area in
   the upper half of a solid model (the tip of a spout is higher but smaller),
-  the rim of a filled hollow one, or numbers set by hand.
+  the crest of the rim of a filled hollow one, or numbers set by hand.
 - The scheme is the analyzer's unless picked by hand (`withScheme`); a
   through hole (genus > 0) rules out a one-part mold.
 - The slump mold reads the model as a body of revolution (`meshSource`):
@@ -132,7 +152,7 @@ Geometry tests use `fixtures/*.stl` — solids built by clayform's core (see
 
 ## What costs what
 
-Measured on an M1 Max in node (`runJob`), the clayform fixtures (5–8k
+Measured on an M1 Max in node (`runJob`), the clayform fixtures (5–16k
 triangles):
 
 | Job                                               | Time                                              |
@@ -140,6 +160,9 @@ triangles):
 | master (teapot)                                   | 30–50 ms                                          |
 | pour boxes, 2–3 parts (teapot, pot with a handle) | 1.1–1.6 s, half of it the void under the positive |
 | pour boxes, a hollow cup (fill included)          | 0.5 s                                             |
+| filling: a solid model / a hollow cup             | 5–10 ms / 25–35 ms                                |
+| filling a hollow teapot (spout tip included)      | 0.1 s; its master 0.15 s, its pour boxes 1.4 s    |
+| a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                    |
 | slump mold + punch, preview grid 128              | 0.03–0.1 s                                        |
 | slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                          |
 
@@ -157,6 +180,9 @@ deep, a waiting preview is replaced by a fresher one, an export never.
   and leg sizes other than the ear's seat (constants in `geo/press.ts`);
   separate objects in the STL (mold and punch are one mesh — "split into
   parts" in the slicer).
+- Openings other than the top one and planar cuts (a spout tip cut by a
+  curve), openings picked by hand in the view, a model turned over by the
+  app itself.
 - An axis other than the foot's centroid: a model with no flat foot falls
   back to the middle of its bounding box.
 
