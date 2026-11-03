@@ -140,6 +140,20 @@ triangles):
 The preview waits 400 ms after the last edit; the worker's queue is one job
 deep, a waiting preview is replaced by a fresher one, an export never.
 
+## What is not there
+
+- Rounded outer edges of the plaster block.
+- A parting flange on the master positive, a ring key under the bottom plate.
+- A seating cylinder below the plug's ledge: the plug casts the ledge and
+  the gallery over it; lower the wall comes out at its usual thickness.
+- Pour boxes for the slump mold: the mold itself is printed, as a shell.
+- A slump mold on a hump ("+"); handles on the punch; adjustable clearance
+  and leg sizes other than the ear's seat (constants in `geo/press.ts`);
+  separate objects in the STL (mold and punch are one mesh — "split into
+  parts" in the slicer).
+- An axis other than the foot's centroid: a model with no flat foot falls
+  back to the middle of its bounding box.
+
 ## Conventions
 
 - Code comments, docs and README in English.
