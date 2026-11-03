@@ -47,8 +47,11 @@ user's approval of the plan.**
 ## Proposed design (variant A, see Q1)
 
 The legs and the ears stay as they are: they still guide the punch and stop
-it at the slab's depth. The screws get **lugs of their own, halfway between
-the legs** (where the vent grooves of the sole are), three of them:
+it at the slab's depth. The screws get **lugs of their own between the
+legs**, three of them. (M2: not exactly halfway — the grooves of the sole
+come out there, and on a bowl the lug's 45° chamfer runs down to the table
+and would shut them. A lug is halfway between the ear's cheeks and the
+groove.)
 
 ```
    section through a lug, the punch pressed down
@@ -201,7 +204,7 @@ import of the big shell. Decision:
   the mold like the ears, so the punch's petals and the mold's holes come
   from one measure. `PressOptions.screws: boolean`; in screw mode the
   flange is `PETAL_T` (after shrinkage). Pure, no CSG.
-- Tests: the lugs halfway between the ears and clear of their cheeks; the
+- Tests: the lugs 120° apart, clear of the ears' cheeks and the grooves; the
   screw axis clears every outer ring below the lug by the head's radius;
   the seat is exactly `PAD_H` under the petal of the pressed punch, for
   several slabs and shrinkages; the shelf is no higher than the ears' top;

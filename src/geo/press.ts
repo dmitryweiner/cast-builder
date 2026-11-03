@@ -19,6 +19,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
+import { LUG_THREAD_MM, PAD, PAD_GAP_MM, PETAL_T_MM, SCREW } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -114,6 +115,8 @@ export interface PressOptions {
   ventMm: number;
   /** rounding of the punch's bottom, % of the largest */
   roundPct: number;
+  /** screw clamps: lugs on the mold, petals on the punch (geo/thread.ts) */
+  screws: boolean;
 }
 
 /**
@@ -194,6 +197,8 @@ export interface SlumpFit {
   /** diameter of the vent in the mold's bottom; the punch has the same one, mm */
   ventMm: number;
   ear: EarFit;
+  /** the outer silhouette of the mold without ears and grooves, from the table up */
+  outer: { r: number; z: number }[];
 }
 
 /**
@@ -316,6 +321,7 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
       outerMaxMm,
       topOuterMm: rings[nv].r,
       ventMm: vent,
+      outer: rings.map(({ r, z }) => ({ r, z: z + shellMm })),
       ear: {
         ...ears.fit,
         topZ: ears.fit.topZ + shellMm,
@@ -558,7 +564,8 @@ export function punchLayout(source: PressSource, options: PressOptions, fit: Slu
     lipInMm,
     lipZ: fit.ear.topZ - PUNCH_LIP_MM,
     flangeMm: lipInMm + PUNCH_STEP_MM + PUNCH_LIP_T_MM,
-    flangeT: Math.max(options.shellMm, PUNCH_FLANGE_MIN_MM),
+    // with screws the petals are a part of the flange and pull on it: it prints PETAL_T_MM after the shrinkage
+    flangeT: options.screws ? PETAL_T_MM / (1 + options.shrinkPct / 100) : Math.max(options.shellMm, PUNCH_FLANGE_MIN_MM),
     flangeZ: fit.rimZ + slabMm,
     legReach: fit.ear.legReach,
   };
@@ -569,6 +576,127 @@ export function legDistance(u: number): number {
   const pitch = (2 * Math.PI) / PUNCH_LEGS;
   const t = (((u + Math.PI / 2) % pitch) + pitch) % pitch;
   return Math.min(t, pitch - t);
+}
+
+/** Angular distance from `u` to the nearest of `angles`. */
+export function lugDistance(u: number, angles: readonly number[]): number {
+  let best = Math.PI;
+  for (const angle of angles) {
+    const d = Math.abs(((((u - angle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+    best = Math.min(best, d);
+  }
+  return best;
+}
+
+/**
+ * The screw clamps — three lugs on the mold, three petals of the punch's
+ * flange over them — in the mm of the print (after
+ * the shrinkage: the screws and stops do not shrink) and in the mold's frame
+ * with the punch pressed down.
+ *
+ * A lug is a sector of `profile` revolved round the axis and fused onto the
+ * shell. By the wall it is a low shelf at the height of the ears' top — the
+ * clay hanging over the rim lies on it as on the ears; past `seatInMm` (the
+ * ears' rule: the wall, the slab, a gap) it rises to a flat seat exactly
+ * PAD_GAP_MM under the petal, so one stop fits every mold. Under the seat a
+ * vertical face LUG_THREAD_MM long, then a 45° chamfer back to the wall:
+ * the mold still prints standing without supports; on a wall gentler than
+ * that the chamfer may reach the table. So a lug is not halfway between the
+ * ears, where the grooves of the sole come out, but halfway between the
+ * ear's cheeks and the groove. The inner edge follows
+ * the wall sunk into it by half a shell — inside the material, never at its
+ * surface, never into the cavity.
+ */
+export interface ScrewLayout {
+  /** centres of the lugs, radians */
+  angles: number[];
+  /** half the angle of a lug's sector: the stop fits in it with a millimetre to spare */
+  halfAngle: number;
+  /** radius of the screws' axes */
+  axisMm: number;
+  /** outer radius of a lug and of a petal */
+  outerMm: number;
+  /** where the seat begins: inside it the clay hangs over the rim */
+  seatInMm: number;
+  shelfZ: number;
+  seatZ: number;
+  /** bottom of the lug's vertical face */
+  faceZ: number;
+  /** underside of the petal of the pressed punch */
+  petalZ: number;
+  /** the lug's axial section (r, z), counter-clockwise */
+  profile: { r: number; z: number }[];
+}
+
+export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
+  const grow = 1 + options.shrinkPct / 100;
+  const pitch = (2 * Math.PI) / PUNCH_LEGS;
+  // the legs are at −90° + k·pitch, the grooves half a pitch from them (ventGrooves)
+  const offset = (fit.ear.reach + pitch / 2) / 2;
+  const angles = Array.from({ length: PUNCH_LEGS }, (_, i) => -Math.PI / 2 + offset + i * pitch);
+  const outer = fit.outer.map(({ r, z }) => ({ r: r * grow, z: z * grow }));
+  const sink = (options.shellMm * grow) / 2;
+  /** the outer surface of the mold at height z: the widest of the segments of the silhouette that hold it */
+  const wallAt = (z: number): number => {
+    let r = outer[0].r;
+    for (let j = 1; j < outer.length; j++) {
+      const a = outer[j - 1];
+      const b = outer[j];
+      if (z < a.z || z > b.z) continue;
+      r = b.z > a.z ? a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z) : Math.max(a.r, b.r);
+    }
+    return r;
+  };
+  const inner = (z: number): number => wallAt(z) - sink;
+
+  const petalZ = punchLayout(source, options, fit).flangeZ * grow;
+  const seatZ = petalZ - PAD_GAP_MM;
+  const shelfZ = fit.ear.topZ * grow;
+  const seatInMm = Math.max(fit.ear.seatInMm * grow, wallAt(shelfZ) + 1);
+  let below = 0;
+  for (const ring of outer) if (ring.z <= seatZ) below = Math.max(below, ring.r);
+  // the stop outside the clay; a screw turned in from below passes the mold's wall with its head
+  const axisMm = Math.max(seatInMm + PAD.d / 2, below + SCREW.headD / 2 + 1);
+  const outerMm = axisMm + PAD.d / 2;
+  const halfAngle = Math.asin(Math.min(1, (PAD.d / 2 + 1) / axisMm));
+  const faceZ = seatZ - LUG_THREAD_MM;
+
+  // The chamfer r = outerMm − (faceZ − z) goes down and in until it meets the
+  // sunk wall; on a low mold it may reach the table first.
+  const chamfer = (z: number): number => outerMm - (faceZ - z);
+  const top = Math.min(faceZ, shelfZ);
+  const levels = [top, ...outer.map((ring) => ring.z).filter((z) => z < top)].toSorted((a, b) => b - a);
+  let meetZ = levels[levels.length - 1];
+  for (let i = 1; i < levels.length; i++) {
+    const hi = levels[i - 1];
+    const lo = levels[i];
+    const fLo = chamfer(lo) - inner(lo);
+    if (fLo > 0) continue;
+    const fHi = chamfer(hi) - inner(hi);
+    meetZ = fHi > fLo ? hi - ((hi - lo) * fHi) / (fHi - fLo) : lo;
+    break;
+  }
+  const bottom =
+    chamfer(meetZ) - inner(meetZ) > 1e-6
+      ? [
+          { r: inner(meetZ), z: meetZ },
+          { r: chamfer(meetZ), z: meetZ },
+        ]
+      : [{ r: inner(meetZ), z: meetZ }];
+  const wall = outer
+    .filter((ring) => ring.z > meetZ + 1e-6 && ring.z < shelfZ - 1e-6)
+    .map((ring) => ({ r: ring.r - sink, z: ring.z }))
+    .toReversed();
+  const profile = [
+    ...bottom,
+    { r: outerMm, z: faceZ },
+    { r: outerMm, z: seatZ },
+    { r: seatInMm, z: seatZ },
+    { r: seatInMm, z: shelfZ },
+    { r: inner(shelfZ), z: shelfZ },
+    ...wall,
+  ].filter((p, i, all) => i === 0 || Math.hypot(p.r - all[i - 1].r, p.z - all[i - 1].z) > 1e-6);
+  return { angles, halfAngle, axisMm, outerMm, seatInMm, shelfZ, seatZ, faceZ, petalZ, profile };
 }
 
 /**
@@ -761,10 +889,19 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   // the flange only presses the clay on the top, and a wide ring would be
   // plastic for nothing.
   const narrowMm = Math.min(fit.topOuterMm + FLANGE_OVER_RIM_MM, ear.seatInMm - PUNCH_STEP_MM);
+  // With screws the flange stays wide over the lugs too, flat, out to their
+  // outer radius: the petals (before the shrinkage, as the rest is here).
+  const petals = options.screws ? screwLayout(source, options, fit) : null;
+  const petalReach = petals ? petals.halfAngle + (2 * Math.PI) / nu : -1;
+  const petalMm = petals ? petals.outerMm / (1 + shrinkPct / 100) : 0;
   const flangePoint = (r: number, z: number, k: number, drop: number): LathePoint => ({
     r,
     z,
-    offset: (u) => (legDistance(u) <= reach ? { dr: 0, dz: -drop } : { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 }),
+    offset: (u) => {
+      if (legDistance(u) <= reach) return { dr: 0, dz: -drop };
+      if (petals && lugDistance(u, petals.angles) <= petalReach) return { dr: k === 4 ? petalMm - r : 0, dz: 0 };
+      return { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 };
+    },
   });
   const contour: LathePoint[] = [
     // the vent below; the floor of the working surface, if the rounding left one

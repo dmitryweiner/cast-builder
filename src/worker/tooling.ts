@@ -95,6 +95,7 @@ export function pressOptions(mold: MoldState): PressOptions {
     earMm: mold.earMm,
     ventMm: mold.ventMm,
     roundPct: mold.punchRoundPct,
+    screws: false,
   };
 }
 
