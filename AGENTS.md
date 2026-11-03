@@ -93,7 +93,13 @@ Regenerate them only on purpose.
 - `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
   smoke; `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
   printable fixtures from clayform's sources, run with clayform's vite-node
-  (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`).
+  (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`);
+  with `--presets [--res <n>]` it writes nothing and checks instead that
+  every built-in clayform preset, exported as printed (192 segments by
+  default), fills into a master: one shell, genus = handles, the mouth on
+  top, the lid `openBottom` as printed and filled turned over (~10 s). Run
+  it after changing `solidify` here or the body, spout or lid in clayform:
+  the fixtures are frozen and would not notice.
 - `docs/` — user documentation.
 
 ## Plans
