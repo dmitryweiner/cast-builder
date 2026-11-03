@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from './csg';
 import { CsgScope, initCSG, toManifold } from './csg';
-import { defaultOrientation, placeModel } from './model';
+import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from './model';
+import { guessMouth } from './mouth';
 import { solidify } from './solidify';
 import { fixture } from './testing';
 
@@ -89,6 +90,26 @@ describe('solidify', () => {
     // the lids stand a hair (0.15 mm) under the rims and leave dents that deep
     const dentsMm3 = 0.15 * (52 * 52 + scope.keep(csg.CrossSection.circle(5, 32)).area());
     expect(result.solid.volume()).toBeCloseTo(60 ** 3 - recessMm3 - dentsMm3, -1);
+  });
+
+  it('fills a printed lid turned over into the solid lid, its skirt end the mouth', () => {
+    const upsideDown = { turn: flip(IDENTITY_TURN), spinDeg: 0 };
+    const lid = scope.keep(toManifold(csg, placeModel(fixture('lid-printed'), upsideDown)));
+    const result = solidify(csg, scope, lid);
+    expect(result.status).toBe('filled');
+    const solidLid = solidOf('lid-upside-down');
+    expect(result.solid.volume()).toBeGreaterThan(solidLid.volume() * 0.99);
+    expect(result.solid.volume()).toBeLessThan(solidLid.volume() * 1.01);
+    const skirt = guessMouth(placeModel(fixture('lid-upside-down'), defaultOrientation()));
+    expect(result.rim?.zMm).toBeCloseTo(skirt.zMm, 1);
+    expect(result.rim?.radiusMm).toBeCloseTo(skirt.radiusMm, 0);
+  });
+
+  it('tells a lid as printed, open at the bottom, from a solid foot with a recess', () => {
+    expect(solidify(csg, scope, solidOf('lid-printed')).status).toBe('openBottom');
+    const body = scope.keep(csg.Manifold.cylinder(30, 40, 40, 64));
+    const recess = scope.keep(csg.Manifold.cylinder(4, 30, 30, 64).translate([0, 0, -1]));
+    expect(solidify(csg, scope, scope.keep(body.subtract(recess))).status).toBe('solid');
   });
 
   it('drops a closed void inside a model', () => {

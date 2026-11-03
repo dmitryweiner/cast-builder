@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from '../geo/csg';
 import { initCSG } from '../geo/csg';
-import { defaultOrientation, placeModel } from '../geo/model';
+import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture } from '../geo/testing';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
@@ -69,6 +69,22 @@ describe('runJob', () => {
       expect(parts.length, mode).toBeGreaterThan(0);
       for (const part of parts) expect(part.blocking, `${mode}/${part.id}`).toEqual([]);
     }
+  });
+
+  it('fills a printed lid turned over and builds its tooling', () => {
+    const model = placeModel(fixture('lid-printed'), { turn: flip(IDENTITY_TURN), spinDeg: 0 });
+    for (const mode of ['master', 'bath'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('lid-printed', { kind: 'export', mode, model }));
+      expect(info.status, mode).toBe('filled');
+      expect(parts.length, mode).toBeGreaterThan(0);
+      for (const part of parts) expect(part.blocking, `${mode}/${part.id}`).toEqual([]);
+    }
+  });
+
+  it('asks to turn over a lid as printed', () => {
+    const { info } = runJob(csg, jobFor('lid-printed', { mode: 'master' }));
+    expect(info.status).toBe('openBottom');
+    expect(info.warnings.map((m) => m.code)).toContain('model.openBottom');
   });
 
   it('refuses a model that is not a solid without throwing', () => {

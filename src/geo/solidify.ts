@@ -22,11 +22,15 @@
 import type { CrossSection, Manifold } from 'manifold-3d';
 import type { CsgApi, CsgScope } from './csg';
 
-export type SolidStatus = 'solid' | 'filled' | 'open';
+export type SolidStatus = 'solid' | 'filled' | 'open' | 'openBottom';
 
 export interface Solidified {
   solid: Manifold;
-  /** solid as it came, filled here, or open: the fill did not close the inside */
+  /**
+   * solid as it came, filled here, open: the fill did not close the inside,
+   * or open at the bottom and closed at the top — a lid as it is printed,
+   * which has to be turned over; the last two are left as they came
+   */
   status: SolidStatus;
   /** the rim of the opening that was filled: the mouth of the piece */
   rim?: { zMm: number; radiusMm: number };
@@ -57,7 +61,7 @@ export function solidify(csg: CsgApi, scope: CsgScope, model: Manifold): Solidif
   const closed = dropVoids(csg, scope, model);
   const status: SolidStatus = closed === model ? 'solid' : 'filled';
   const top = topOpening(csg, scope, closed);
-  if (!top) return { solid: closed, status };
+  if (!top) return { solid: closed, status: openAtBottom(csg, scope, closed) ? 'openBottom' : status };
   let capped = scope.keep(csg.Manifold.union([closed, top.lid]));
   let filled = dropVoids(csg, scope, capped);
   if (filled === capped) {
@@ -70,6 +74,19 @@ export function solidify(csg: CsgApi, scope: CsgScope, model: Manifold): Solidif
   }
   if (filled === capped) return { solid: closed, status: 'open', rim: top.rim };
   return { solid: filled, status: 'filled', rim: top.rim };
+}
+
+/**
+ * Whether the model is hollow and open at the bottom, like a lid as it is
+ * printed: the bottom's opening, capped, closes more void than there is
+ * material. A recess under a solid foot closes far less.
+ */
+function openAtBottom(csg: CsgApi, scope: CsgScope, solid: Manifold): boolean {
+  const mirrored = scope.keep(solid.mirror([0, 0, 1]));
+  const bottom = topOpening(csg, scope, mirrored);
+  if (!bottom) return false;
+  const filled = dropVoids(csg, scope, scope.keep(csg.Manifold.union([mirrored, bottom.lid])));
+  return filled.volume() > 2 * solid.volume();
 }
 
 interface Opening {

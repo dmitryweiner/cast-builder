@@ -21,6 +21,7 @@ export type MessageCode =
   | 'model.notSolid'
   | 'model.filled'
   | 'model.openTop'
+  | 'model.openBottom'
   // mesh checks before the download (validate)
   | 'mesh.nonFinite'
   | 'mesh.badIndices'

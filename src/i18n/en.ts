@@ -33,11 +33,13 @@ export const en = {
 
   'model.info': '{name} · {dims} mm · {k}k triangles',
   'model.pieces':
-    'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid beside”.',
+    'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid alongside”.',
   'model.notSolid': 'The model is not a closed solid: it has holes or loose edges. Repair it in the program it came from.',
   'model.filled': 'The model was hollow: its inside is filled, the plaster only sees the outside.',
   'model.openTop':
     'The model is hollow and open in more than one place (a spout?), so it cannot be filled. Export it as a solid piece — in Clayform tick “Solid”.',
+  'model.openBottom':
+    'The model is hollow and open at the bottom — a lid as it is printed? Turn it over (“Upside down”): its opening has to look up to be filled.',
 
   'tab.master': 'Master',
   'tab.master.title': 'A positive with a pouring collar for a mold made by hand',

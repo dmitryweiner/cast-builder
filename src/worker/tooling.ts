@@ -148,6 +148,7 @@ function moldJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgres
     info.status = solid.status;
     if (solid.status === 'filled') info.warnings.push({ code: 'model.filled' });
     if (solid.status === 'open') info.warnings.push({ code: 'model.openTop' });
+    if (solid.status === 'openBottom') info.warnings.push({ code: 'model.openBottom' });
 
     // The rim of a filled hollow piece is known from the fill; a solid piece
     // shows it as its largest flat top.
