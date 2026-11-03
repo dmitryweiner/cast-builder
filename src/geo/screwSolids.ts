@@ -2,16 +2,17 @@
 // thread, or grown by the fit, the core of a threaded hole), the printed
 // screw and the stop. Worker only; the sizes come from thread.ts.
 
-import type { Manifold } from 'manifold-3d';
+import type { CrossSection, Manifold } from 'manifold-3d';
 import type { CsgApi, CsgScope } from './csg';
 import type { ScrewLayout } from './press';
+import { BOSS_R_MM } from './press';
 import type { ThreadForm } from './thread';
 import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, THREAD_SLICES, threadSection } from './thread';
 
-/** Segments of a full turn for the plain holes. */
-const ROUND_SEGMENTS = 360;
-/** A lug's sector is turned in steps of this many degrees: its faces along a dense wall cost the union time. */
-const SECTOR_STEP_DEG = 3;
+/** Segments of a full turn for the cavity a lug keeps out of and the columns cut off it. */
+const ROUND_SEGMENTS = 192;
+/** Segments of a boss. */
+const BOSS_SEGMENTS = 48;
 
 /**
  * A threaded rod from z0 to z1 along z: the thread's section extruded with
@@ -78,7 +79,7 @@ export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
 /**
  * The stop in its printing position: a disc from z = 0 to `h` with a 45°
  * conical dimple in its underside, a boss on top. Turned over it goes into
- * the gap: the boss up into the petal's hole, the dimple over the lug's
+ * the gap: the boss up into the tab's hole, the dimple over the lug's
  * thread for the tip of the screw coming from below.
  */
 export function padSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
@@ -107,50 +108,100 @@ export function padSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
   return scope.keep(outline.revolve(Math.max(n, 48)));
 }
 
-/**
- * The lugs of the mold, each a sector of the layout's section revolved round
- * the axis, with a threaded hole through it along the screw's axis — the
- * clamping screw's tip comes out below, a parting screw goes in from below.
- * The axis is clear of the shell (screwLayout), so a hole only ever cuts its
- * own lug: they are holed here, before they meet the shell.
- */
-export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: number): Manifold {
-  const section = scope.keep(new csg.CrossSection([layout.profile.map(({ r, z }): [number, number] => [r, z])], 'Positive'));
-  // The section extruded along a unit "t" and bent round the axis — not
-  // CrossSection.revolve: a partial revolve came out with thirty times the
-  // triangles, and every boolean on the lug that much slower. The angle runs
-  // from the far side so the bend keeps the orientation (normals out).
-  const span = 2 * layout.halfAngle;
-  const steps = Math.max(4, Math.ceil((span * 180) / Math.PI / SECTOR_STEP_DEG));
-  const sector = scope.keep(
-    scope.keep(section.extrude(1, steps)).warp((v) => {
-      const [r, z, t] = v;
-      const a = layout.halfAngle - span * t;
-      v[0] = r * Math.cos(a);
-      v[1] = r * Math.sin(a);
-      v[2] = z;
-    }),
-  );
-  // Along the axis the lug ends where its 45° chamfer passes the hole's inner
-  // edge; lower down (on a bowl it runs to the table) the rod would only cost time.
-  const reach = layout.outerMm - layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM;
-  const rod = threadRod(csg, scope, THREAD, THREAD_FIT_MM, layout.faceZ - reach - 1, layout.seatZ + 1, n);
-  const holed = scope.keep(sector.subtract(scope.keep(rod.translate([layout.axisMm, 0, 0]))));
-  const lugs = layout.angles.map((angle) => scope.keep(holed.rotate([0, 0, (angle * 180) / Math.PI])));
-  return scope.keep(csg.Manifold.union(lugs));
+const polar = (r: number, a: number): [number, number] => [r * Math.cos(a), r * Math.sin(a)];
+
+/** In plan: the hull of the boss round the axis at `angle` and of the given points. */
+function plan(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, angle: number, points: [number, number][]): CrossSection {
+  const boss = scope.keep(scope.keep(csg.CrossSection.circle(BOSS_R_MM, BOSS_SEGMENTS)).translate(polar(layout.axisMm, angle)));
+  return scope.keep(csg.CrossSection.hull([boss, [points]]));
 }
 
-/** The plain holes of the punch's petals: cylinders along the screws' axes through any height. */
-export function petalHoles(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold {
-  const r = CLEAR_HOLE_MM / 2;
-  const holes = layout.angles.map((angle) =>
-    scope.keep(
-      csg.Manifold.cylinder(2000, r, r, Math.round(ROUND_SEGMENTS / 6)).translate([
-        layout.axisMm * Math.cos(angle),
-        layout.axisMm * Math.sin(angle),
-        -1000,
-      ]),
-    ),
-  );
-  return scope.keep(csg.Manifold.union(holes));
+/** A prism of a plan from z0 to z1. */
+function prism(scope: CsgScope, section: CrossSection, z0: number, z1: number): Manifold {
+  return scope.keep(scope.keep(section.extrude(z1 - z0)).translate([0, 0, z0]));
+}
+
+/** A vertical cylinder round the axis from z0 to z1. */
+function column(csg: CsgApi, scope: CsgScope, radius: number, z0: number, z1: number, segments = ROUND_SEGMENTS): Manifold {
+  return scope.keep(csg.Manifold.cylinder(z1 - z0, radius, radius, segments).translate([0, 0, z0]));
+}
+
+/**
+ * The lugs of the mold, one beside each ear, in the corner between its
+ * cheek and the wall (screwLayout): the hull of the boss and of points deep
+ * in the cheek and the wall, from the bottom to the seat, cut back off the
+ * cavity and off the clay over the rim, with a threaded hole through it.
+ */
+export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: number): Manifold {
+  // only the heights of the lugs: the whole cavity made every preview twice as slow
+  const z0 = layout.lugBottomZ - 1;
+  const z1 = layout.seatZ + 1;
+  const band = layout.cavity.filter((p) => p.r > 0 && p.z > z0 && p.z < z1);
+  const radiusAt = (z: number): number => {
+    for (let k = 1; k < layout.cavity.length; k++) {
+      const a = layout.cavity[k - 1];
+      const b = layout.cavity[k];
+      if (a.r === 0 || b.r === 0 || z < a.z || z > b.z) continue;
+      return b.z > a.z ? a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z) : Math.max(a.r, b.r);
+    }
+    return layout.cavity[layout.cavity.length - 2].r;
+  };
+  const section: [number, number][] = [
+    [0, z0],
+    [radiusAt(z0), z0],
+    ...band.map(({ r, z }): [number, number] => [r, z]),
+    [radiusAt(z1), z1],
+    [0, z1],
+  ];
+  const cavity = scope.keep(scope.keep(new csg.CrossSection([section], 'Positive')).revolve(ROUND_SEGMENTS));
+  const clay = column(csg, scope, layout.seatInMm, layout.shelfZ, z1 + 1);
+  const rod = threadRod(csg, scope, THREAD, THREAD_FIT_MM, z0, z1, n);
+  // halfway across the cheek: inside the ear for sure, whatever the grid made of its side
+  const inCheek = (layout.earSide - layout.slotSide) / 2;
+  const blocks = layout.angles.map((angle, i) => {
+    const side = layout.ears[i] + layout.earSide - inCheek;
+    const footprint = plan(csg, scope, layout, angle, [
+      polar(layout.innerMm, side),
+      polar(layout.earOuterMm - 0.5, side),
+      polar(layout.innerMm, angle),
+    ]);
+    return prism(scope, footprint, layout.lugBottomZ, layout.seatZ);
+  });
+  const holes = layout.angles.map((angle) => scope.keep(rod.translate([...polar(layout.axisMm, angle), 0])));
+  return scope.keep(csg.Manifold.difference([scope.keep(csg.Manifold.union(blocks)), cavity, clay, ...holes]));
+}
+
+/**
+ * The tabs of the punch, as printed (flange down): each the hull of the boss
+ * and of points in the leg's side and in the flange's ring, TAB_T_MM thick
+ * from the flange's top, with a plain hole. Over the clay it is cut up to the
+ * flange's underside; over the slot and the cheeks of the ear — up past the
+ * cheeks' top, when a thin slab brings the tab that low.
+ */
+export function tabSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold {
+  const clay = column(csg, scope, layout.seatInMm, layout.tabBottomZ - 1, layout.flangeZ);
+  const hole = column(csg, scope, CLEAR_HOLE_MM / 2, layout.tabBottomZ - 1, layout.tabTopZ + 1, Math.round(ROUND_SEGMENTS / 6));
+  const notchTop = layout.cheekZ + 1;
+  const inLeg = layout.legSide / 3;
+  const tabs = layout.angles.map((angle, i) => {
+    const ear = layout.ears[i];
+    const side = ear + layout.legSide - inLeg;
+    const section = plan(csg, scope, layout, angle, [
+      polar(layout.seatInMm + 0.5, side),
+      polar(layout.legOuterMm - 0.5, side),
+      polar(layout.bodyMm, side),
+      polar(layout.bodyMm, angle),
+    ]);
+    const cuts = [clay, scope.keep(hole.translate([...polar(layout.axisMm, angle), 0]))];
+    if (notchTop > layout.tabBottomZ) {
+      const from = ear + layout.legSide;
+      const to = ear + layout.earSide + 0.02;
+      const arc = Array.from({ length: 9 }, (_, k) => polar(layout.earOuterMm + 1, from + ((to - from) * k) / 8));
+      const sector = scope.keep(new csg.CrossSection([[[0, 0], ...arc]], 'Positive'));
+      cuts.push(prism(scope, sector, layout.tabBottomZ - 1, notchTop));
+    }
+    return scope.keep(csg.Manifold.difference([prism(scope, section, layout.tabBottomZ, layout.tabTopZ), ...cuts]));
+  });
+  // the punch is printed flange down: z → top − z
+  return scope.keep(scope.keep(scope.keep(csg.Manifold.union(tabs)).mirror([0, 0, 1])).translate([0, 0, layout.tabTopZ]));
 }

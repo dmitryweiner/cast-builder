@@ -67,19 +67,19 @@ describe('padSolid', () => {
     scope.dispose();
   });
 
-  it('has a dimple below for the tip, and its boss enters the petal’s hole', () => {
+  it('has a dimple below for the tip, and its boss enters the tab’s hole', () => {
     const scope = new CsgScope();
     const pad = padSolid(csg, scope, N);
     // the tip and the dimple are both 45° cones: the flat end of the tip goes in until the dimple is as narrow
     const reach = PAD.dimpleD / 2 - SCREW.tipR - 0.05;
     const tip = scope.keep(csg.Manifold.cylinder(reach, SCREW.tipR, SCREW.tipR, N));
     expect(scope.keep(pad.intersect(tip)).volume()).toBeLessThan(1e-3);
-    const petal = scope.keep(
+    const tab = scope.keep(
       scope
         .keep(csg.Manifold.cube([40, 40, PAD.bossH], true).translate([0, 0, PAD.h + PAD.bossH / 2 + 0.01]))
         .subtract(scope.keep(csg.Manifold.cylinder(40, CLEAR_HOLE_MM / 2, CLEAR_HOLE_MM / 2, N, true))),
     );
-    expect(scope.keep(pad.intersect(petal)).volume()).toBeLessThan(1e-3);
+    expect(scope.keep(pad.intersect(tab)).volume()).toBeLessThan(1e-3);
     scope.dispose();
   });
 });

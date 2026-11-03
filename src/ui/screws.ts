@@ -1,5 +1,5 @@
 // The checkboxes of the slump mold's screw clamps: the clamps themselves
-// (lugs, petals, holes) and, under them, the printed screws and stops —
+// (lugs, tabs, holes) and, under them, the printed screws and stops —
 // reusable, so a later mold needs the holes without a new set.
 
 import type { Control } from './controls';

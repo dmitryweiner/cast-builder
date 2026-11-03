@@ -267,6 +267,46 @@ the panel is M4. Measured with `runJob`, preview / export at grid 384:
   one set serves every mold"), timings, "What is not there" (no other
   sizes, no adjustable fit, one screw per lug).
 
+## Revision after review (2026-11-03)
+
+The user printed nothing yet but looked at the result: the separate lugs
+ate plastic — their 45° wedge ran down a bowl's wall to the table (+52 cm³
+on a 163 cm³ mold, +146 cm³ on the vase). Decided: **a lug stands in the
+corner between the ear and the wall**, a plain prism — in plan the hull of
+a round boss and of the ear's side, flat top and flat bottom (the bottom
+needs supports in print, accepted). The punch gets a **tab** the same way
+beside each leg, TAB_T_MM thick from the flange's top; the flange is no
+longer thickened and has no petals in its lathe.
+
+- The axis stands beside the ear's cheek far enough for a screw's head from
+  below to clear the ear, and is still clear of the grooves (tested on all
+  fixtures).
+- A lug is cut back off the cavity (relief + half a shell), off the clay
+  hanging over the rim (inside `seatIn` above the ears' top); a tab off the
+  clay under the flange and off the ear's cheeks (a thin slab brings it low).
+- Only the band of heights of the lugs is revolved for that cut, and the
+  three lugs are cut at once: the whole cavity per lug made the preview
+  0.5–0.65 s.
+
+| model     | separate lugs | lugs beside the ears | tabs     | preview / export (grid 384) |
+| --------- | ------------- | -------------------- | -------- | --------------------------- |
+| user bowl | +52 cm³       | +18 cm³              | 12.7 cm³ | 0.29 s / 3.0 s              |
+| bowl      | +85 cm³       | +20 cm³              | 15.6 cm³ | 0.19 s / 2.3 s              |
+| cup       | +34 cm³       | +17 cm³              | 12.2 cm³ | 0.15 s / 2.8 s              |
+| vase      | +146 cm³      | +41 cm³              | 27.5 cm³ | 0.14 s / 3.2 s              |
+
+(Volumes are solid; the slicer's infill makes them less.)
+
+Found on the way, in `main` too, not fixed here: at the angular edge of a
+leg the lathe's face slants from the lip (down at the ear's outer face) to
+the narrow flange point (in at the rim), and grazes the ear's corner — up
+to 1.5 mm deep, ~45 mm³ per ear on the bowl. The tests check that the
+clamps add nothing to it.
+
+Also fixed in this PR (in `main` too): the punch of a bowl with throwing
+rings outside got a torus round the rim and horizontal shelves — see the
+commit "Slump punch: a smooth silhouette, an honest offset…".
+
 ## Not in this plan
 
 - Other screw sizes or an adjustable fit (it would break reuse).

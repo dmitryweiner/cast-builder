@@ -1,5 +1,5 @@
 // The screw clamps of the slump mold: the printed screw, its thread, the
-// stop that goes under the punch's petal. Pure: sizes and the thread's
+// stop that goes under the punch's tab. Pure: sizes and the thread's
 // cross-section. The worker turns them into solids (screwSolids.ts).
 //
 // The screws and the stops are printed once and serve every mold, so every
@@ -33,13 +33,13 @@ export const THREAD: ThreadForm = { d: 10, pitch: 2, depth: DEPTH_SHARE, flank: 
 /** Radial clearance of a printed threaded hole, mm. */
 export const THREAD_FIT_MM = 0.35;
 
-/** Plain hole in the punch's petal, mm: the screw passes it freely. */
+/** Plain hole in the punch's tab, mm: the screw passes it freely. */
 export const CLEAR_HOLE_MM = 11;
 
-/** Thickness of the punch's flange and petals with screws, mm, as printed. */
-export const PETAL_T_MM = 8;
+/** Thickness of the punch's tab round a screw, mm, as printed. */
+export const TAB_T_MM = 8;
 
-/** Gap between the petal of the pressed punch and the seat of the mold's lug, mm: the stop goes there. */
+/** Gap between the tab of the pressed punch and the seat of the mold's lug, mm: the stop goes there. */
 export const PAD_GAP_MM = 10;
 
 /** Thread in a lug under its seat, at least, mm: one and a half diameters. */
@@ -60,7 +60,7 @@ export const SCREW = {
 
 /**
  * The stop: a disc a little lower than the gap; on top a boss that enters
- * the petal's hole and centres it, below a 45° conical dimple for the
+ * the tab's hole and centres it, below a 45° conical dimple for the
  * screw's tip. Printed dimple down.
  */
 export const PAD = {

@@ -7,7 +7,7 @@ import {
   LUG_THREAD_MM,
   PAD,
   PAD_GAP_MM,
-  PETAL_T_MM,
+  TAB_T_MM,
   SCREW,
   THREAD,
   THREAD_FIT_MM,
@@ -53,23 +53,23 @@ describe('thread', () => {
   });
 });
 
-describe('screw, petal, stop', () => {
-  it('the screw passes the petal’s hole freely', () => {
+describe('screw, tab, stop', () => {
+  it('the screw passes the tab’s hole freely', () => {
     expect(CLEAR_HOLE_MM - THREAD.d).toBeGreaterThanOrEqual(0.8);
     expect(SCREW.headD).toBeGreaterThan(CLEAR_HOLE_MM + 8);
   });
 
-  it('the shank crosses the petal and the gap and takes all the lug’s thread, with travel to spare', () => {
-    const pressed = PETAL_T_MM + PAD_GAP_MM + LUG_THREAD_MM;
+  it('the shank crosses the tab and the gap and takes all the lug’s thread, with travel to spare', () => {
+    const pressed = TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM;
     expect(SCREW.shank).toBeGreaterThanOrEqual(pressed + 8);
   });
 
-  it('the stop fits the gap, its boss enters the petal’s hole and the screw’s tip sits in its dimple', () => {
+  it('the stop fits the gap, its boss enters the tab’s hole and the screw’s tip sits in its dimple', () => {
     expect(PAD.h).toBeLessThan(PAD_GAP_MM);
     expect(PAD_GAP_MM - PAD.h).toBeLessThanOrEqual(0.5);
     expect(PAD.bossD).toBeLessThan(CLEAR_HOLE_MM);
     expect(CLEAR_HOLE_MM - PAD.bossD).toBeLessThanOrEqual(0.8);
-    expect(PAD.bossH).toBeLessThan(PETAL_T_MM);
+    expect(PAD.bossH).toBeLessThan(TAB_T_MM);
     // the tip is chamfered from the major radius down to SCREW.tipR: it enters the dimple and stops on its cone
     expect(PAD.dimpleD / 2).toBeGreaterThan(SCREW.tipR);
     expect(PAD.dimpleD / 2).toBeLessThan(THREAD.d / 2);

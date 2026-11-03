@@ -23,7 +23,7 @@ export interface MoldState {
   punchRoundPct: number;
   /** diameter of the slump vents — in the mold's bottom and along the punch's axis, mm */
   ventMm: number;
-  /** screw clamps on the slump mold: lugs with threaded holes, petals of the punch with plain ones */
+  /** screw clamps on the slump mold: lugs with threaded holes beside the ears, tabs of the punch with plain ones */
   screws: boolean;
   /** the screws and stops for them in the same file — they are reusable, printed once */
   printScrews: boolean;

@@ -76,9 +76,9 @@ Regenerate them only on purpose.
   - `revolve.ts` — a mesh read as a body of revolution for the slump mold;
   - `press.ts` — the slump mold and its punch, the layout of their screw
     clamps (`screwLayout`; no CSG);
-  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, fit, petal,
-    gap, screw, stop; `screwSolids.ts` — the threaded rod, the screw, the
-    stop, the holed lugs and the petals' holes as solids (worker only);
+  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, fit, tab, gap,
+    screw, stop; `screwSolids.ts` — the threaded rod, the screw, the stop,
+    the mold's lugs and the punch's tabs as solids (worker only);
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
@@ -119,7 +119,7 @@ Regenerate them only on purpose.
 - `plans/TODO-SOLID.md` — what Clayform's printable export needs here.
 - `plans/PLAN-SOLID.md` — how it was done, decisions and results.
 - `plans/PLAN-SCREWS.md` — screw clamps for the slump mold: printed M10 × 2
-  screws and stops, lugs and petals; decisions, measurements.
+  screws and stops, lugs and tabs; decisions, measurements.
 - `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
   `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
   burgundy theme, the model thumbnail).
@@ -173,13 +173,15 @@ Regenerate them only on purpose.
   that is not round gets a warning, not a refusal.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
   measure — the legs never miss the ears.
-- The screw clamps' screws, stops, holes, the gap under the petal and the
-  petal's thickness are constants (`geo/thread.ts`) and never scaled by
-  the shrinkage: one printed set fits every mold. The lugs and holes are
-  built after the scaling, in the mm of the print. A lug's screw axis is
-  clear of the shell and the punch's body, so a hole only cuts its own lug
-  or petal; the lug's inner edge is sunk half a shell into the wall. An
-  export fuses the lugs onto the shell; a preview lays them over it.
+- The screw clamps' screws, stops, holes, the gap under the tab and the
+  tab's thickness are constants (`geo/thread.ts`) and never scaled by the
+  shrinkage: one printed set fits every mold. The lugs and tabs are built
+  after the scaling, in the mm of the print, as prisms: in plan the hull of
+  a boss and of the ear's (the leg's) side, flat top and bottom (the lug's
+  bottom needs supports). A lug is cut back off the cavity with half a
+  shell and off the clay over the rim; a tab off the clay under the flange
+  and off the ear's cheeks. An export fuses them on; a preview lays them
+  over unfused.
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 
@@ -198,7 +200,7 @@ triangles):
 | a printed lid turned over: master / pour boxes    | 35 ms / 0.35 s                                    |
 | slump mold + punch, preview grid 128              | 0.03–0.1 s                                        |
 | slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                          |
-| the same with screw clamps (bowl, cup, teapot)    | preview 0.2–0.25 s; export 2.7–4 s                |
+| the same with screw clamps (bowl, cup, vase…)     | preview 0.15–0.3 s; export 2.3–3.7 s              |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
 deep, a waiting preview is replaced by a fresher one, an export never.
@@ -211,8 +213,8 @@ deep, a waiting preview is replaced by a fresher one, an export never.
   the gallery over it; lower the wall comes out at its usual thickness.
 - Pour boxes for the slump mold: the mold itself is printed, as a shell.
 - Screw clamps of another size, pitch or fit, more than three of them, a
-  thread cut into the petal; the jacking screws need room under the lugs
-  for their heads (a low mold stands on blocks).
+  lug that prints without supports; the jacking screws need room under the
+  lugs for their heads (a low mold stands on blocks).
 - A slump mold on a hump ("+"); handles on the punch; adjustable clearance
   and leg sizes other than the ear's seat (constants in `geo/press.ts`);
   separate objects in the STL (mold and punch are one mesh — "split into

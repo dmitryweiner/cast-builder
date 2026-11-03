@@ -11,11 +11,11 @@ import {
   EAR_SEAT_MM,
   earTopAt,
   legDistance,
-  lugDistance,
   PUNCH_CLEARANCE_MM,
   PUNCH_LEG_WIDTH_MM,
   punchLayout,
   punchSection,
+  BOSS_R_MM,
   screwLayout,
   slabThickness,
   VENT_MM,
@@ -25,7 +25,7 @@ import { meshSource } from './revolve';
 import type { PressSource } from './revolve';
 import { analyticSource, fixture, withNormals } from './testing';
 import { signedVolume, validateMesh } from './validate';
-import { LUG_THREAD_MM, PAD, PAD_GAP_MM, PETAL_T_MM, SCREW } from './thread';
+import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM } from './thread';
 
 const N = 96;
 const families = ['bowl', 'cup', 'pot', 'vase'];
@@ -570,120 +570,60 @@ describe('screw clamps', () => {
     const { fit } = buildSlumpShell(source, options(over));
     return { source, fit, layout: screwLayout(source, options(over), fit), k: 1 + (over.shrinkPct ?? 0) / 100 };
   };
+  const head = SCREW.headD / 2;
 
-  it("three lugs, 120° apart, clear of the ears' cheeks and of the grooves of the sole", () => {
+  it('a lug beside each ear: the head of a screw from below clears the ear, the boss clears the groove', () => {
     each((family, over) => {
       const { fit, layout } = at(family, over);
       expect(layout.angles).toHaveLength(3);
       for (const [i, angle] of layout.angles.entries()) {
         expect(angle - layout.angles[0]).toBeCloseTo((i * 2 * Math.PI) / 3, 9);
-        const fromLeg = legDistance(angle);
-        expect(fromLeg - layout.halfAngle, family).toBeGreaterThan(fit.ear.reach);
-        // the grooves are halfway between the legs
-        expect(fromLeg + layout.halfAngle, family).toBeLessThan(Math.PI / 3 - 0.02);
+        const fromEar = angle - layout.ears[i];
+        expect(fromEar - Math.asin(head / layout.axisMm), family).toBeGreaterThanOrEqual(fit.ear.reach - 1e-9);
+        // the grooves of the sole are halfway between the ears
+        expect(fromEar + Math.asin(BOSS_R_MM / layout.axisMm), family).toBeLessThan(Math.PI / 3 - 0.02);
       }
     });
   });
 
-  it('the stop lies on the seat outside the clay, inside the sector of its lug', () => {
+  it('the stop lies on the boss outside the clay; a screw from below passes the mold with its head', () => {
     each((family, over) => {
       const { fit, layout, k } = at(family, over);
-      expect(layout.seatInMm).toBeGreaterThanOrEqual(fit.ear.seatInMm * k - 1e-6);
-      expect(layout.axisMm - PAD.d / 2).toBeGreaterThanOrEqual(layout.seatInMm - 1e-6);
-      expect(layout.outerMm - layout.axisMm).toBeGreaterThanOrEqual(PAD.d / 2 - 1e-6);
-      expect(layout.axisMm * Math.sin(layout.halfAngle)).toBeGreaterThanOrEqual(PAD.d / 2);
-    });
-  });
-
-  it('a screw turned in from below passes the mold with its head', () => {
-    each((family, over) => {
-      const { fit, layout, k } = at(family, over);
+      expect(layout.seatInMm).toBeCloseTo(fit.ear.seatInMm * k, 6);
+      expect(layout.axisMm - BOSS_R_MM).toBeGreaterThanOrEqual(layout.seatInMm);
+      expect(BOSS_R_MM).toBeGreaterThanOrEqual(PAD.d / 2);
       for (const ring of fit.outer) {
         if (ring.z * k > layout.seatZ) continue;
-        expect(ring.r * k + SCREW.headD / 2, `${family} z=${ring.z}`).toBeLessThan(layout.axisMm);
+        expect(ring.r * k + head, `${family} z=${ring.z}`).toBeLessThan(layout.axisMm);
       }
     });
   });
 
-  it('the seat is exactly the gap under the petal of the pressed punch; the shelf no higher than the ears', () => {
+  it('fixed sizes: the tab TAB_T thick from the flange top, the gap, the thread under the seat', () => {
     each((family, over) => {
       const { source, fit, layout, k } = at(family, over);
       const punch = punchLayout(source, options(over), fit);
-      expect(punch.flangeT * k).toBeCloseTo(PETAL_T_MM, 6);
-      expect(layout.petalZ).toBeCloseTo((punch.flangeZ + punch.flangeT) * k - PETAL_T_MM, 6);
-      expect(layout.petalZ - layout.seatZ).toBeCloseTo(PAD_GAP_MM, 6);
-      expect(layout.shelfZ).toBeLessThanOrEqual(fit.ear.topZ * k + 1e-6);
-      expect(layout.seatZ).toBeGreaterThan(layout.shelfZ);
-      expect(layout.seatZ - layout.faceZ).toBeGreaterThanOrEqual(LUG_THREAD_MM);
+      expect(punch.flangeT).toBe(Math.max(shell, 3));
+      expect(layout.tabTopZ).toBeCloseTo((punch.flangeZ + punch.flangeT) * k, 6);
+      expect(layout.tabTopZ - layout.tabBottomZ).toBeCloseTo(TAB_T_MM, 9);
+      expect(layout.tabBottomZ - layout.seatZ).toBeCloseTo(PAD_GAP_MM, 9);
+      expect(layout.seatZ - layout.lugBottomZ).toBeCloseTo(LUG_THREAD_MM, 9);
+      expect(layout.shelfZ).toBeCloseTo(fit.ear.topZ * k, 6);
     });
   });
 
-  it("the lug's section goes counter-clockwise, its inner edge sunk into the wall", () => {
+  it('the region a lug keeps out of is the relief and half a shell, up past the tab', () => {
     each((family, over) => {
-      const { fit, layout, k } = at(family, over);
-      let area = 0;
-      layout.profile.forEach((p, i) => {
-        const q = layout.profile[(i + 1) % layout.profile.length];
-        area += p.r * q.z - q.r * p.z;
-      });
-      expect(area, family).toBeGreaterThan(0);
-      const top = layout.profile.find((p) => p.r === layout.outerMm && p.z === layout.seatZ);
-      expect(top).toBeDefined();
-      // every point is no nearer the axis than the wall less the shell: the lug never reaches the cavity
-      const wallAt = (z: number): number => {
-        let r = 0;
-        for (let j = 1; j < fit.outer.length; j++) {
-          const a = fit.outer[j - 1];
-          const b = fit.outer[j];
-          if (z < a.z * k - 1e-6 || z > b.z * k + 1e-6) continue;
-          const t = b.z > a.z ? (z / k - a.z) / (b.z - a.z) : 1;
-          r = Math.max(r, (a.r + (b.r - a.r) * Math.min(1, Math.max(0, t))) * k);
-        }
-        return r;
-      };
-      for (const p of layout.profile) expect(p.r, `${family} z=${p.z}`).toBeGreaterThan(wallAt(p.z) - shell * k);
-    });
-  });
-
-  it('the printed punch has three flat petals as thick as PETAL_T over the lugs', () => {
-    each((family, over) => {
-      const { source, fit, layout } = at(family, over);
-      const mesh = buildPunch(source, options(over), fit);
-      expect(validateMesh(mesh).watertight, family).toBe(true);
-      let reach = 0;
-      let deepest = 0;
-      for (let i = 0; i < mesh.positions.length; i += 3) {
-        const x = mesh.positions[i];
-        const y = mesh.positions[i + 1];
-        const r = Math.hypot(x, y);
-        // round the screw's axis nothing else of the punch reaches: a bellied pot's body may pass the seat's edge
-        if (lugDistance(Math.atan2(y, x), layout.angles) > layout.halfAngle || r < layout.axisMm - 5) continue;
-        reach = Math.max(reach, r);
-        deepest = Math.max(deepest, mesh.positions[i + 2]);
+      const { source, layout, k } = at(family, over);
+      for (const p of layout.cavity) {
+        if (p.r === 0 || p.z < 0 || p.z > (source.heightMm + shell) * k) continue;
+        const v = Math.min(1, Math.max(0, (p.z / k - shell) / source.heightMm));
+        const relief = (source.radiusAt(v) + source.outwardMm) * k;
+        expect(p.r - relief).toBeCloseTo((shell * k) / 2, 6);
       }
-      expect(reach, family).toBeGreaterThanOrEqual(layout.outerMm - 1e-3);
-      expect(deepest, family).toBeCloseTo(PETAL_T_MM, 3);
+      expect(layout.cavity[layout.cavity.length - 1].z).toBeGreaterThan(layout.tabTopZ);
+      expect(layout.innerMm).toBeLessThan(layout.seatInMm);
     });
-  });
-
-  it('lugDistance is the angle to the nearest lug, across ±180° too', () => {
-    expect(lugDistance(0.3, [0.1, 2])).toBeCloseTo(0.2, 9);
-    expect(lugDistance(-3.1, [3.1])).toBeCloseTo(2 * Math.PI - 6.2, 9);
-  });
-
-  it('without screws the punch has no petals and its flange is as before', () => {
-    const source = sourceOf('cup');
-    const { fit } = buildSlumpShell(source, options());
-    expect(punchLayout(source, options(), fit).flangeT).toBe(Math.max(shell, 3));
-    const mesh = buildPunch(source, options(), fit);
-    const layout = screwLayout(source, options({ screws: true }), fit);
-    let reach = 0;
-    for (let i = 0; i < mesh.positions.length; i += 3) {
-      const x = mesh.positions[i];
-      const y = mesh.positions[i + 1];
-      if (lugDistance(Math.atan2(y, x), layout.angles) <= layout.halfAngle) reach = Math.max(reach, Math.hypot(x, y));
-    }
-    expect(reach).toBeLessThan(layout.seatInMm);
   });
 });
 

@@ -19,7 +19,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
-import { LUG_THREAD_MM, PAD, PAD_GAP_MM, PETAL_T_MM, SCREW } from './thread';
+import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -115,7 +115,7 @@ export interface PressOptions {
   ventMm: number;
   /** rounding of the punch's bottom, % of the largest */
   roundPct: number;
-  /** screw clamps: lugs on the mold, petals on the punch (geo/thread.ts) */
+  /** screw clamps: lugs on the mold, tabs on the punch beside the ears (geo/thread.ts) */
   screws: boolean;
 }
 
@@ -574,8 +574,7 @@ export function punchLayout(source: PressSource, options: PressOptions, fit: Slu
     lipInMm,
     lipZ: fit.ear.topZ - PUNCH_LIP_MM,
     flangeMm: lipInMm + PUNCH_STEP_MM + PUNCH_LIP_T_MM,
-    // with screws the petals are a part of the flange and pull on it: it prints PETAL_T_MM after the shrinkage
-    flangeT: options.screws ? PETAL_T_MM / (1 + options.shrinkPct / 100) : Math.max(options.shellMm, PUNCH_FLANGE_MIN_MM),
+    flangeT: Math.max(options.shellMm, PUNCH_FLANGE_MIN_MM),
     flangeZ: fit.rimZ + slabMm,
     legReach: fit.ear.legReach,
   };
@@ -588,157 +587,116 @@ export function legDistance(u: number): number {
   return Math.min(t, pitch - t);
 }
 
-/** Angular distance from `u` to the nearest of `angles`. */
-export function lugDistance(u: number, angles: readonly number[]): number {
-  let best = Math.PI;
-  for (const angle of angles) {
-    const d = Math.abs(((((u - angle) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
-    best = Math.min(best, d);
-  }
-  return best;
-}
-
 /**
- * The screw clamps — three lugs on the mold, three petals of the punch's
- * flange over them — in the mm of the print (after
- * the shrinkage: the screws and stops do not shrink) and in the mold's frame
- * with the punch pressed down.
+ * The screw clamps — a lug on the mold and a tab on the punch beside each
+ * ear — in the mm of the print (after the shrinkage: the screws and stops
+ * do not shrink) and in the mold's frame with the punch pressed down.
  *
- * A lug is a sector of `profile` revolved round the axis and fused onto the
- * shell. By the wall it is a low shelf at the height of the ears' top — the
- * clay hanging over the rim lies on it as on the ears; past `seatInMm` (the
- * ears' rule: the wall, the slab, a gap) it rises to a flat seat exactly
- * PAD_GAP_MM under the petal, so one stop fits every mold. Under the seat a
- * vertical face LUG_THREAD_MM long, then a 45° chamfer back to the wall:
- * the mold still prints standing without supports; on a wall gentler than
- * that the chamfer may reach the table. So a lug is not halfway between the
- * ears, where the grooves of the sole come out, but halfway between the
- * ear's cheeks and the groove. The inner edge follows
- * the wall sunk into it by half a shell — inside the material, never at its
- * surface, never into the cavity.
+ * Both are plain prisms: in plan the convex hull of a boss round the screw's
+ * axis and of the side of the ear (the leg) it leans on, with flat tops and
+ * bottoms — the lug's bottom needs supports in print. The lug stands in the
+ * corner between the ear's cheek and the wall: it reaches into both and is
+ * cut back off the cavity (`cavity`: the relief plus half a shell, so its
+ * face lies inside the wall) and off the clay hanging over the rim (inside
+ * `seatInMm` above the ears' top, `shelfZ`). Its seat is exactly PAD_GAP_MM
+ * under the tab, the tab TAB_T_MM thick, the thread under the seat
+ * LUG_THREAD_MM long: one set of screws and stops fits every mold.
  */
 export interface ScrewLayout {
-  /** centres of the lugs, radians */
+  /** centres of the ears the lugs lean on, radians */
+  ears: number[];
+  /** the screws' axes: their angles and radius */
   angles: number[];
-  /** half the angle of a lug's sector: the stop fits in it with a millimetre to spare */
-  halfAngle: number;
-  /** radius of the screws' axes */
   axisMm: number;
-  /** outer radius of a lug and of a petal */
-  outerMm: number;
-  /** where the seat begins: inside it the clay hangs over the rim */
+  /** inside it the clay hangs over the rim */
   seatInMm: number;
+  /** the ears' top: the clay may lie on what is no higher */
   shelfZ: number;
+  /** the lug's top (the stop stands on it) and bottom */
   seatZ: number;
-  /** bottom of the lug's vertical face */
-  faceZ: number;
-  /** underside of the petal of the pressed punch */
-  petalZ: number;
-  /** the lug's axial section (r, z), counter-clockwise */
-  profile: { r: number; z: number }[];
+  lugBottomZ: number;
+  /** the tab: its top is the punch's flange top, flat on the bed in print */
+  tabTopZ: number;
+  tabBottomZ: number;
+  /** underside of the punch's flange over the clay */
+  flangeZ: number;
+  /** the slot's cheeks reach this high: the tab clears them */
+  cheekZ: number;
+  /** angles from an ear's centre: the leg's side, the slot's edge, the cheek's outer side */
+  legSide: number;
+  slotSide: number;
+  earSide: number;
+  /** outer radius of the ear and of the leg's flange */
+  earOuterMm: number;
+  legOuterMm: number;
+  /** radius inside the punch's flange ring the tab holds on to */
+  bodyMm: number;
+  /** a lug reaches this deep in plan before the cavity is cut off it */
+  innerMm: number;
+  /** the region a lug keeps out of, as an axial section from the axis: the cavity with its relief, half a shell more */
+  cavity: RZ[];
 }
+
+/** Radius of the boss round a screw's axis — the lug's and the tab's; the stop stands on it whole. */
+export const BOSS_R_MM = PAD.d / 2;
 
 export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
   const grow = 1 + options.shrinkPct / 100;
   const pitch = (2 * Math.PI) / PUNCH_LEGS;
-  // the legs are at −90° + k·pitch, the grooves half a pitch from them (ventGrooves)
-  const offset = (fit.ear.reach + pitch / 2) / 2;
-  const angles = Array.from({ length: PUNCH_LEGS }, (_, i) => -Math.PI / 2 + offset + i * pitch);
+  const { ear } = fit;
   const outer = fit.outer.map(({ r, z }) => ({ r: r * grow, z: z * grow }));
-  const sink = (options.shellMm * grow) / 2;
-  /** the outer surface of the mold at height z: the widest of the segments of the silhouette that hold it */
-  const wallAt = (z: number): number => {
-    let r = outer[0].r;
-    for (let j = 1; j < outer.length; j++) {
-      const a = outer[j - 1];
-      const b = outer[j];
-      if (z < a.z || z > b.z) continue;
-      r = b.z > a.z ? a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z) : Math.max(a.r, b.r);
-    }
-    return r;
-  };
-  const inner = (z: number): number => wallAt(z) - sink;
+  const punch = punchLayout(source, options, fit);
 
-  const petalZ = punchLayout(source, options, fit).flangeZ * grow;
-  const seatZ = petalZ - PAD_GAP_MM;
-  const shelfZ = fit.ear.topZ * grow;
-  const seatInMm = Math.max(fit.ear.seatInMm * grow, wallAt(shelfZ) + 1);
+  const tabTopZ = (punch.flangeZ + punch.flangeT) * grow;
+  const tabBottomZ = tabTopZ - TAB_T_MM;
+  const seatZ = tabBottomZ - PAD_GAP_MM;
+  const lugBottomZ = seatZ - LUG_THREAD_MM;
+  const seatInMm = ear.seatInMm * grow;
   let below = 0;
   for (const ring of outer) if (ring.z <= seatZ) below = Math.max(below, ring.r);
   // the stop outside the clay; a screw turned in from below passes the mold's wall with its head
-  const axisMm = Math.max(seatInMm + PAD.d / 2, below + SCREW.headD / 2 + 1);
-  const outerMm = axisMm + PAD.d / 2;
-  const halfAngle = Math.asin(Math.min(1, (PAD.d / 2 + 1) / axisMm));
-  const faceZ = seatZ - LUG_THREAD_MM;
+  const head = SCREW.headD / 2 + 1;
+  const axisMm = Math.max(seatInMm + BOSS_R_MM + 0.5, below + head);
+  // beside the ear: the head of a screw from below clears the ear's side
+  const ears = Array.from({ length: PUNCH_LEGS }, (_, i) => -Math.PI / 2 + i * pitch);
+  const angles = ears.map((c) => c + ear.reach + Math.asin(Math.min(1, head / axisMm)));
 
-  // The chamfer r = outerMm − (faceZ − z) goes down and in until it meets the
-  // sunk wall; on a low mold it may reach the table first.
-  const chamfer = (z: number): number => outerMm - (faceZ - z);
-  const top = Math.min(faceZ, shelfZ);
-  const levels = [top, ...outer.map((ring) => ring.z).filter((z) => z < top)].toSorted((a, b) => b - a);
-  let meetZ = levels[levels.length - 1];
-  for (let i = 1; i < levels.length; i++) {
-    const hi = levels[i - 1];
-    const lo = levels[i];
-    const fLo = chamfer(lo) - inner(lo);
-    if (fLo > 0) continue;
-    const fHi = chamfer(hi) - inner(hi);
-    meetZ = fHi > fLo ? hi - ((hi - lo) * fHi) / (fHi - fLo) : lo;
-    break;
+  const sink = (options.shellMm * grow) / 2;
+  const cavity: RZ[] = [{ r: 0, z: -1 }];
+  for (let i = 0; i <= INSET_SAMPLES; i++) {
+    const v = i / INSET_SAMPLES;
+    const r = (source.radiusAt(v) + source.outwardMm) * grow + sink;
+    const z = (v * source.heightMm + options.shellMm) * grow;
+    if (i === 0) cavity.push({ r, z: -1 });
+    cavity.push({ r, z });
   }
-  const bottom =
-    chamfer(meetZ) - inner(meetZ) > 1e-6
-      ? [
-          { r: inner(meetZ), z: meetZ },
-          { r: chamfer(meetZ), z: meetZ },
-        ]
-      : [{ r: inner(meetZ), z: meetZ }];
-  // The sunk wall, thinned to within half the sink: still inside the
-  // material, and a few long faces instead of one per row of the shell —
-  // hundreds of thin strips along a dense wall made the export's union
-  // several times slower (plans/PLAN-SCREWS.md, M3).
-  const wall = simplify(
-    [
-      { r: inner(shelfZ), z: shelfZ },
-      ...outer
-        .filter((ring) => ring.z > meetZ + 1e-6 && ring.z < shelfZ - 1e-6)
-        .map((ring) => ({ r: ring.r - sink, z: ring.z }))
-        .toReversed(),
-      { r: inner(meetZ), z: meetZ },
-    ],
-    sink / 2,
-  ).slice(1, -1);
-  const profile = [
-    ...bottom,
-    { r: outerMm, z: faceZ },
-    { r: outerMm, z: seatZ },
-    { r: seatInMm, z: seatZ },
-    { r: seatInMm, z: shelfZ },
-    { r: inner(shelfZ), z: shelfZ },
-    ...wall,
-  ].filter((p, i, all) => i === 0 || Math.hypot(p.r - all[i - 1].r, p.z - all[i - 1].z) > 1e-6);
-  return { angles, halfAngle, axisMm, outerMm, seatInMm, shelfZ, seatZ, faceZ, petalZ, profile };
-}
+  const high = tabTopZ + 100;
+  cavity.push({ r: cavity[cavity.length - 1].r, z: high }, { r: 0, z: high });
+  let innerMm = Infinity;
+  for (const p of cavity) if (p.r > 0 && p.z >= lugBottomZ && p.z <= seatZ) innerMm = Math.min(innerMm, p.r);
+  if (!Number.isFinite(innerMm)) innerMm = seatInMm - 2;
 
-/** Douglas–Peucker: the polyline with no point farther than `tolerance` from it dropped; the ends stay. */
-function simplify(points: readonly RZ[], tolerance: number): RZ[] {
-  if (points.length < 3) return [...points];
-  const a = points[0];
-  const b = points[points.length - 1];
-  const dr = b.r - a.r;
-  const dz = b.z - a.z;
-  const length = Math.hypot(dr, dz) || 1;
-  let worst = -1;
-  let at = 0;
-  for (let i = 1; i < points.length - 1; i++) {
-    const d = Math.abs((points[i].r - a.r) * dz - (points[i].z - a.z) * dr) / length;
-    if (d > worst) {
-      worst = d;
-      at = i;
-    }
-  }
-  if (worst <= tolerance) return [a, b];
-  return [...simplify(points.slice(0, at + 1), tolerance).slice(0, -1), ...simplify(points.slice(at), tolerance)];
+  return {
+    ears,
+    angles,
+    axisMm,
+    seatInMm,
+    shelfZ: ear.topZ * grow,
+    seatZ,
+    lugBottomZ,
+    tabTopZ,
+    tabBottomZ,
+    flangeZ: punch.flangeZ * grow,
+    cheekZ: ear.cheekZ * grow,
+    legSide: ear.legReach,
+    slotSide: ear.slotReach,
+    earSide: ear.reach,
+    earOuterMm: ear.outerMm * grow,
+    legOuterMm: punch.flangeMm * grow,
+    bodyMm: fit.rimMm * grow,
+    innerMm: innerMm - 1,
+    cavity,
+  };
 }
 
 /**
@@ -966,19 +924,10 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   // the flange only presses the clay on the top, and a wide ring would be
   // plastic for nothing.
   const narrowMm = Math.min(fit.topOuterMm + FLANGE_OVER_RIM_MM, ear.seatInMm - PUNCH_STEP_MM);
-  // With screws the flange stays wide over the lugs too, flat, out to their
-  // outer radius: the petals (before the shrinkage, as the rest is here).
-  const petals = options.screws ? screwLayout(source, options, fit) : null;
-  const petalReach = petals ? petals.halfAngle + (2 * Math.PI) / nu : -1;
-  const petalMm = petals ? petals.outerMm / (1 + shrinkPct / 100) : 0;
   const flangePoint = (r: number, z: number, k: number, drop: number): LathePoint => ({
     r,
     z,
-    offset: (u) => {
-      if (legDistance(u) <= reach) return { dr: 0, dz: -drop };
-      if (petals && lugDistance(u, petals.angles) <= petalReach) return { dr: k === 4 ? petalMm - r : 0, dz: 0 };
-      return { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 };
-    },
+    offset: (u) => (legDistance(u) <= reach ? { dr: 0, dz: -drop } : { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 }),
   });
   const contour: LathePoint[] = [
     // the vent below; the floor of the working surface, if the rounding left one

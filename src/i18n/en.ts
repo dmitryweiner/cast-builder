@@ -72,7 +72,7 @@ export const en = {
   'ctl.vent.hint': 'holes in the mold bottom and along the punch axis, mm: they let air out and break the suction',
   'ctl.screws': 'Screw clamps',
   'ctl.screws.hint':
-    'lugs with an M10 × 2 thread on the mold and petals with holes on the punch: pull the punch down with screws instead of a press, push it off with the same screws turned in from below',
+    'lugs with an M10 × 2 thread on the mold beside the ears and tabs with holes on the punch beside the legs: pull the punch down with screws instead of a press, push it off with the same screws turned in from below',
   'ctl.printScrews': 'Print screws and stops',
   'ctl.printScrews.hint': 'three M10 × 2 screws and three stops in the same file; they fit every mold, so print them once',
   'ctl.resolution': 'Detail',

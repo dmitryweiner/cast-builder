@@ -1,6 +1,7 @@
 // The tooling of one job: what the worker runs, without the worker around
 // it — so the tests run it in Node with the real CSG.
 
+import type { Manifold } from 'manifold-3d';
 import type { CsgApi } from '../geo/csg';
 import { CsgScope, fromManifold, toManifold } from '../geo/csg';
 import type { Message } from '../geo/message';
@@ -12,7 +13,7 @@ import { meshSource } from '../geo/revolve';
 import { buildPunch, buildSlumpShell, screwLayout } from '../geo/press';
 import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
-import { lugSolids, padSolid, petalHoles, screwSolid } from '../geo/screwSolids';
+import { lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
 import { placeInRow, BESIDE_GAP_MM } from '../geo/layout';
 import type { SurfaceMesh } from '../geo/surface';
@@ -122,11 +123,11 @@ export interface SlumpTooling {
 
 /**
  * The slump mold and its punch, with the screw clamps when asked. Without
- * them — plain geometry, no CSG. With them the lugs and the petals' holes
- * are made by CSG: an export fuses the lugs onto the shell (one closed
- * solid), a preview lays them over it unfused — the shell's import alone
- * would cost it ten times its time (plans/PLAN-SCREWS.md, M0). The screws
- * and stops are the same for every mold.
+ * them — plain geometry, no CSG. With them the lugs and the tabs are made by
+ * CSG: an export fuses them onto the mold and the punch (closed solids), a
+ * preview lays them over unfused — the import of the big meshes alone would
+ * cost it ten times its time (plans/PLAN-SCREWS.md, M0). The screws and
+ * stops are the same for every mold.
  */
 export function slumpTooling(
   csg: CsgApi,
@@ -142,10 +143,11 @@ export function slumpTooling(
   try {
     const n = threadPoints(exporting);
     const lugs = lugSolids(csg, scope, layout, n);
-    const mold = exporting
-      ? fromManifold(scope.keep(scope.keep(toManifold(csg, slump.mesh)).add(lugs)))
-      : mergeMeshes([slump.mesh, fromManifold(lugs)]);
-    const holed = fromManifold(scope.keep(scope.keep(toManifold(csg, punch)).subtract(petalHoles(csg, scope, layout))));
+    const tabs = tabSolids(csg, scope, layout);
+    const fuse = (mesh: SurfaceMesh, extra: Manifold): SurfaceMesh =>
+      exporting ? fromManifold(scope.keep(scope.keep(toManifold(csg, mesh)).add(extra))) : mergeMeshes([mesh, fromManifold(extra)]);
+    const mold = fuse(slump.mesh, lugs);
+    const holed = fuse(punch, tabs);
     if (!print) return { mold, punch: holed, screws: [], pads: [], layout };
     const screw = fromManifold(scope.keep(screwSolid(csg, scope, n).translate([0, 0, SCREW_HEAD_UP])));
     const pad = fromManifold(padSolid(csg, scope, n));
