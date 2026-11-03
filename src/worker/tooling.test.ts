@@ -61,6 +61,16 @@ describe('runJob', () => {
     expect(parts).toHaveLength(1);
   });
 
+  it('fills a hollow teapot and builds its master and pour boxes', () => {
+    for (const mode of ['master', 'bath'] satisfies Mode[]) {
+      const { parts, info } = runJob(csg, jobFor('teapot-hollow', { kind: 'export', mode }));
+      expect(info.status, mode).toBe('filled');
+      expect(info.mouth?.zMm, mode).toBeCloseTo(120, 1);
+      expect(parts.length, mode).toBeGreaterThan(0);
+      for (const part of parts) expect(part.blocking, `${mode}/${part.id}`).toEqual([]);
+    }
+  });
+
   it('refuses a model that is not a solid without throwing', () => {
     const pot = placeModel(fixture('pot'), defaultOrientation());
     const open = { positions: pot.positions, indices: pot.indices.slice(3) };

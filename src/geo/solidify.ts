@@ -8,12 +8,16 @@
 // void is a separate shell of negative volume, which `decompose` hands out
 // on its own and we simply drop.
 //
-// The lid is the opening as it is a little below the top, grown by a hair so
+// The lid is the opening as it is a little below the rim, grown by a hair so
 // it overlaps the wall instead of touching it (coincident surfaces are the
-// worst input for a boolean operation). It works when the top opening is
-// the only one. A teapot printed hollow has a second one at the tip of the
-// spout, the inside stays connected to the outside, and the model is
-// reported as open: such a model has to come solid.
+// worst input for a boolean operation). The top opening is the one around
+// the axis. A teapot printed hollow has a second one at the tip of the
+// spout; that one is a planar cut, and every planar cut with a hole gets a
+// lid of its own. With all openings capped the cavity and the channel of the
+// spout are one closed void — as the master must be: the slip makes the
+// inside of the spout, and the hole through the wall is cut leather-hard.
+// An opening that is not a planar cut leaves the model open: such a model
+// has to come solid.
 
 import type { CrossSection, Manifold } from 'manifold-3d';
 import type { CsgApi, CsgScope } from './csg';
@@ -28,7 +32,7 @@ export interface Solidified {
   rim?: { zMm: number; radiusMm: number };
 }
 
-/** How far below the crest of the rim the opening is measured, mm. */
+/** How far below the crest of the rim (or a planar cut) the lid stands, mm. */
 const PROBE_MM = 0.3;
 /** How far below the crest the outer radius of the rim is measured as well, mm. */
 const RIM_BAND_MM = 2;
@@ -44,14 +48,26 @@ const UPPER_SHARE = 0.5;
 const SCAN_STEP = 1 / 64;
 /** ...and then its crest is narrowed down to this, mm. */
 const CREST_MM = 0.01;
+/** Faces of one plane: all their corners this close to it, mm. */
+const PLANE_MM = 0.01;
+/** A planar cut looking down more steeply than this (z of its normal) is not an opening. */
+const DOWN_Z = -0.5;
 
 export function solidify(csg: CsgApi, scope: CsgScope, model: Manifold): Solidified {
   const closed = dropVoids(csg, scope, model);
   const status: SolidStatus = closed === model ? 'solid' : 'filled';
   const top = topOpening(csg, scope, closed);
   if (!top) return { solid: closed, status };
-  const capped = scope.keep(csg.Manifold.union([closed, top.lid]));
-  const filled = dropVoids(csg, scope, capped);
+  let capped = scope.keep(csg.Manifold.union([closed, top.lid]));
+  let filled = dropVoids(csg, scope, capped);
+  if (filled === capped) {
+    // more openings: a spout's tip, for one
+    const lids = planarOpenings(csg, scope, closed);
+    if (lids.length > 0) {
+      capped = scope.keep(csg.Manifold.union([capped, ...lids]));
+      filled = dropVoids(csg, scope, capped);
+    }
+  }
   if (filled === capped) return { solid: closed, status: 'open', rim: top.rim };
   return { solid: filled, status: 'filled', rim: top.rim };
 }
@@ -116,6 +132,119 @@ function axisHole(csg: CsgApi, scope: CsgScope, solid: Manifold, z: number): { o
 }
 
 /**
+ * Lids for the planar cuts: a planar patch of faces whose outline has a hole
+ * is a tube cut off by a plane — clayform's spout tip. Each hole gets a lid
+ * like the top one: grown into the wall, sunk a hair under the plane.
+ *
+ * A patch looking down is left alone: the bottom of a foot ring is an
+ * annulus too, but the recess in it is the outside of the piece. Lids that
+ * fall inside the cavity (the ledge of a lid seat) do no harm: what they
+ * close off is cavity as well and is dropped with it.
+ */
+function planarOpenings(csg: CsgApi, scope: CsgScope, solid: Manifold): Manifold[] {
+  const lids: Manifold[] = [];
+  for (const patch of planarPatches(solid)) {
+    const [nx, ny, nz] = patch.normal;
+    if (nz < DOWN_Z || patch.triangles.length < 3) continue;
+    // a frame in the plane: u × v = n, so the faces stay counter-clockwise
+    const a = Math.abs(nz) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    const u = normalize([a[1] * nz - a[2] * ny, a[2] * nx - a[0] * nz, a[0] * ny - a[1] * nx]);
+    const v = [ny * u[2] - nz * u[1], nz * u[0] - nx * u[2], nx * u[1] - ny * u[0]];
+    const flat = patch.triangles.map((triangle) =>
+      triangle.map(([x, y, z]): [number, number] => [x * u[0] + y * u[1] + z * u[2], x * v[0] + y * v[1] + z * v[2]]),
+    );
+    const region = scope.keep(new csg.CrossSection(flat, 'Positive'));
+    const outer = region.toPolygons().filter((polygon) => signedArea(polygon) > 0);
+    const holes = scope.keep(scope.keep(new csg.CrossSection(outer, 'Positive')).subtract(region));
+    if (holes.area() < MIN_HOLE_MM2) continue;
+    const slab = scope.keep(
+      scope.keep(scope.keep(holes.offset(OVERLAP_MM, 'Round')).extrude(LID_MM)).translate([0, 0, -PROBE_MM / 2 - LID_MM]),
+    );
+    const d = patch.offset;
+    // column-major: the frame's axes, then its origin on the plane
+    lids.push(scope.keep(slab.transform([u[0], u[1], u[2], 0, v[0], v[1], v[2], 0, nx, ny, nz, 0, nx * d, ny * d, nz * d, 1])));
+  }
+  return lids;
+}
+
+type Point = [number, number, number];
+
+interface Patch {
+  /** unit normal of the plane */
+  normal: Point;
+  /** the plane is normal · p = offset */
+  offset: number;
+  triangles: [Point, Point, Point][];
+}
+
+/**
+ * The faces of the solid grouped into planar patches: neighbours across an
+ * edge whose corners all lie on the seed's plane. Corners, not normals: the
+ * cut of a boolean operation leaves slivers, and the normal of a sliver in
+ * float32 can be degrees off. Compared with the seed, not with the
+ * neighbour, so a fine curved surface does not creep into a patch; the
+ * largest faces seed first, as their normals are the surest.
+ */
+function planarPatches(solid: Manifold): Patch[] {
+  const { numProp, vertProperties, triVerts } = solid.getMesh();
+  const count = triVerts.length / 3;
+  const vertices = vertProperties.length / numProp;
+  const point = (v: number): Point => [vertProperties[v * numProp], vertProperties[v * numProp + 1], vertProperties[v * numProp + 2]];
+  const corners = (t: number): [Point, Point, Point] => [point(triVerts[t * 3]), point(triVerts[t * 3 + 1]), point(triVerts[t * 3 + 2])];
+  const normals: Point[] = [];
+  const areas = new Float64Array(count);
+  const across = new Map<number, number>();
+  for (let t = 0; t < count; t++) {
+    const [a, b, c] = corners(t);
+    const n = [
+      (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]),
+      (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]),
+      (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]),
+    ];
+    areas[t] = Math.hypot(n[0], n[1], n[2]);
+    normals.push(normalize(n));
+    for (let k = 0; k < 3; k++) across.set(triVerts[t * 3 + k] * vertices + triVerts[t * 3 + ((k + 1) % 3)], t);
+  }
+
+  const order = Array.from({ length: count }, (_, t) => t).toSorted((a, b) => areas[b] - areas[a]);
+  const seen = new Uint8Array(count);
+  const patches: Patch[] = [];
+  for (const seed of order) {
+    if (seen[seed] || areas[seed] === 0) continue;
+    seen[seed] = 1;
+    const normal = normals[seed];
+    const [corner] = corners(seed);
+    const offset = normal[0] * corner[0] + normal[1] * corner[1] + normal[2] * corner[2];
+    const onPlane = (v: number): boolean =>
+      Math.abs(
+        normal[0] * vertProperties[v * numProp] +
+          normal[1] * vertProperties[v * numProp + 1] +
+          normal[2] * vertProperties[v * numProp + 2] -
+          offset,
+      ) <= PLANE_MM;
+    const members = [seed];
+    for (let i = 0; i < members.length; i++) {
+      const t = members[i];
+      for (let k = 0; k < 3; k++) {
+        // the neighbour has the same edge the other way round
+        const next = across.get(triVerts[t * 3 + ((k + 1) % 3)] * vertices + triVerts[t * 3 + k]);
+        if (next === undefined || seen[next]) continue;
+        if (!onPlane(triVerts[next * 3]) || !onPlane(triVerts[next * 3 + 1]) || !onPlane(triVerts[next * 3 + 2])) continue;
+        seen[next] = 1;
+        members.push(next);
+      }
+    }
+    if (members.length >= 3) patches.push({ normal, offset, triangles: members.map(corners) });
+  }
+  return patches;
+}
+
+function normalize([x, y, z]: readonly number[]): Point {
+  const length = Math.hypot(x, y, z) || 1;
+  return [x / length, y / length, z / length];
+}
+
+/**
  * The solid without its closed voids: the union of its shells of positive
  * volume. Returns the same object when there were none.
  */
@@ -139,7 +268,7 @@ function signedArea(polygon: Polygon): number {
 }
 
 /** The outer outlines that go round the axis. */
-function aroundAxis(polygons: Polygon[]): Polygon[] {
+function aroundAxis<P extends Polygon>(polygons: P[]): P[] {
   return polygons.filter((polygon) => signedArea(polygon) > 0 && winding([polygon], 0, 0) !== 0);
 }
 
