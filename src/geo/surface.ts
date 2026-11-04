@@ -263,25 +263,24 @@ export function mergeMeshes(meshes: readonly SurfaceMesh[]): SurfaceMesh {
 }
 
 /**
- * Mirror in height: z → top − z, where top is the top of the mesh, so the
- * flipped mesh stands on z = 0 again. A mirror flips the orientation, so the
- * triangle order is reversed too, or the normals would point in.
+ * Turned over as a hand turns a part: half a turn about the x axis,
+ * y → −y and z → top − z, where top is the top of the mesh, so it stands on
+ * z = 0 again. A turn, not a mirror: a mirror in z alone would print the
+ * mirror image of whatever is not symmetric (the punch's tabs beside its
+ * legs). A turn keeps the orientation, so the triangles keep their order.
  */
-export function mirrorZ(mesh: SurfaceMesh): SurfaceMesh {
+export function turnOver(mesh: SurfaceMesh): SurfaceMesh {
   let top = -Infinity;
   for (let i = 2; i < mesh.positions.length; i += 3) top = Math.max(top, mesh.positions[i]);
   const positions = new Float32Array(mesh.positions);
   const normals = new Float32Array(mesh.normals);
-  for (let i = 2; i < positions.length; i += 3) {
-    positions[i] = top - positions[i];
-    normals[i] = -normals[i];
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i + 1] = -positions[i + 1];
+    positions[i + 2] = top - positions[i + 2];
+    normals[i + 1] = -normals[i + 1];
+    normals[i + 2] = -normals[i + 2];
   }
-  const indices = new Uint32Array(mesh.indices);
-  for (let t = 0; t < indices.length; t += 3) {
-    indices[t + 1] = mesh.indices[t + 2];
-    indices[t + 2] = mesh.indices[t + 1];
-  }
-  return { positions, normals, indices };
+  return { positions, normals, indices: new Uint32Array(mesh.indices) };
 }
 
 /** A shift in the plane of the bed. */

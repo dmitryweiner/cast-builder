@@ -12,7 +12,7 @@
 // silhouette again — otherwise the legs would sooner or later miss the ears.
 
 import type { Grid, SurfaceMesh } from './surface';
-import { assembleHollowMesh, mirrorZ, scaleMesh } from './surface';
+import { assembleHollowMesh, scaleMesh, turnOver } from './surface';
 import type { CapSpec } from './bottom';
 import { meshNormals } from './normals';
 import type { PressSource } from './revolve';
@@ -1008,8 +1008,8 @@ export function punchSection(source: PressSource, options: PressOptions, fit: Sl
  * down to the ear in the legs' sectors, in towards the mold's top between
  * them, so the flange is wide only over the legs. The punch is hollow, a
  * shell as thick as the mold's, with a vent along the axis — the contour
- * never touches the axis, the body is a torus. Printed flange down; grown by
- * the shrinkage, as the mold is.
+ * never touches the axis, the body is a torus. Printed flange down — turned
+ * over, not mirrored (`turnOver`); grown by the shrinkage, as the mold is.
  */
 export function buildPunch(source: PressSource, options: PressOptions, fit: SlumpFit): SurfaceMesh {
   const { nu } = source.grid;
@@ -1054,5 +1054,5 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   ];
   const raw = lathe(contour, nu);
   const mesh = { ...raw, normals: meshNormals(raw.positions, raw.indices) };
-  return mirrorZ(scaleMesh(mesh, 1 + shrinkPct / 100));
+  return turnOver(scaleMesh(mesh, 1 + shrinkPct / 100));
 }

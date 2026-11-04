@@ -132,7 +132,11 @@ describe('dished mold', () => {
 });
 
 describe('punch', () => {
-  /** The punch in its working position (before the flip), without shrinkage. */
+  /**
+   * The punch in its working position, without shrinkage: the printed one
+   * turned over as a hand turns it — half a turn about x, y → −y and
+   * z → top − z — never mirrored.
+   */
   const working = (family: string) => {
     const source = sourceOf(family);
     const { fit } = buildSlumpShell(source, options());
@@ -140,7 +144,10 @@ describe('punch', () => {
     const mesh = buildPunch(source, options(), fit);
     const top = layout.flangeZ + layout.flangeT;
     const positions = new Float32Array(mesh.positions);
-    for (let i = 2; i < positions.length; i += 3) positions[i] = top - positions[i];
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i + 1] = -positions[i + 1];
+      positions[i + 2] = top - positions[i + 2];
+    }
     return { source, fit, layout, mesh, positions };
   };
 

@@ -180,6 +180,9 @@ describe('slumpTooling with screws', () => {
     return slumpTooling(csg, source, options, { exporting, print });
   };
   const solidOf = (scope: CsgScope, mesh: SurfaceMesh) => scope.keep(toManifold(csg, mesh));
+  /** The punch as printed, turned over into its pressed place as a hand turns it: half a turn about x, never a mirror. */
+  const pressedOf = (scope: CsgScope, mesh: SurfaceMesh, top: number) =>
+    scope.keep(solidOf(scope, mesh).rotate([180, 0, 0]).translate([0, 0, top]));
   /** A vertical cylinder round a screw's axis, the whole height of the part. */
   const column = (scope: CsgScope, x: number, y: number, radius: number) =>
     scope.keep(csg.Manifold.cylinder(1000, radius, radius, 48).translate([x, y, -500]));
@@ -214,7 +217,7 @@ describe('slumpTooling with screws', () => {
     if (!layout) return;
     const scope = new CsgScope();
     const mold = solidOf(scope, built.mold);
-    const punch = solidOf(scope, built.punch);
+    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
     for (const angle of layout.angles) {
       const x = layout.axisMm * Math.cos(angle);
       const y = layout.axisMm * Math.sin(angle);
@@ -234,9 +237,7 @@ describe('slumpTooling with screws', () => {
     if (!layout) throw new Error('no layout');
     const scope = new CsgScope();
     const mold = solidOf(scope, built.mold);
-    // the punch as it is printed, turned back into its pressed place: z → top − z
-    const top = layout.tabTopZ;
-    const pressed = scope.keep(solidOf(scope, built.punch).mirror([0, 0, 1]).translate([0, 0, top]));
+    const pressed = pressedOf(scope, built.punch, layout.tabTopZ);
     const pad = solidOf(scope, built.pads[0]);
     const { min } = pad.boundingBox();
     for (const angle of layout.angles) {
@@ -385,7 +386,7 @@ describe('slumpTooling with screws', () => {
       const layout = built.layout;
       if (!layout) throw new Error('no layout');
       const scope = new CsgScope();
-      const press = (mesh: SurfaceMesh) => scope.keep(solidOf(scope, mesh).mirror([0, 0, 1]).translate([0, 0, layout.tabTopZ]));
+      const press = (mesh: SurfaceMesh) => pressedOf(scope, mesh, layout.tabTopZ);
       // (the legs graze the ears' corners by themselves, with or without the clamps: the clamps add nothing to it)
       const overlap = (mold: SurfaceMesh, punch: SurfaceMesh) => scope.keep(solidOf(scope, mold).intersect(press(punch))).volume();
       expect(overlap(built.mold, built.punch) - overlap(plain.mold, plain.punch), name).toBeLessThan(1e-2);
