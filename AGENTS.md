@@ -172,7 +172,10 @@ Regenerate them only on purpose.
   built from; the punch is its honest offset by the slab (points that come
   nearer than the slab are dropped, never clamped into shelves); the lowest
   down-facing face over the foot is the relief of the mold's floor. A model
-  that is not round gets a warning, not a refusal.
+  not round by more than half the slab, or whose outside narrows upwards
+  by more than 2 mm (the rim's top 3 mm aside), gets a warning, not a
+  refusal — both read on that outer grid, never on the whole mesh: the
+  inside of a hollow piece looks up.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
   measure — the legs never miss the ears. One grid step past a leg's edge
   the flange's points stay wide and high: a face going down and in at once

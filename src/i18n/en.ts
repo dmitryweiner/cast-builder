@@ -110,9 +110,9 @@ export const en = {
   'mold.noPlug':
     'The plug does not fit: the gallery must be wider than the gate by a millimetre and narrower than the rim. The mold keeps a collar.',
   'press.undercut':
-    'The piece will not come out of the mold: {pct} % of its surface catches, the steepest {deg}° — the slab will tear on lifting. Slump molding wants a piece that is nowhere wider than above it.',
+    'The piece will not come out of the mold: its outside narrows upwards by up to {mm} mm — the slab will catch and tear on lifting. Slump molding wants a piece that does not get narrower towards the rim.',
   'press.notRound':
-    'The piece is not round: its radius varies by up to {mm} mm around the axis. The punch is round, so the slab will be uneven — slump molding suits a body of revolution.',
+    'The piece is not round: its radius varies by up to {mm} mm around the axis, more than half the slab. The punch is round, so the slab will be uneven — slump molding suits a body of revolution.',
 
   'mesh.nonFinite': 'The mesh has broken coordinates.',
   'mesh.badIndices': 'The mesh has broken triangles.',

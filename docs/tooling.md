@@ -120,10 +120,14 @@ slicer if they do not fit the bed together.
 The mold is built from the model read as a body of revolution: its outer
 surface with all its relief is the working surface, the mean radius of each
 height is the smooth silhouette the punch follows. A recessed mark under the
-bottom becomes a raised one on the mold's floor. A model that is not round
-(a handle, an oval) gets a warning — the punch is round and the slab will be
-uneven. A piece wider somewhere than above it gets a warning too: it will
-not come out.
+bottom becomes a raised one on the mold's floor. Both checks look at that
+outside only — the inside of a hollow model does not touch the mold. A
+model whose radius varies around the axis by more than half the slab (a
+handle, an oval, deep lobes) gets a warning — the punch is round and the
+slab will be uneven; shallower relief is what the mold is for. A piece whose
+outside narrows upwards by more than 2 mm (a shoulder, a neck) gets a
+warning too: it will not come out. The top 3 mm, a rim rounded off, do not
+count.
 
 Under the mold's rim are three **ears** with slots, the punch has three
 short hooked **legs**: the lip of a leg holds the ear from outside and

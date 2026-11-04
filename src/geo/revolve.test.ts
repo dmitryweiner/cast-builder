@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultOrientation, placeModel } from './model';
-import { meshSource, MIN_RADIUS_MM } from './revolve';
-import { revolveMesh } from './testing';
+import { farthestHit, meshSource, MIN_RADIUS_MM } from './revolve';
+import { fixture, revolveMesh } from './testing';
 import type { IndexedMesh } from './stl';
 import { assembleMesh, sampleGrid } from './surface';
 
@@ -68,6 +68,30 @@ describe('meshSource', () => {
     // the relief is measured from the smooth silhouette (by the lip that is rounded off a little too)
     expect(source.outwardMm).toBeGreaterThan(0.3);
     expect(source.outwardMm).toBeLessThan(0.8);
+  });
+
+  it('a ray through the common end of two segments hits them', () => {
+    // a slice of a real bowl from clayform: a point on the ray's line, the end
+    // of both segments, which rounding put a hair outside each of them
+    const segments = [
+      -7.43557018604289e-15, -40.367006817366, -1.1600088284884242, -40.121933114095526, 1.0603201951561783, -40.61589459097371,
+      -7.43557018604289e-15, -40.367006817366,
+    ];
+    const u = (3 * Math.PI) / 2;
+    expect(farthestHit(segments, Math.cos(u), Math.sin(u))).toBeCloseTo(40.367, 3);
+  });
+
+  it('measures how deep the outside catches: how much narrower it is above its widest point below', () => {
+    // a pot: a straight wall 40 mm, then a shoulder in to a neck 10 mm narrower
+    const pot = (v: number) => (v < 0.5 ? 40 : Math.max(30, 40 - 40 * (v - 0.5)));
+    expect(meshSource(revolveMesh(pot, { nu: 64, nv: 32, height: 80 }), 64, 40).catchMm).toBeCloseTo(10, 0);
+    expect(meshSource(revolveMesh(cone, { nu: 64, nv: 32, height: 80 }), 64, 40).catchMm).toBeLessThan(0.05);
+  });
+
+  it('a hollow piece catches by its outside only, and the rounding of its rim is no catch', () => {
+    // the printable cup: its inside looks up, its rim is rounded off by half the wall
+    const source = meshSource(placeModel(fixture('cup-hollow'), defaultOrientation()), 128, 128);
+    expect(source.catchMm).toBeLessThan(0.5);
   });
 
   it('measures the relief and how far the piece is from round', () => {

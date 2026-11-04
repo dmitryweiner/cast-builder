@@ -166,6 +166,16 @@ describe('runJob', () => {
     expect(steps.at(-1)?.step).toBe((steps.at(-1)?.total ?? 0) - 1);
   });
 
+  it('a hollow piece from clayform gets no slump warnings from its inside', () => {
+    // the inside of a cup looks up, its rim is rounded off: neither holds the slab
+    for (const name of ['cup-hollow', 'bowl']) expect(runJob(csg, jobFor(name, { mode: 'slump' })).info.warnings).toEqual([]);
+  });
+
+  it('warns that a pot narrowing to its rim will not come out of a slump mold', () => {
+    const { info } = runJob(csg, jobFor('pot', { mode: 'slump' }));
+    expect(info.warnings.map((m) => m.code)).toContain('press.undercut');
+  });
+
   it('warns that a piece with a handle is not round for a slump mold', () => {
     const { info } = runJob(csg, jobFor('pot-handle', { mode: 'slump' }));
     expect(info.warnings.map((m) => m.code)).toContain('press.notRound');
