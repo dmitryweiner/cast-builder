@@ -4,13 +4,15 @@
 //
 // The screws and the stops are printed once and serve every mold, so every
 // size here is a constant — a different pitch or gap later would leave the
-// printed set useless with new molds (plans/PLAN-SCREWS.md).
+// printed set useless with new molds (plans/PLAN-SCREWS.md). The one
+// exception is the fit: it widens the lug's hole only, never the screw, so
+// the user sets it per mold (plans/PLAN-FIT-RESET-PROJECT.md).
 //
 // The thread is case-constructor's: a 60° profile half a pitch deep, flat
-// crests and roots, the hole grown by a radial fit of 0.35 mm (its test
-// print chose them). The pitch is coarser than ISO's 1.5: both parts are
-// printed, the flanks overlap by pitch / 2 − fit, and 2 mm gives 0.65 mm of
-// it against 0.40 — 60 % more bite for a 6 % thinner core.
+// crests and roots, the hole grown by a radial fit. The pitch is coarser
+// than ISO's 1.5: both parts are printed, the flanks overlap by
+// pitch / 2 − fit, and 2 mm gives 0.5 mm of it at the default fit against
+// 0.40 of ISO's at case-constructor's 0.35.
 //
 // A single-start helical thread has the same horizontal cross-section at
 // every height, turned by 360° per pitch: the thread is that section
@@ -30,8 +32,15 @@ const DEPTH_SHARE = 0.5;
 
 export const THREAD: ThreadForm = { d: 10, pitch: 2, depth: DEPTH_SHARE, flank: DEPTH_SHARE * Math.tan(Math.PI / 6) };
 
-/** Radial clearance of a printed threaded hole, mm. */
-export const THREAD_FIT_MM = 0.35;
+/**
+ * Radial clearance of a printed threaded hole, mm, by default: 0.35 (case-
+ * constructor's) turned too tight in the lugs. In the mm of the print, never
+ * scaled by the shrinkage.
+ */
+export const THREAD_FIT_MM = 0.5;
+export const THREAD_FIT_MIN_MM = 0.2;
+/** 0.3 mm of the flanks still overlap. */
+export const THREAD_FIT_MAX_MM = 0.7;
 
 /** Plain hole in the punch's tab, mm: the screw passes it freely. */
 export const CLEAR_HOLE_MM = 11;

@@ -5,6 +5,7 @@ import type { Manifold } from 'manifold-3d';
 import type { CsgApi } from '../geo/csg';
 import { CsgScope, fromManifold, toManifold } from '../geo/csg';
 import type { Message } from '../geo/message';
+import { isValidMesh } from '../geo/stl';
 import { guessMouth, gateRadius } from '../geo/mouth';
 import type { Mouth } from '../geo/mouth';
 import { solidify } from '../geo/solidify';
@@ -46,10 +47,7 @@ export function sanitizeJob(raw: unknown): ToolingJob | null {
   if (typeof model !== 'object' || model === null || !('positions' in model) || !('indices' in model)) return null;
   const { positions, indices } = model;
   if (!(positions instanceof Float32Array) || !(indices instanceof Uint32Array)) return null;
-  if (positions.length % 3 !== 0 || indices.length % 3 !== 0 || indices.length === 0) return null;
-  const count = positions.length / 3;
-  for (let i = 0; i < indices.length; i++) if (indices[i] >= count) return null;
-  for (let i = 0; i < positions.length; i++) if (!Number.isFinite(positions[i])) return null;
+  if (!isValidMesh({ positions, indices })) return null;
   const settings = sanitizeSettings(source);
   const setup = sanitizeSetup(source);
   return {
@@ -102,6 +100,7 @@ export function pressOptions(mold: MoldState): PressOptions {
     ventMm: mold.ventMm,
     roundPct: mold.punchRoundPct,
     screws: mold.screws,
+    fitMm: mold.threadFitMm,
   };
 }
 

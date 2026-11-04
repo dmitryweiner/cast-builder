@@ -58,4 +58,18 @@ describe('screw clamp checkboxes', () => {
     box('screws').click();
     expect(state.mold.slabMm).toBe(before);
   });
+
+  it('the thread fit: a slider with the clamps on, 0.5 mm at first, in the mold only', () => {
+    handle = render();
+    expect(shown('threadFit')).toBe(false);
+    box('screws').click();
+    expect(shown('threadFit')).toBe(true);
+    const slider = box('threadFit');
+    expect(Number(slider.value)).toBe(0.5);
+    expect([Number(slider.min), Number(slider.max), Number(slider.step)]).toEqual([0.2, 0.7, 0.05]);
+    slider.value = '0.6';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(state.mold.threadFitMm).toBe(0.6);
+    expect(state.mold.screws).toBe(true);
+  });
 });

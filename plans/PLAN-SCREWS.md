@@ -377,6 +377,7 @@ old punch has its tabs on the wrong side: the punch is printed again.
 
 ## Not in this plan
 
-- Other screw sizes or an adjustable fit (it would break reuse).
+- Other screw sizes. (An adjustable fit came later and did not break reuse:
+  it widens the lug's hole only, see `PLAN-FIT-RESET-PROJECT.md`.)
 - Screws for the pour boxes or the master.
 - Heat-set inserts or steel nuts instead of a printed thread.

@@ -64,6 +64,11 @@ export function defaultSettings(): Settings {
   };
 }
 
+/** Reset: everything at the defaults but the language and the mode tab — where the user is, not what they tuned. */
+export function resetSettings(settings: Settings): Settings {
+  return { ...defaultSettings(), locale: settings.locale, mode: settings.mode };
+}
+
 export interface MouthChoice {
   /** found from the model; otherwise the two numbers below */
   auto: boolean;

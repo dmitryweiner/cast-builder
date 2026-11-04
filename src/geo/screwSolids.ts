@@ -7,7 +7,7 @@ import type { CsgApi, CsgScope } from './csg';
 import type { ScrewLayout } from './press';
 import { BOSS_R_MM } from './press';
 import type { ThreadForm } from './thread';
-import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, THREAD_SLICES, threadSection } from './thread';
+import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_SLICES, threadSection } from './thread';
 
 /** Segments of a full turn for the cavity a lug keeps out of and the columns cut off it. */
 const ROUND_SEGMENTS = 192;
@@ -161,8 +161,8 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   // The thread is whole from threadZ up; under it, where the slanted
   // underside opens the hole, a plain bore: a slanted cut through the thread
   // left arches of its teeth hanging over the opening.
-  const thread = threadRod(csg, scope, THREAD, THREAD_FIT_MM, layout.threadZ - 0.5, z1, n);
-  const bore = column(csg, scope, THREAD.d / 2 + THREAD_FIT_MM + BORE_CLEAR_MM, z0 - 1, layout.threadZ, BOSS_SEGMENTS);
+  const thread = threadRod(csg, scope, THREAD, layout.fitMm, layout.threadZ - 0.5, z1, n);
+  const bore = column(csg, scope, THREAD.d / 2 + layout.fitMm + BORE_CLEAR_MM, z0 - 1, layout.threadZ, BOSS_SEGMENTS);
   const rod = scope.keep(thread.add(bore));
   const support = scope.keep(
     scope.keep(new csg.CrossSection([layout.support.map(({ r, z }): [number, number] => [r, z])], 'Positive')).revolve(ROUND_SEGMENTS),

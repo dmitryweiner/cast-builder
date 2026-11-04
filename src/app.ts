@@ -9,7 +9,7 @@
 
 import type { IndexedMesh } from './geo/stl';
 import { encodeSTL, parseSTL } from './geo/stl';
-import { flip, placeModel, quarterTurn, sizeOf, IDENTITY_TURN } from './geo/model';
+import { flip, placeModel, quarterTurn, sizeOf } from './geo/model';
 import { meshNormals } from './geo/normals';
 import type { SurfaceMesh } from './geo/surface';
 import { mergeMeshes } from './geo/surface';
@@ -35,9 +35,9 @@ import {
 import type { Key, Locale } from './i18n';
 import { detectLocale, direction, isLocale, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
 import type { Mode, Settings, Setup } from './state';
-import { defaultSetup, MODES, RECESS_MAX_MM, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
-import type { KeyValueStorage } from './storage';
-import { loadSettings, saveSettings } from './storage';
+import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
+import type { KeyValueStorage, StorageWrite } from './storage';
+import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from './ui/controls';
 import { screwControls } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
@@ -140,6 +140,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const fileInput = el('fileInput', HTMLInputElement);
   const localeSelect = el('locale', HTMLSelectElement);
   const modelInfo = el('modelInfo', HTMLParagraphElement);
+  const modelNote = el('modelNote', HTMLParagraphElement);
   const modelControls = el('modelControls', HTMLDivElement);
   const toolingControls = el('toolingControls', HTMLDivElement);
   const mouthCard = el('mouthCard', HTMLElement);
@@ -154,7 +155,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const blockersEl = el('blockers', HTMLParagraphElement);
   const auditEl = el('audit', HTMLParagraphElement);
   const exportBtn = el('exportBtn', HTMLButtonElement);
-  const turnButtons = ['turnX', 'turnY', 'turnFlip', 'turnReset'].map((id) => el(id, HTMLButtonElement));
+  const turnButtons = ['turnX', 'turnY', 'turnFlip'].map((id) => el(id, HTMLButtonElement));
+  const resetBtn = el('turnReset', HTMLButtonElement);
   const progress = createProgress({
     wrap: el('progressWrap', HTMLDivElement),
     fill: el('progressFill', HTMLDivElement),
@@ -182,11 +184,15 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   // the sheet's height follows the window
   window.addEventListener('resize', () => sheet.refresh());
 
-  let settings: Settings = loadSettings(storage);
+  // the project of the last visit: the settings now, the setup with its model at the end
+  const saved = loadProject(storage);
+  let settings: Settings = saved.settings;
   let locale: Locale = detectLocale(settings.locale, languages);
   setLocale(locale);
   let setup: Setup = defaultSetup();
   let model: Model | null = null;
+  /** how the model in hand was kept: 'full' — too large, it is gone after a reload */
+  let modelKept: StorageWrite = 'ok';
   /** what the last finished build said; the panel is drawn from it */
   let last: { parts: JobPart[]; info: JobInfo } | null = null;
   /** its parts as they lie on the bed — in the view and, in one file, in the STL */
@@ -366,6 +372,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     bedCard.hidden = settings.mode === 'master';
     emptyEl.hidden = model !== null;
     for (const button of turnButtons) button.disabled = model === null;
+    modelNote.hidden = model === null || modelKept !== 'full';
     localeSelect.value = locale;
     if (!exporting) exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);
     modelInfo.textContent = model
@@ -415,9 +422,14 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   // ---- state changes ----
 
+  /** Everything but the model itself, on every change: a reload opens the project as it was. */
+  function save(): void {
+    saveProject(storage, { settings, setup });
+  }
+
   function setSettings(next: Settings): void {
     settings = sanitizeSettings(next);
-    saveSettings(storage, settings);
+    save();
     syncPanel();
     schedule();
   }
@@ -425,7 +437,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   /** The layout is the main thread's: a change of it lays the last build out anew, with no new build. */
   function setBed(next: Settings): void {
     settings = sanitizeSettings(next);
-    saveSettings(storage, settings);
+    save();
     if (last) show(last.parts);
     syncPanel();
   }
@@ -447,6 +459,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   function setSetup(next: Setup): void {
     const turned = next.orientation !== setup.orientation;
     setup = sanitizeSetup(next);
+    save();
     if (turned && model) {
       place(model);
       last = null;
@@ -473,9 +486,17 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       syncPanel();
       return;
     }
+    const stem = name.replace(/\.stl$/i, '');
+    modelKept = saveModel(storage, { name: stem, mesh: raw });
+    openModel(stem, raw, defaultSetup());
+    save();
+  }
+
+  /** A model in hand, read from a file or kept by the last visit, with its setup. */
+  function openModel(name: string, raw: IndexedMesh, start: Setup): void {
     readError = '';
-    setup = defaultSetup();
-    model = { name: name.replace(/\.stl$/i, ''), raw, placed: raw, heightMm: 0, radiusMm: 0 };
+    setup = start;
+    model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
     // the view shows tooling only: the old model's goes, the new one's is on its way
     scene.setMeshes([]);
@@ -587,7 +608,12 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   turnButtons[0].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'x')));
   turnButtons[1].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'y')));
   turnButtons[2].addEventListener('click', () => turn(flip(setup.orientation.turn)));
-  turnButtons[3].addEventListener('click', () => setSetup({ ...setup, orientation: { turn: IDENTITY_TURN, spinDeg: 0 } }));
+  // everything back to the defaults but the model, the language and the mode tab
+  resetBtn.addEventListener('click', () => {
+    settings = resetSettings(settings);
+    last = null;
+    setSetup(defaultSetup());
+  });
 
   const openFile = (file: File | undefined): void => {
     if (!file) return;
@@ -632,7 +658,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     locale = value;
     setLocale(value);
     settings = { ...settings, locale: value };
-    saveSettings(storage, settings);
+    save();
     translatePage(locale);
     renderPanel();
     progress.refresh();
@@ -643,6 +669,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   translatePage(locale);
   renderPanel();
   syncPanel();
+  const kept = loadSavedModel(storage);
+  if (kept) openModel(kept.name, kept.mesh, saved.setup);
 }
 
 function withNormals(mesh: IndexedMesh): SurfaceMesh {

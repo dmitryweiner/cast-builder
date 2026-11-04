@@ -1,9 +1,11 @@
-// The checkboxes of the slump mold's screw clamps: the clamps themselves
+// The controls of the slump mold's screw clamps: the clamps themselves
 // (lugs, tabs, holes) and, under them, the printed screws and stops —
-// reusable, so a later mold needs the holes without a new set.
+// reusable, so a later mold needs the holes without a new set — and the fit
+// of the lugs' threaded holes, which never touches the screws.
 
 import type { Control } from './controls';
 import type { Settings } from '../state';
+import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM } from '../geo/mold/state';
 
 export const screwControls: readonly Control<Settings>[] = [
   {
@@ -23,5 +25,17 @@ export const screwControls: readonly Control<Settings>[] = [
     when: (s) => s.mode === 'slump' && s.mold.screws,
     get: (s) => s.mold.printScrews,
     set: (s, value) => ({ ...s, mold: { ...s.mold, printScrews: value } }),
+  },
+  {
+    kind: 'range',
+    key: 'threadFit',
+    label: 'ctl.threadFit',
+    hint: 'ctl.threadFit.hint',
+    min: THREAD_FIT_MIN_MM,
+    max: THREAD_FIT_MAX_MM,
+    step: 0.05,
+    when: (s) => s.mode === 'slump' && s.mold.screws,
+    get: (s) => s.mold.threadFitMm,
+    set: (s, value) => ({ ...s, mold: { ...s.mold, threadFitMm: value } }),
   },
 ];

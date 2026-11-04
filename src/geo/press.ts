@@ -20,7 +20,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
-import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM } from './thread';
+import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -118,6 +118,8 @@ export interface PressOptions {
   roundPct: number;
   /** screw clamps: lugs on the mold, tabs on the punch beside the ears (geo/thread.ts) */
   screws: boolean;
+  /** radial clearance of the lugs' threaded holes, mm of the print */
+  fitMm: number;
 }
 
 /**
@@ -394,7 +396,7 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
 function earShortfall(source: PressSource, options: PressOptions, fit: SlumpFit): number {
   const grow = 1 + options.shrinkPct / 100;
   const layout = screwLayout(source, options, fit);
-  const beyond = layout.axisMm + HOLE_WALL_R_MM - fit.ear.outerMm * grow;
+  const beyond = layout.axisMm + holeWallR(options.fitMm) - fit.ear.outerMm * grow;
   const faceZ = layout.seatZ - LUG_THREAD_MIN_MM - beyond;
   return Math.max(0, (fit.ear.faceZ * grow - faceZ) / grow);
 }
@@ -689,6 +691,8 @@ export interface ScrewLayout {
   seatZ: number;
   lugBottomZ: number;
   threadZ: number;
+  /** radial clearance of the threaded hole, mm */
+  fitMm: number;
   /**
    * The lug's underside, so that it prints without supports: it rises at 45°
    * away from the ear's side — from `footZ` at the side's plane — and stays
@@ -727,7 +731,7 @@ export const BOSS_IN_CHEEK_MM = 2;
 /** Step in height of the lug's support envelope, mm. */
 const SUPPORT_STEP_MM = 0.25;
 /** The threaded hole with a millimetre of wall round it: what the ear's envelope must hold, mm from the axis. */
-const HOLE_WALL_R_MM = THREAD.d / 2 + THREAD_FIT_MM + 1;
+const holeWallR = (fitMm: number): number => THREAD.d / 2 + fitMm + 1;
 
 export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
   const grow = 1 + options.shrinkPct / 100;
@@ -780,7 +784,8 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   };
   const earAt = (z: number): number => Math.min(ear.outerMm - Math.max(0, ear.faceZ - z), wallAt(z) + ear.depthMm) * grow;
   const toAxis = BOSS_R_MM - BOSS_IN_CHEEK_MM;
-  const from = Math.max(0, lugBottomZ - toAxis - THREAD.d / 2 - THREAD_FIT_MM - 2);
+  const { fitMm } = options;
+  const from = Math.max(0, lugBottomZ - toAxis - THREAD.d / 2 - fitMm - 2);
   const support: RZ[] = [{ r: 0, z: from }];
   let widest = 0;
   for (let z = from; z <= seatZ + 1 + 1e-9; z += SUPPORT_STEP_MM) {
@@ -789,14 +794,14 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   }
   support.push({ r: 0, z: support[support.length - 1].z });
   // the thread starts where the envelope holds the hole with its wall
-  const holds = support.find((p) => p.z > from && p.r >= axisMm + HOLE_WALL_R_MM);
+  const holds = support.find((p) => p.z > from && p.r >= axisMm + holeWallR(fitMm));
   const threadZ = Math.min(seatZ - LUG_THREAD_MIN_MM, Math.max(lugBottomZ, holds ? holds.z : seatZ));
   // Where even the lowered face cannot hold it (a belly pushes the axis far
   // out, a narrowing neck thins the ear above its face) the hole keeps its
   // wall anyway: that ring overhangs, but the thread stays whole.
-  for (const p of support) if (p.r > 0 && p.z >= threadZ) p.r = Math.max(p.r, axisMm + HOLE_WALL_R_MM);
+  for (const p of support) if (p.r > 0 && p.z >= threadZ) p.r = Math.max(p.r, axisMm + holeWallR(fitMm));
   // deep enough at the ear's side for the whole thread under the hole's far edge
-  const footZ = threadZ - toAxis - THREAD.d / 2 - THREAD_FIT_MM;
+  const footZ = threadZ - toAxis - THREAD.d / 2 - fitMm;
 
   let innerMm = Infinity;
   for (const p of cavity) if (p.r > 0 && p.z >= footZ && p.z <= seatZ) innerMm = Math.min(innerMm, p.r);
@@ -811,6 +816,7 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
     seatZ,
     lugBottomZ,
     threadZ,
+    fitMm,
     footZ,
     support,
     inCheek,

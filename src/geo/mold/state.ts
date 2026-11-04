@@ -1,6 +1,7 @@
 // Parameters of the casting tooling.
 
 import { EAR_MAX_MM, EAR_MIN_MM, EAR_SEAT_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM, VENT_MM } from '../press';
+import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from '../thread';
 
 export interface MoldState {
   /** shrinkage of the slip from pouring to firing, % — the model grows by it */
@@ -27,6 +28,8 @@ export interface MoldState {
   screws: boolean;
   /** the screws and stops for them in the same file — they are reusable, printed once */
   printScrews: boolean;
+  /** radial clearance of the lugs' threaded holes, mm of the print: the screws stay the same */
+  threadFitMm: number;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -38,7 +41,7 @@ export const BATH_WALL_MIN_MM = 1.2;
 export const BATH_WALL_MAX_MM = 12;
 export const CLEAR_MIN_MM = 3;
 export const CLEAR_MAX_MM = 60;
-export { EAR_MAX_MM, EAR_MIN_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM };
+export { EAR_MAX_MM, EAR_MIN_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM, THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM };
 
 export function defaultMold(): MoldState {
   return {
@@ -54,6 +57,7 @@ export function defaultMold(): MoldState {
     ventMm: VENT_MM,
     screws: false,
     printScrews: false,
+    threadFitMm: THREAD_FIT_MM,
   };
 }
 
@@ -80,5 +84,6 @@ export function sanitizeMold(raw: unknown): MoldState {
     ventMm: clamp(num(source.ventMm, fallback.ventMm), VENT_MIN_MM, VENT_MAX_MM),
     screws: typeof source.screws === 'boolean' ? source.screws : fallback.screws,
     printScrews: typeof source.printScrews === 'boolean' ? source.printScrews : fallback.printScrews,
+    threadFitMm: clamp(num(source.threadFitMm, fallback.threadFitMm), THREAD_FIT_MIN_MM, THREAD_FIT_MAX_MM),
   };
 }

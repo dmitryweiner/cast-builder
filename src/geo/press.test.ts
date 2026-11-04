@@ -26,7 +26,18 @@ import { meshSource } from './revolve';
 import type { PressSource } from './revolve';
 import { analyticSource, fixture, withNormals } from './testing';
 import { signedVolume, validateMesh } from './validate';
-import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM } from './thread';
+import {
+  LUG_THREAD_MIN_MM,
+  LUG_THREAD_MM,
+  PAD,
+  PAD_GAP_MM,
+  SCREW,
+  TAB_T_MM,
+  THREAD,
+  THREAD_FIT_MAX_MM,
+  THREAD_FIT_MIN_MM,
+  THREAD_FIT_MM,
+} from './thread';
 
 const N = 96;
 const families = ['bowl', 'cup', 'pot', 'vase'];
@@ -48,6 +59,7 @@ const options = (over: Partial<PressOptions> = {}): PressOptions => ({
   ventMm: VENT_MM,
   roundPct: 0,
   screws: false,
+  fitMm: THREAD_FIT_MM,
   ...over,
 });
 
@@ -658,8 +670,29 @@ describe('screw clamps', () => {
         expect(lowered && thread > LUG_THREAD_MIN_MM + 0.3, `${family} slab ${slabMm}`).toBe(false);
         // the hole and its wall lie within the ear's 45° envelope from the thread up
         const rise = layout.support.find((p) => p.z >= layout.threadZ - 1e-9);
-        expect(rise?.r ?? 0).toBeGreaterThanOrEqual(layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.3);
+        expect(rise?.r ?? 0).toBeGreaterThanOrEqual(layout.axisMm + THREAD.d / 2 + layout.fitMm + 1 - 0.3);
       }
+    }
+  });
+
+  it('a looser fit keeps the hole within the ear envelope, the thread starting at most as much higher', () => {
+    for (const family of ['bowl', 'cup']) {
+      const startAt = new Map<number, number>();
+      for (const fitMm of [THREAD_FIT_MIN_MM, THREAD_FIT_MM, THREAD_FIT_MAX_MM]) {
+        const over = { slabMm: 6, shrinkPct: 12, screws: true, fitMm };
+        const { layout } = at(family, over);
+        expect(layout.fitMm).toBe(fitMm);
+        const rise = layout.support.find((p) => p.z >= layout.threadZ - 1e-9);
+        expect(rise?.r ?? 0, `${family} fit ${fitMm}`).toBeGreaterThanOrEqual(layout.axisMm + THREAD.d / 2 + fitMm + 1 - 0.3);
+        expect(layout.seatZ - layout.threadZ).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 1e-6);
+        startAt.set(fitMm, layout.threadZ);
+      }
+      // a wider hole meets the ear's 45° envelope a little higher: the thread
+      // starts no higher than by the fit's growth and a step of the envelope
+      const [tight, usual, loose] = [...startAt.values()];
+      expect(usual - tight).toBeGreaterThanOrEqual(-1e-9);
+      expect(usual - tight).toBeLessThanOrEqual(THREAD_FIT_MM - THREAD_FIT_MIN_MM + 0.25 + 1e-9);
+      expect(loose - usual).toBeLessThanOrEqual(THREAD_FIT_MAX_MM - THREAD_FIT_MM + 0.25 + 1e-9);
     }
   });
 
@@ -671,7 +704,7 @@ describe('screw clamps', () => {
       // the ear's slope at 45° from the bottom of its face, at the height the thread starts
       const k = 1.12;
       const slope = fit.ear.outerMm * k + (layout.threadZ - fit.ear.faceZ * k);
-      const holds = slope >= layout.axisMm + THREAD.d / 2 + THREAD_FIT_MM + 1 - 0.6;
+      const holds = slope >= layout.axisMm + THREAD.d / 2 + layout.fitMm + 1 - 0.6;
       const lowered = fit.ear.faceZ < plain.ear.faceZ - 1e-9;
       expect(lowered && !holds, family).toBe(false);
       expect(layout.seatZ - layout.threadZ, family).toBeGreaterThanOrEqual(LUG_THREAD_MIN_MM - 1e-6);

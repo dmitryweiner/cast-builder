@@ -22,7 +22,9 @@ that a handle or a spout lies along X — the mold parts in the XZ plane.
 
 - **Turn about X / Y**, **Upside down** (the icon buttons, named in their
   tooltips) — quarter turns for a model that comes lying on its side or
-  upside down. **Reset** undoes them and the spin.
+  upside down. **Reset** undoes them and the spin, and puts every setting
+  back to its default, except the language and the chosen mode. The model
+  stays.
 - **Spin** — about the vertical axis, in 5° steps, or a quarter turn at
   once by the **0° / 90° / 180° / 270°** buttons: put the handle and the
   spout along X, left to right in the picture.
@@ -188,8 +190,14 @@ the same STL, a column of each after the punch:
   tall, too tall for the gap: print the new one.)
 
 They do not depend on the model or the shrinkage — print them once and use
-them with every later mold, leaving the second box off. The pitch, the
-thread's fit (0.35 mm) and the 10 mm gap are fixed for that reason.
+them with every later mold, leaving the second box off. The pitch and the
+10 mm gap are fixed for that reason.
+
+**Thread fit** (shown with the clamps on) is the clearance of the threaded
+holes in the lugs, 0.5 mm by default, 0.2–0.7. If the screws go in tight,
+make it larger. It changes only the holes in the mold, never the screws, so
+a set already printed fits a mold with any fit. Like every size of the
+clamps, it is in the millimetres of the print, not grown by the shrinkage.
 
 How to work with the clamps:
 
@@ -205,7 +213,7 @@ How to work with the clamps:
 Print the screws standing on their heads and the stops dimple down, both
 with 100 % infill or five walls or more; the threads print best at 0.2 mm
 layers or finer. If a printed screw is tight, run it in and out a few
-times. The fit is not a setting: one set of screws has to fit every mold.
+times, or raise the **Thread fit** for the next mold.
 
 ## Export
 
@@ -231,10 +239,15 @@ again at once, with no new build. The view shows the parts as they lie.
 
 ## What is remembered
 
-The mode, the parameters, the parting choice, the detail and the layout on
-the bed are saved in
-the browser and come back on the next visit. The turn, the mouth and the
-plug belong to the model: a newly opened model starts from the defaults.
+The project is saved in the browser on every change and comes back on the
+next visit: the model itself, its turn, mouth and plug, and the mode, the
+parameters, the parting choice, the detail and the layout on the bed. A
+newly opened model starts from the default turn, mouth and plug. The other
+settings stay as they were.
+
+The browser keeps a few megabytes for every app on the same site. A model
+too large for that is not kept (the Model card says so): open it again
+after a reload. Its settings are kept anyway.
 
 The interface is in English and Russian: the language comes from the
 browser, the menu in the top bar switches it and is remembered too.

@@ -1,7 +1,8 @@
 // Browser smoke of the real app: the sample model through every mode, its
 // thumbnail, an STL opened from a file (a hollow print gets filled), a
-// slump mold with screw clamps and its printed screws and stops, the parts
-// laid out on the bed and pour boxes in one file,
+// slump mold with screw clamps (their thread fit) and its printed screws and
+// stops, the parts laid out on the bed and pour boxes in one file, the
+// project kept over a reload and Reset,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
 // the model turned and spun by a preset, language detection and memory, the
 // panel as a sheet and no horizontal scroll on a phone, no console errors. With --preview it runs against a fresh
@@ -151,6 +152,41 @@ try {
     await context.close();
   });
 
+  await step('the project survives a reload; Reset puts the settings back, the model, the language and the tab stay', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('bowl'));
+    await mode(page, '#tabSlump', 2);
+    await page.check('#mold_screws');
+    await page.fill('#mold_threadFit', '0.65');
+    await page.click('#turnX');
+    await page.click('.preset-btn:text-is("90°")');
+    const turned = await page.locator('#modelInfo').textContent();
+    await page.reload();
+    await page.locator('#thumbBox').waitFor();
+    check(
+      (await page.locator('#modelInfo').textContent()) === turned,
+      `the model came back as ${await page.locator('#modelInfo').textContent()}`,
+    );
+    check((await page.locator('#model_spin').inputValue()) === '90', 'the spin was lost on reload');
+    check((await page.locator('#tabSlump').getAttribute('aria-selected')) === 'true', 'the mode was lost on reload');
+    check(await page.locator('#mold_screws').isChecked(), 'the clamps were lost on reload');
+    check((await page.locator('#mold_threadFit').inputValue()) === '0.65', 'the thread fit was lost on reload');
+    check(!(await page.locator('#modelNote').isVisible()), 'a small model is said to be too large to keep');
+    await page.selectOption('#locale', 'ru');
+    await page.click('#turnReset');
+    check((await page.locator('#model_spin').inputValue()) === '0', 'Reset left the spin');
+    check(!(await page.locator('#mold_screws').isChecked()), 'Reset left the clamps on');
+    check((await page.locator('#tabSlump').getAttribute('aria-selected')) === 'true', 'Reset changed the mode tab');
+    check((await page.locator('html').getAttribute('lang')) === 'ru', 'Reset changed the language');
+    check((await page.locator('#modelInfo').textContent()).startsWith('bowl'), 'Reset dropped the model');
+    await parts(page, 2);
+    await page.reload();
+    check((await page.locator('#model_spin').inputValue()) === '0', 'the reset spin was not kept');
+    check(!(await page.locator('#mold_screws').isChecked()), 'the reset clamps were not kept');
+    await parts(page, 2);
+    await context.close();
+  });
+
   await step('a hollow cup opened from a file is filled; export downloads every part', async () => {
     const { page, context } = await app.open();
     await page.setInputFiles('#fileInput', fixture('cup-hollow'));
@@ -175,8 +211,11 @@ try {
     await page.setInputFiles('#fileInput', fixture('bowl'));
     await mode(page, '#tabSlump', 2);
     check(!(await page.locator('#mold_printScrews').isVisible()), 'the print box is shown with the clamps off');
+    check(!(await page.locator('#mold_threadFit').isVisible()), 'the thread fit is shown with the clamps off');
     await page.check('#mold_screws');
     check(await page.locator('#mold_printScrews').isVisible(), 'no print box with the clamps on');
+    check((await page.locator('#mold_threadFit').inputValue()) === '0.5', 'the thread fit is not 0.5 mm at first');
+    await page.fill('#mold_threadFit', '0.6');
     await page.check('#mold_printScrews');
     const listed = await parts(page, 4);
     check(listed[2].startsWith('Screws') && listed[3].startsWith('Stops'), `slump: ${listed.join(' | ')}`);
