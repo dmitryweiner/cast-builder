@@ -15,7 +15,6 @@ import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
 import { cheekCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
-import { placeInRow, BESIDE_GAP_MM } from '../geo/layout';
 import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
@@ -169,9 +168,9 @@ function column(meshes: readonly SurfaceMesh[], step: number): SurfaceMesh[] {
 }
 
 /**
- * The slump mold with the punch beside it, one file: two closed components
- * in one mesh — and with the clamps printed, a column of screws and one of
- * stops after them.
+ * The slump mold and the punch — and with the clamps printed, a column of
+ * screws and one of stops. Each in its own frame: the app lays them out on
+ * the bed and into one STL.
  */
 function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
   const exporting = job.kind === 'export';
@@ -183,19 +182,19 @@ function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
   progress.next({ code: options.screws ? 'progress.screws' : 'progress.punch' });
   const built = slumpTooling(csg, source, options, { exporting, print: job.mold.printScrews });
   if (options.screws) progress.next({ code: 'progress.punch' });
-  const groups = [[built.mold], [built.punch], column(built.screws, SCREW_STEP_MM), column(built.pads, PAD_STEP_MM)];
-  const mesh = mergeMeshes(
-    placeInRow(
-      groups.filter((group) => group.length > 0),
-      BESIDE_GAP_MM,
-    ).flat(),
-  );
+  const pieces: [string, SurfaceMesh[]][] = [
+    ['slump', [built.mold]],
+    ['punch', [built.punch]],
+    ['screws', column(built.screws, SCREW_STEP_MM)],
+    ['stops', column(built.pads, PAD_STEP_MM)],
+  ];
 
   const info = emptyInfo();
   info.warnings.push(...pressWarnings(source, options.slabMm));
 
   if (exporting) progress.next({ code: 'progress.checkMeshes' });
-  return { parts: [part('slump', mesh, exporting)], info };
+  const parts = pieces.filter(([, meshes]) => meshes.length > 0).map(([id, meshes]) => part(id, mergeMeshes(meshes), exporting));
+  return { parts, info };
 }
 
 /** The master positive or the pour boxes — whichever the mode says. */

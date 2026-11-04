@@ -24,7 +24,8 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
 - `npm run check` — typecheck + oxlint + prettier + unit tests. Must pass before
   any work is called done.
 - `npm run smoke` — browser smoke on the dev server: the sample through every
-  mode, a slump mold with screw clamps and their printed set (8 pieces), the thumbnail, a file upload, real downloads, turning and spin
+  mode, a slump mold with screw clamps and their printed set (8 pieces) laid
+  out in a row and in a column, pour boxes in one file, the thumbnail, a file upload, real downloads, turning and spin
   presets, languages, the phone sheet and width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
   included); `-- --shots` saves screenshots to `shots/`. Each step prints its time.
@@ -83,8 +84,8 @@ Regenerate them only on purpose.
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
   - `csg.ts` — the bridge to manifold-3d; `surface.ts`, `bottom.ts`,
-    `lathe.ts`, `normals.ts` — mesh assembly; `layout.ts` — parts side by
-    side on the bed; `validate.ts` — the export gate; `message.ts` —
+    `lathe.ts`, `normals.ts` — mesh assembly; `layout.ts` — parts on the
+    bed in rows (`arrangeOnBed`); `validate.ts` — the export gate; `message.ts` —
     messages as codes;
   - `testing.ts` — helpers of the geometry tests (fixtures, analytic
     bodies), never imported by the app.
@@ -98,7 +99,7 @@ Regenerate them only on purpose.
   `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
   the bed and the axes (tested in node). `src/ui/`
   — controls (a range may carry preset buttons; `screws.ts` the clamps'
-  two checkboxes), progress bar, the panel as
+  two checkboxes; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
@@ -200,6 +201,12 @@ Regenerate them only on purpose.
   off the clay under the flange and off the ear's cheeks. An export fuses
   them on; a preview lays them over unfused (the cheeks' cut needs the
   shell's import even there).
+- The layout on the bed is the main thread's (`arrangeOnBed`): the worker
+  returns every part in its own frame — the slump mold as the mold, the
+  punch, the screws and the stops — and the app lays them out for the view
+  and, in one file, for the STL. A change of the layout or the gap lays the
+  last build out again with no new build. One STL: the slump mold always,
+  pour boxes when asked (`inOneFile`).
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 

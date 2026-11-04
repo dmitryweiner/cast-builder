@@ -114,8 +114,9 @@ than the rim. If it does not fit, the mold keeps a collar and says so.
 A dished mold: a clay slab is pressed **into** it, the relief lands on the
 outside of the piece, the outer size is exactly the model's. The **punch**
 fits inside and presses the slab to the mold leaving exactly the slab's
-thickness. Both are shells, side by side in one STL; split them in the
-slicer if they do not fit the bed together.
+thickness. Both are shells in one STL, laid out on the bed as **On the
+bed** says (see [Export](#export)); split them in the slicer if they do not
+fit the bed together.
 
 The mold is built from the model read as a body of revolution: its outer
 surface with all its relief is the working surface, the mean radius of each
@@ -176,7 +177,7 @@ lies flat on the bed with it; over the clay it is only as thick as the
 flange.
 
 **Print screws and stops** (under it) adds three screws and three stops to
-the same STL, to the right of the punch:
+the same STL, a column of each after the punch:
 
 - **screw** — M10 × 2, 38 mm under a knurled head Ø24 with a slot, the tip
   chamfered;
@@ -211,11 +212,27 @@ times. The fit is not a setting: one set of screws has to fit every mold.
 At the bottom of the **Tooling** card, under the settings of the chosen
 mode: the part list shows what the download will hold, with sizes. **Export**
 builds the parts at full detail, checks each mesh (closed, normals out) and
-downloads one STL per part, named after the model.
+downloads them, named after the model: the master and pour boxes one STL per
+part (`teapot-bath-half-A.stl`), the slump mold one STL with the punch, the
+screws and the stops (`teapot-slump.stl`).
+
+**On the bed** (pour boxes and the slump mold) says how the parts lie in that
+STL:
+
+| Parameter       | Choices                            | Default | What it does                                                                                                               |
+| --------------- | ---------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| All in one file | on / off                           | off     | pour boxes only: one STL with every box (`teapot-bath.stl`) instead of a file each                                         |
+| Layout          | auto, in a row, one behind another | auto    | rows along x, the rows one behind another along y; auto breaks the parts into rows so that the longer side is the shortest |
+| Gap             | 2–50 mm                            | 15      | between the parts                                                                                                          |
+
+Under them the size the parts take on the bed. Layout and gap are offered
+only when the parts go into one file; a change of them lays the parts out
+again at once, with no new build. The view shows the parts as they lie.
 
 ## What is remembered
 
-The mode, the parameters, the parting choice and the detail are saved in
+The mode, the parameters, the parting choice, the detail and the layout on
+the bed are saved in
 the browser and come back on the next visit. The turn, the mouth and the
 plug belong to the model: a newly opened model starts from the defaults.
 

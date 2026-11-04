@@ -42,7 +42,7 @@ describe('runJob', () => {
     const expected: Record<Mode, string[]> = {
       master: ['master'],
       bath: ['bath-half-A', 'bath-half-B', 'bath-bottom'],
-      slump: ['slump'],
+      slump: ['slump', 'punch'],
     };
     for (const mode of ['master', 'bath', 'slump'] satisfies Mode[]) {
       const { parts, info } = runJob(csg, jobFor('pot', { mode }));
@@ -389,18 +389,19 @@ describe('slumpTooling with screws', () => {
     expect(build('cup', 0, true, false).screws).toEqual([]);
   });
 
-  it('runJob: one STL — mold and punch, with the screws and stops when they are printed', () => {
+  it('runJob: the mold and the punch, the screws and the stops when they are printed — the app lays them out in one STL', () => {
     const settings = defaultSettings();
     const job = (screws: boolean, printScrews: boolean): ToolingJob =>
       jobFor('cup', { mode: 'slump', kind: 'export', resolution: 128, mold: { ...settings.mold, screws, printScrews } });
     const labels: string[] = [];
     const printed = runJob(csg, job(true, true), (progress) => labels.push(progress.label.code));
     expect(labels).toEqual(['progress.slump', 'progress.screws', 'progress.punch', 'progress.checkMeshes']);
-    expect(printed.parts[0].blocking).toEqual([]);
-    expect(bodies(printed.parts[0])).toBe(8);
-    expect(bodies(runJob(csg, job(true, false)).parts[0])).toBe(2);
+    expect(printed.parts.map((part) => part.id)).toEqual(['slump', 'punch', 'screws', 'stops']);
+    expect(printed.parts.flatMap((part) => part.blocking)).toEqual([]);
+    expect(printed.parts.map((part) => bodies(part))).toEqual([1, 1, 3, 3]);
+    expect(runJob(csg, job(true, false)).parts.map((part) => part.id)).toEqual(['slump', 'punch']);
     // the screws are printed only with the clamps
-    expect(bodies(runJob(csg, job(false, true)).parts[0])).toBe(2);
+    expect(runJob(csg, job(false, true)).parts.map((part) => part.id)).toEqual(['slump', 'punch']);
   });
 
   it('a preview: the lugs and the tabs are laid over the mold and the punch unfused', () => {

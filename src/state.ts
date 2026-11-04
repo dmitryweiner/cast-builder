@@ -14,6 +14,8 @@ import type { MoldState } from './geo/mold/state';
 import { defaultMold, sanitizeMold } from './geo/mold/state';
 import type { Orientation } from './geo/model';
 import { defaultOrientation, sanitizeOrientation } from './geo/model';
+import type { BedPlace } from './geo/layout';
+import { BED_GAP_MAX_MM, BED_GAP_MIN_MM, BED_GAP_MM, BED_PLACES } from './geo/layout';
 import type { Locale } from './i18n';
 import { isLocale } from './i18n';
 
@@ -32,6 +34,15 @@ export type SchemeChoice = (typeof SCHEME_CHOICES)[number];
 /** Grid of the exported slump mold, segments around and rows up. */
 export const RESOLUTIONS = [128, 192, 256, 384] as const;
 
+/** How the parts go on the bed and into the STL. */
+export interface BedChoice {
+  place: BedPlace;
+  /** between the parts, mm */
+  gapMm: number;
+  /** pour boxes in one STL laid out on the bed, not a file each; the slump mold is one file anyway */
+  oneFile: boolean;
+}
+
 export interface Settings {
   /** the language picked in the switcher; null — from the browser */
   locale: Locale | null;
@@ -39,10 +50,18 @@ export interface Settings {
   mold: MoldState;
   scheme: SchemeChoice;
   resolution: number;
+  bed: BedChoice;
 }
 
 export function defaultSettings(): Settings {
-  return { locale: null, mode: 'bath', mold: defaultMold(), scheme: 'auto', resolution: 192 };
+  return {
+    locale: null,
+    mode: 'bath',
+    mold: defaultMold(),
+    scheme: 'auto',
+    resolution: 192,
+    bed: { place: 'auto', gapMm: BED_GAP_MM, oneFile: false },
+  };
 }
 
 export interface MouthChoice {
@@ -91,12 +110,18 @@ export function sanitizeSettings(raw: unknown): Settings {
   const source = record(raw);
   const fallback = defaultSettings();
   const resolution = num(source.resolution, fallback.resolution);
+  const bed = record(source.bed);
   return {
     locale: isLocale(source.locale) ? source.locale : null,
     mode: oneOf(MODES, source.mode, fallback.mode),
     mold: sanitizeMold(source.mold),
     scheme: oneOf(SCHEME_CHOICES, source.scheme, fallback.scheme),
     resolution: RESOLUTIONS.some((value) => value === resolution) ? resolution : fallback.resolution,
+    bed: {
+      place: oneOf(BED_PLACES, bed.place, fallback.bed.place),
+      gapMm: clamp(num(bed.gapMm, fallback.bed.gapMm), BED_GAP_MIN_MM, BED_GAP_MAX_MM),
+      oneFile: typeof bed.oneFile === 'boolean' ? bed.oneFile : fallback.bed.oneFile,
+    },
   };
 }
 
