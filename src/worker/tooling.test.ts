@@ -13,7 +13,7 @@ import { lugSolids } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from '../geo/surface';
 import { bodies } from '../geo/pieces';
-import { CLEAR_HOLE_MM, PAD, PAD_GAP_MM, SCREW, THREAD, THREAD_FIT_MM, minorRadius } from '../geo/thread';
+import { CLEAR_HOLE_MM, PAD, PAD_GAP_MM, SCREW, THREAD, THREAD_FIT_MAX_MM, THREAD_FIT_MM, minorRadius } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 
 let csg: CsgApi;
@@ -212,9 +212,9 @@ describe('slumpTooling', () => {
 
 describe('slumpTooling with screws', () => {
   const N = 96;
-  const build = (name: string, shrinkPct: number, exporting: boolean, print = true) => {
+  const build = (name: string, shrinkPct: number, exporting: boolean, print = true, threadFitMm = THREAD_FIT_MM) => {
     const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
-    const options = { ...pressOptions({ ...defaultMold(), shrinkPct }), screws: true };
+    const options = { ...pressOptions({ ...defaultMold(), shrinkPct, threadFitMm }), screws: true };
     return slumpTooling(csg, source, options, { exporting, print });
   };
   const solidOf = (scope: CsgScope, mesh: SurfaceMesh) => scope.keep(toManifold(csg, mesh));
@@ -248,26 +248,33 @@ describe('slumpTooling with screws', () => {
     }
   });
 
-  it('the threaded hole in a lug and the plain one in the tab are on one axis; the thread bites', () => {
-    const built = build('cup', 12, true);
-    const layout = built.layout;
-    expect(layout).not.toBeNull();
-    if (!layout) return;
-    const scope = new CsgScope();
-    const mold = solidOf(scope, built.mold);
-    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
-    for (const angle of layout.angles) {
-      const x = layout.axisMm * Math.cos(angle);
-      const y = layout.axisMm * Math.sin(angle);
-      // between the slices of the thread its faces cut the helix by a chord: under 0.1 mm at 16 per turn
-      const core = minorRadius(THREAD) + THREAD_FIT_MM - 0.1;
-      expect(scope.keep(mold.intersect(column(scope, x, y, core))).volume()).toBeLessThan(1e-3);
-      expect(scope.keep(mold.intersect(column(scope, x, y, THREAD.d / 2))).volume()).toBeGreaterThan(50);
-      expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 - 0.05))).volume()).toBeLessThan(1e-3);
-      expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 1))).volume()).toBeGreaterThan(1);
-    }
-    scope.dispose();
-  });
+  it.each([THREAD_FIT_MM, THREAD_FIT_MAX_MM])(
+    'the threaded hole in a lug (fit %s mm) and the plain one in the tab are on one axis; the thread bites',
+    (fitMm) => {
+      const built = build('cup', 12, true, true, fitMm);
+      const layout = built.layout;
+      expect(layout).not.toBeNull();
+      if (!layout) return;
+      const scope = new CsgScope();
+      const mold = solidOf(scope, built.mold);
+      const punch = pressedOf(scope, built.punch, layout.tabTopZ);
+      for (const angle of layout.angles) {
+        const x = layout.axisMm * Math.cos(angle);
+        const y = layout.axisMm * Math.sin(angle);
+        // between the slices of the thread its faces cut the helix by a chord: under 0.1 mm at 16 per turn
+        const core = minorRadius(THREAD) + fitMm - 0.1;
+        expect(scope.keep(mold.intersect(column(scope, x, y, core))).volume()).toBeLessThan(1e-3);
+        // the hole is not wider than the fit asks: plastic just outside its root
+        const root = minorRadius(THREAD) + fitMm + 0.15;
+        expect(scope.keep(mold.intersect(column(scope, x, y, root))).volume()).toBeGreaterThan(1);
+        // the teeth inside the screw's crest: 50+ mm³ at a 0.35 fit, ~38 at the loosest
+        expect(scope.keep(mold.intersect(column(scope, x, y, THREAD.d / 2))).volume()).toBeGreaterThan(30);
+        expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 - 0.05))).volume()).toBeLessThan(1e-3);
+        expect(scope.keep(punch.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 1))).volume()).toBeGreaterThan(1);
+      }
+      scope.dispose();
+    },
+  );
 
   it('a stop on a seat slides under the tab of the pressed punch; lifted, its boss enters the hole', () => {
     const built = build('bowl', 12, true);
@@ -342,7 +349,7 @@ describe('slumpTooling with screws', () => {
       const layout = built.layout;
       if (!layout) throw new Error('no layout');
       const step = (2 * Math.PI) / N;
-      const bore = THREAD.d / 2 + THREAD_FIT_MM + 1;
+      const bore = THREAD.d / 2 + layout.fitMm + 1;
       const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
       /** the steepest overhang (1 — straight down) among the faces round the lugs, outside the ears and the holes */
       const worst = (mesh: SurfaceMesh): number => {

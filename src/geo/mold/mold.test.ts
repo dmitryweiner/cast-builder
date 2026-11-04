@@ -19,6 +19,7 @@ import { analyzeMold, pullUndercut, withScheme } from './analyze';
 import { buildBaths, buildBlocks, buildMaster } from './index';
 import type { Mouth } from './index';
 import { defaultMold, sanitizeMold } from './state';
+import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from '../thread';
 import { undersideVoid } from './underside';
 
 let csg: CsgApi;
@@ -394,6 +395,17 @@ describe('sanitizeMold', () => {
     expect(defaultMold()).toMatchObject({ screws: false, printScrews: false });
     expect(sanitizeMold({ screws: true, printScrews: true })).toMatchObject({ screws: true, printScrews: true });
     expect(sanitizeMold({ screws: 1, printScrews: 'true' })).toMatchObject({ screws: false, printScrews: false });
+  });
+
+  it('the thread fit is 0.5 mm by default, clamped to 0.2–0.7', () => {
+    expect(defaultMold().threadFitMm).toBe(THREAD_FIT_MM);
+    expect(THREAD_FIT_MM).toBe(0.5);
+    expect(sanitizeMold({ threadFitMm: 0.6 }).threadFitMm).toBe(0.6);
+    expect(sanitizeMold({ threadFitMm: 0 }).threadFitMm).toBe(THREAD_FIT_MIN_MM);
+    expect(sanitizeMold({ threadFitMm: 5 }).threadFitMm).toBe(THREAD_FIT_MAX_MM);
+    expect(sanitizeMold({ threadFitMm: '0.6' }).threadFitMm).toBe(THREAD_FIT_MM);
+    const once = sanitizeMold({ threadFitMm: 9 });
+    expect(sanitizeMold(once)).toEqual(once);
   });
 });
 

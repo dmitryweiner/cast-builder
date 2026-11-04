@@ -26,12 +26,13 @@ export const en = {
   'turn.x': 'Turn about X',
   'turn.y': 'Turn about Y',
   'turn.flip': 'Upside down',
-  'turn.reset': 'Reset',
+  'turn.reset': 'Reset the turns and all settings',
   'turn.hint': 'Stand the piece upright, then spin it so a handle or a spout lies along X, where the mold parts.',
   'ctl.spin': 'Spin',
   'ctl.spin.hint': 'about the vertical axis, degrees',
 
   'model.info': '{name} · {dims} mm · {k}k triangles',
+  'model.notKept': 'The model is too large to keep: open it again after a reload.',
   'model.pieces':
     'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid alongside”.',
   'model.notSolid': 'The model is not a closed solid: it has holes or loose edges. Repair it in the program it came from.',
@@ -76,6 +77,9 @@ export const en = {
     'lugs with an M10 × 2 thread on the mold beside the ears and tabs with holes on the punch beside the legs: pull the punch down with screws instead of a press, push it off with the same screws turned in from below',
   'ctl.printScrews': 'Print screws and stops',
   'ctl.printScrews.hint': 'three M10 × 2 screws and three stops in the same file; they fit every mold, so print them once',
+  'ctl.threadFit': 'Thread fit, mm',
+  'ctl.threadFit.hint':
+    'clearance of the threaded holes in the lugs: more if the screws go in tight; only the mold changes, the printed screws stay the same',
   'ctl.resolution': 'Detail',
   'ctl.resolution.hint': 'grid of the slump mold in the exported file; the preview is coarser',
   'bed.oneFile': 'All in one file',

@@ -25,8 +25,10 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   any work is called done.
 - `npm run smoke` — browser smoke on the dev server: the sample through every
   mode, a slump mold with screw clamps and their printed set (8 pieces) laid
-  out in a row and in a column, pour boxes in one file, the thumbnail, a file upload, real downloads, turning and spin
-  presets, languages, the phone sheet and width;
+  out in a row and in a column (the thread fit set), pour boxes in one file,
+  the project kept over a reload and Reset, the thumbnail, a file upload,
+  real downloads, turning and spin presets, languages, the phone sheet and
+  width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
   included); `-- --shots` saves screenshots to `shots/`. Each step prints its time.
 - `npm run build` — typecheck and build into `dist/`.
@@ -63,11 +65,17 @@ Regenerate them only on purpose.
   list of the build (the worker chunk and its WASM included).
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
   through the worker, downloads.
-- `src/state.ts` — `Settings` (the user's habits, saved) and `Setup` (the
-  model in hand: orientation, mouth, plug), with their sanitizers.
-- `src/storage.ts` — versioned settings in localStorage.
+- `src/state.ts` — `Settings` (the user's habits) and `Setup` (the model in
+  hand: orientation, mouth, plug), with their sanitizers; `resetSettings`
+  (all but the language and the mode).
+- `src/storage.ts` — the project in localStorage, two versioned keys: the
+  settings with the setup (`cast-builder`, written on every change) and the
+  model itself (`cast-builder-model`, written only when a model is opened;
+  removed when it does not fit).
 - `src/geo/` — the pure core, no DOM, no Three.js:
   - `stl.ts` — read (binary and ASCII, vertices welded) and write STL;
+    `isValidMesh`, the check of a mesh from outside (the worker, the
+    storage);
   - `model.ts` — quarter turns, spin, placement (axis through the origin,
     bottom on z = 0);
   - `pieces.ts` — how many separate pieces are in a file;
@@ -77,8 +85,8 @@ Regenerate them only on purpose.
   - `revolve.ts` — a mesh read as a body of revolution for the slump mold;
   - `press.ts` — the slump mold and its punch, the layout of their screw
     clamps (`screwLayout`; no CSG);
-  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, fit, tab, gap,
-    screw, stop; `screwSolids.ts` — the threaded rod, the screw, the stop,
+  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, tab, gap,
+    screw, stop; the fit's default and limits; `screwSolids.ts` — the threaded rod, the screw, the stop,
     the mold's lugs and the punch's tabs as solids (worker only);
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
@@ -99,7 +107,7 @@ Regenerate them only on purpose.
   `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
   the bed and the axes (tested in node). `src/ui/`
   — controls (a range may carry preset buttons; `screws.ts` the clamps'
-  two checkboxes; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
+  two checkboxes and the thread fit; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
@@ -126,6 +134,8 @@ Regenerate them only on purpose.
 - `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
   `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
   burgundy theme, the model thumbnail).
+- `plans/PLAN-FIT-RESET-PROJECT.md` — the thread fit as a setting, Reset of
+  all settings, the project (the model included) kept over a reload.
 
 ## Architectural invariants
 
@@ -188,7 +198,9 @@ Regenerate them only on purpose.
   puts the printed punch back over the mold turns it the same way.
 - The screw clamps' screws, stops, holes, the gap under the tab and the
   tab's thickness are constants (`geo/thread.ts`) and never scaled by the
-  shrinkage: one printed set fits every mold. The lugs and tabs are built
+  shrinkage: one printed set fits every mold. The one setting is the fit
+  (`threadFitMm`, mm of the print): it widens the lug's threaded hole only,
+  never the screw, so the set still fits. The lugs and tabs are built
   after the scaling, in the mm of the print, as prisms: in plan the hull of
   a boss and of the ear's (the leg's) side, with a flat top. A lug's boss stands 2 mm into the ear's cheek,
   and the cheek is cut down round the stop. A lug's underside rises at 45°
@@ -207,6 +219,10 @@ Regenerate them only on purpose.
   and, in one file, for the STL. A change of the layout or the gap lays the
   last build out again with no new build. One STL: the slump mold always,
   pour boxes when asked (`inOneFile`).
+- The project is kept on every change; the model only when opened, never
+  on a slider. A model that does not fit removes the one kept before: a
+  stale model must not reopen under a fresh setup. The setup is restored
+  only with its model.
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal
   outside `ru.ts` fails a test.
 
@@ -237,7 +253,7 @@ deep, a waiting preview is replaced by a fresher one, an export never.
 - A seating cylinder below the plug's ledge: the plug casts the ledge and
   the gallery over it; lower the wall comes out at its usual thickness.
 - Pour boxes for the slump mold: the mold itself is printed, as a shell.
-- Screw clamps of another size, pitch or fit, more than three of them; a lug
+- Screw clamps of another size or pitch, more than three of them; a lug
   held at 45° on a shape that widens below its rim; the jacking screws need
   room under the lugs for their heads (a low mold stands on blocks).
 - A slump mold on a hump ("+"); handles on the punch; adjustable clearance

@@ -66,6 +66,15 @@ export interface IndexedMesh {
   indices: Uint32Array;
 }
 
+/** Whole triangles, indices in range, finite coordinates: a mesh from outside (the worker's message, the storage) is checked so. */
+export function isValidMesh({ positions, indices }: IndexedMesh): boolean {
+  if (positions.length % 3 !== 0 || indices.length % 3 !== 0 || indices.length === 0) return false;
+  const count = positions.length / 3;
+  for (let i = 0; i < indices.length; i++) if (indices[i] >= count) return false;
+  for (let i = 0; i < positions.length; i++) if (!Number.isFinite(positions[i])) return false;
+  return true;
+}
+
 /**
  * Reads binary or ASCII STL and welds its vertices. Throws on a file that is
  * neither (the message is for the developer; the interface says it its own

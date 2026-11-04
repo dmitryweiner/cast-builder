@@ -10,6 +10,8 @@ import {
   TAB_T_MM,
   SCREW,
   THREAD,
+  THREAD_FIT_MAX_MM,
+  THREAD_FIT_MIN_MM,
   THREAD_FIT_MM,
   minorRadius,
   threadPoints,
@@ -23,9 +25,11 @@ describe('thread', () => {
     expect(minorRadius(THREAD)).toBeCloseTo(4);
   });
 
-  it('a printed screw in a printed hole still bites: the flanks overlap by more than 0.6 mm', () => {
-    const overlap = THREAD.d / 2 - (minorRadius(THREAD) + THREAD_FIT_MM);
-    expect(overlap).toBeGreaterThan(0.6);
+  it('a printed screw in a printed hole still bites: the flanks overlap by half a millimetre, 0.3 at the loosest fit', () => {
+    const overlap = (fit: number): number => THREAD.d / 2 - (minorRadius(THREAD) + fit);
+    expect(overlap(THREAD_FIT_MM)).toBeCloseTo(0.5, 9);
+    expect(overlap(THREAD_FIT_MAX_MM)).toBeGreaterThanOrEqual(0.3 - 1e-9);
+    expect(THREAD_FIT_MIN_MM).toBeLessThan(THREAD_FIT_MM);
   });
 
   it('the section lies between the minor and the major radius, grown by the fit, and reaches both', () => {
