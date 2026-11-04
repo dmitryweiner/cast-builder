@@ -45,7 +45,7 @@ the slab comes out thicker than set, the punch may tilt.
 ## Measured again (2026-11-04)
 
 Sections of the bowl, default settings, the punch turned over as printed
-(scratchpad pictures, `sections-g192.png`): the overlap is a sliver on each
+(plan and radial sections drawn with CSG slices): the overlap is a sliver on each
 side of the leg, in the ear's outer corner — up to ~1 mm thick along the arc
 and ~4.5 mm in from the ear's face at the ear's top, tapering to nothing at
 the lip's bottom, 10 mm lower. It halves with every doubling of the grid:
