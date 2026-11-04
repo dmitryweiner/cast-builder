@@ -12,7 +12,9 @@ import { encodeSTL, parseSTL } from './geo/stl';
 import { flip, placeModel, quarterTurn, sizeOf, IDENTITY_TURN } from './geo/model';
 import { meshNormals } from './geo/normals';
 import type { SurfaceMesh } from './geo/surface';
-import { placeInRow } from './geo/layout';
+import { mergeMeshes } from './geo/surface';
+import type { Arranged } from './geo/layout';
+import { arrangeOnBed } from './geo/layout';
 import {
   BATH_WALL_MAX_MM,
   BATH_WALL_MIN_MM,
@@ -38,6 +40,7 @@ import type { KeyValueStorage } from './storage';
 import { loadSettings, saveSettings } from './storage';
 import type { Control } from './ui/controls';
 import { screwControls } from './ui/screws';
+import { bedControls, inOneFile } from './ui/bed';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -56,8 +59,6 @@ export interface AppOptions {
 
 /** The worker builds after this much quiet: tooling costs hundreds of milliseconds. */
 const PREVIEW_DELAY_MS = 400;
-/** Gap between parts in the "exploded" preview, mm. */
-const EXPLODE_GAP_MM = 20;
 /** A browser swallows a burst of downloads — they go one by one. */
 const DOWNLOAD_GAP_MS = 250;
 const EXAMPLE_URL = './examples/teapot.stl';
@@ -144,6 +145,9 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const mouthCard = el('mouthCard', HTMLElement);
   const mouthControls = el('mouthControls', HTMLDivElement);
   const mouthNote = el('mouthNote', HTMLParagraphElement);
+  const bedCard = el('bedCard', HTMLElement);
+  const bedControlsEl = el('bedControls', HTMLDivElement);
+  const bedNote = el('bedNote', HTMLParagraphElement);
   const schemeNote = el('schemeNote', HTMLParagraphElement);
   const partList = el('partList', HTMLUListElement);
   const warningsEl = el('warnings', HTMLParagraphElement);
@@ -185,6 +189,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   let model: Model | null = null;
   /** what the last finished build said; the panel is drawn from it */
   let last: { parts: JobPart[]; info: JobInfo } | null = null;
+  /** its parts as they lie on the bed — in the view and, in one file, in the STL */
+  let laid: Arranged | null = null;
   /** grows on each request: a late answer to an old one must not overwrite a fresh one */
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -338,6 +344,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const mouthRows = renderControls(mouthHost, mouthSpec, () => setup, setSetup, 'mouth');
     const schemeRows = renderControls(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
     const modelRows = renderControls(modelControls, modelSpec, () => setup, setSetup, 'model');
+    const bedRows = renderControls(bedControlsEl, bedControls, () => settings, setBed, 'bed');
     // the resolution options read as "128 × 128", not as a translated label
     for (const option of document.querySelectorAll<HTMLOptionElement>('#mold_resolution option')) {
       option.textContent = `${option.value} × ${option.value}`;
@@ -347,6 +354,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       { sync: () => schemeRows.sync(settings) },
       { sync: () => mouthRows.sync(setup) },
       { sync: () => modelRows.sync(setup) },
+      { sync: () => bedRows.sync(settings) },
     ];
   }
 
@@ -354,6 +362,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     for (const row of rows) row.sync();
     for (const mode of MODES) el(TABS[mode], HTMLButtonElement).setAttribute('aria-selected', String(mode === settings.mode));
     mouthCard.hidden = settings.mode === 'slump';
+    // a master is one part: nothing to lay out
+    bedCard.hidden = settings.mode === 'master';
     emptyEl.hidden = model !== null;
     for (const button of turnButtons) button.disabled = model === null;
     localeSelect.value = locale;
@@ -374,7 +384,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   function renderResult(): void {
     partList.textContent = '';
     if (!model) {
-      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote, stageNote]) node.textContent = '';
+      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote, stageNote, bedNote]) node.textContent = '';
       auditEl.textContent = t('audit.none');
       exportBtn.disabled = true;
       return;
@@ -396,6 +406,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     stageNote.textContent = parts.length === 0 ? blockersEl.textContent : '';
     const mouth = setup.mouth.auto ? info.mouth : setup.mouth;
     mouthNote.textContent = mouth ? t('mouth.note', { z: mouth.zMm.toFixed(1), d: (mouth.radiusMm * 2).toFixed(1) }) : '';
+    bedNote.textContent =
+      laid && inOneFile(settings) ? t('bed.footprint', { w: Math.round(laid.widthMm), d: Math.round(laid.depthMm) }) : '';
     const triangles = parts.reduce((sum, part) => sum + part.indices.length / 3, 0);
     auditEl.textContent = parts.length > 0 ? t('audit.parts', { n: parts.length, k: Math.round(triangles / 1000) }) : '';
     exportBtn.disabled = exporting || parts.length === 0 || info.blocking.length > 0;
@@ -408,6 +420,28 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     saveSettings(storage, settings);
     syncPanel();
     schedule();
+  }
+
+  /** The layout is the main thread's: a change of it lays the last build out anew, with no new build. */
+  function setBed(next: Settings): void {
+    settings = sanitizeSettings(next);
+    saveSettings(storage, settings);
+    if (last) show(last.parts);
+    syncPanel();
+  }
+
+  /** The parts on the bed, in the view. */
+  function show(parts: readonly JobPart[]): void {
+    laid = parts.length > 0 ? layOut(parts) : null;
+    if (laid) scene.setMeshes(laid.groups.flat());
+  }
+
+  function layOut(parts: readonly JobPart[]): Arranged {
+    return arrangeOnBed(
+      parts.map((part) => [toMesh(part)]),
+      settings.bed.place,
+      settings.bed.gapMm,
+    );
   }
 
   function setSetup(next: Setup): void {
@@ -490,14 +524,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       // null — a fresher job replaced it; stamp — a fresher answer is coming
       if (!result || stamp !== generation) return;
       last = result;
-      if (result.parts.length > 0) {
-        scene.setMeshes(
-          placeInRow(
-            result.parts.map((part) => [toMesh(part)]),
-            EXPLODE_GAP_MM,
-          ).flat(),
-        );
-      }
+      show(result.parts);
       renderResult();
     } catch (error) {
       if (stamp !== generation) return;
@@ -516,6 +543,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     exporting = true;
     exportBtn.disabled = true;
     exportBtn.textContent = t('export.busy');
+    const { mode } = settings;
+    const oneFile = inOneFile(settings);
     try {
       const result = await progress.track((onProgress) => client.run(job('export', current), onProgress), {
         label: 'progress.export',
@@ -525,6 +554,10 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       const blocking = [...result.info.blocking, ...result.parts.flatMap((part) => part.blocking)];
       if (blocking.length > 0) {
         blockersEl.textContent = blocking.map(tm).join('\n');
+        return;
+      }
+      if (oneFile) {
+        download(encodeSTL(mergeMeshes(layOut(result.parts).groups.flat()), { name: mode }), `${current.name}-${mode}.stl`);
         return;
       }
       for (const part of result.parts) {

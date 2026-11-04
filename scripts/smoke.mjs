@@ -1,6 +1,7 @@
 // Browser smoke of the real app: the sample model through every mode, its
 // thumbnail, an STL opened from a file (a hollow print gets filled), a
-// slump mold with screw clamps and its printed screws and stops,
+// slump mold with screw clamps and its printed screws and stops, the parts
+// laid out on the bed and pour boxes in one file,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
 // the model turned and spun by a preset, language detection and memory, the
 // panel as a sheet and no horizontal scroll on a phone, no console errors. With --preview it runs against a fresh
@@ -131,8 +132,11 @@ try {
     const master = await mode(page, '#tabMaster', 1);
     check(master[0].startsWith('Master positive'), `master: ${master.join(' | ')}`);
     check(await page.locator('#mouthCard').isVisible(), 'the mouth card is hidden for the master');
-    const slump = await mode(page, '#tabSlump', 1);
-    check(slump[0].startsWith('Mold + punch'), `slump: ${slump.join(' | ')}`);
+    check(!(await page.locator('#bedCard').isVisible()), 'the bed card is shown for a master of one part');
+    const slump = await mode(page, '#tabSlump', 2);
+    check(slump[0].startsWith('Slump mold') && slump[1].startsWith('Punch'), `slump: ${slump.join(' | ')}`);
+    check(await page.locator('#bed_place').isVisible(), 'no layout of the slump mold on the bed');
+    check((await page.locator('#bedNote').textContent()).startsWith('On the bed'), 'no footprint of the slump mold');
     check(!(await page.locator('#mouthCard').isVisible()), 'the mouth card is shown for the slump mold');
     check(await page.locator('#mold_slab').isVisible(), 'no slab slider in the slump mode');
     check(!(await page.locator('#mold_plaster').isVisible()), 'the plaster slider in the slump mode');
@@ -166,25 +170,57 @@ try {
     await context.close();
   });
 
-  await step('a bowl as a slump mold with screw clamps: the screws and stops come in the same STL', async () => {
+  await step('a bowl as a slump mold with screw clamps: the screws and stops come in the same STL, laid out as asked', async () => {
     const { page, context } = await app.open();
     await page.setInputFiles('#fileInput', fixture('bowl'));
-    await mode(page, '#tabSlump', 1);
+    await mode(page, '#tabSlump', 2);
     check(!(await page.locator('#mold_printScrews').isVisible()), 'the print box is shown with the clamps off');
-    const plain = await page.locator('#partList li').first().textContent();
     await page.check('#mold_screws');
     check(await page.locator('#mold_printScrews').isVisible(), 'no print box with the clamps on');
     await page.check('#mold_printScrews');
-    // the screws and stops stand beside the punch: the part grows along x
-    await page.waitForFunction((before) => document.querySelector('#partList li')?.textContent !== before, plain, { timeout: 60000 });
+    const listed = await parts(page, 4);
+    check(listed[2].startsWith('Screws') && listed[3].startsWith('Stops'), `slump: ${listed.join(' | ')}`);
+    // the layout is the main thread's: a row is wider than deep, at once, with no new build
+    const footprint = async () =>
+      (await page.locator('#bedNote').textContent())
+        .match(/(\d+) × (\d+)/)
+        .slice(1)
+        .map(Number);
+    await page.selectOption('#bed_place', 'row');
+    const [w, d] = await footprint();
+    check(w > d * 2, `a row of four is ${w} × ${d}`);
+    await page.selectOption('#bed_place', 'column');
+    const [cw, cd] = await footprint();
+    check(cd > cw * 2, `a column of four is ${cw} × ${cd}`);
+    check(!(await page.locator('#progressWrap').isVisible()), 'a new layout started a build');
     const downloads = [];
     page.on('download', (download) => downloads.push(download));
     await page.click('#exportBtn');
     await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
     await page.waitForTimeout(500);
     check(downloads.length === 1, `${downloads.length} downloads instead of 1`);
+    check(downloads[0].suggestedFilename() === 'bowl-slump.stl', `file named ${downloads[0].suggestedFilename()}`);
     const pieces = stlBodies(readFileSync(await downloads[0].path()));
     check(pieces === 8, `${pieces} pieces in the STL instead of mold, punch, 3 screws and 3 stops`);
+    await context.close();
+  });
+
+  await step('pour boxes in one file: one STL with every part, the layout offered only then', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('cup-hollow'));
+    await parts(page, 3);
+    check(!(await page.locator('#bed_place').isVisible()), 'a layout is offered for pour boxes a file each');
+    await page.check('#bed_oneFile');
+    check(await page.locator('#bed_place').isVisible(), 'no layout for pour boxes in one file');
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    await page.click('#exportBtn');
+    await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    check(downloads.length === 1, `${downloads.length} downloads instead of 1`);
+    check(downloads[0].suggestedFilename() === 'cup-hollow-bath.stl', `file named ${downloads[0].suggestedFilename()}`);
+    const pieces = stlBodies(readFileSync(await downloads[0].path()));
+    check(pieces === 3, `${pieces} pieces in the STL instead of three pour boxes`);
     await context.close();
   });
 
