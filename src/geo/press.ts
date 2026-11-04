@@ -12,7 +12,7 @@
 // silhouette again — otherwise the legs would sooner or later miss the ears.
 
 import type { Grid, SurfaceMesh } from './surface';
-import { assembleHollowMesh, mirrorZ, scaleMesh } from './surface';
+import { assembleHollowMesh, scaleMesh, turnOver } from './surface';
 import type { CapSpec } from './bottom';
 import { meshNormals } from './normals';
 import type { PressSource } from './revolve';
@@ -1008,8 +1008,8 @@ export function punchSection(source: PressSource, options: PressOptions, fit: Sl
  * down to the ear in the legs' sectors, in towards the mold's top between
  * them, so the flange is wide only over the legs. The punch is hollow, a
  * shell as thick as the mold's, with a vent along the axis — the contour
- * never touches the axis, the body is a torus. Printed flange down; grown by
- * the shrinkage, as the mold is.
+ * never touches the axis, the body is a torus. Printed flange down — turned
+ * over, not mirrored (`turnOver`); grown by the shrinkage, as the mold is.
  */
 export function buildPunch(source: PressSource, options: PressOptions, fit: SlumpFit): SurfaceMesh {
   const { nu } = source.grid;
@@ -1029,12 +1029,22 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   // its top — a plane contact), the lip lower, along the ear's outer face.
   // Between the legs the same points squeeze towards the mold's rim: there
   // the flange only presses the clay on the top, and a wide ring would be
-  // plastic for nothing.
+  // plastic for nothing. One grid step past a leg's edge they stay wide and
+  // at the flange's height: the face across that step rises straight up
+  // outside the ear's face, the next one runs in flat over the cheeks. Down
+  // and in at once, one face slanted through the ear's outer corner
+  // (plans/TODO-PUNCH-LEGS.md).
   const narrowMm = Math.min(fit.topOuterMm + FLANGE_OVER_RIM_MM, ear.seatInMm - PUNCH_STEP_MM);
+  const edge = reach + (2 * Math.PI) / nu;
   const flangePoint = (r: number, z: number, k: number, drop: number): LathePoint => ({
     r,
     z,
-    offset: (u) => (legDistance(u) <= reach ? { dr: 0, dz: -drop } : { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 }),
+    offset: (u) => {
+      const d = legDistance(u);
+      if (d <= reach) return { dr: 0, dz: -drop };
+      if (d <= edge + 1e-9) return { dr: 0, dz: 0 };
+      return { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 };
+    },
   });
   const contour: LathePoint[] = [
     // the vent below; the floor of the working surface, if the rounding left one
@@ -1054,5 +1064,5 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   ];
   const raw = lathe(contour, nu);
   const mesh = { ...raw, normals: meshNormals(raw.positions, raw.indices) };
-  return mirrorZ(scaleMesh(mesh, 1 + shrinkPct / 100));
+  return turnOver(scaleMesh(mesh, 1 + shrinkPct / 100));
 }

@@ -3,6 +3,9 @@
 Found on 2026-11-03 while testing the screw clamps (`PLAN-SCREWS.md`).
 It is in `main` too and has nothing to do with the screws.
 
+**Status: fixed** on 2026-11-04 (branch `slump-field-test`), see "Done"
+at the end.
+
 ## What happens
 
 The punch is a lathe (`buildPunch`, `geo/press.ts`): the points of the
@@ -42,6 +45,24 @@ without the clamps for that reason, instead of asking for none.
 A leg may not land on its ear by up to ~1.5 mm, or rubs on the ear's corner:
 the slab comes out thicker than set, the punch may tilt.
 
+## Measured again (2026-11-04)
+
+Sections of the bowl, default settings, the punch turned over as printed
+(plan and radial sections drawn with CSG slices): the overlap is a sliver on each
+side of the leg, in the ear's outer corner — up to ~1 mm thick along the arc
+and ~4.5 mm in from the ear's face at the ear's top, tapering to nothing at
+the lip's bottom, 10 mm lower. It halves with every doubling of the grid:
+45.5 / 22.5 / 11.4 mm³ per ear at grids 96 / 192 / 384. Lifting the punch
+does not clear it until the lip is out of the ear's corner: the sliver runs
+the whole lip's height, so a print goes down only by scraping or flexing it.
+
+The fix: one more zone in
+`flangePoint` — for `reach < legDistance(u) ≤ reach + 2π / nu` the points
+stay as they are (`dr = 0, dz = 0`: wide, at the flange's height). The face
+across the first step past the leg then rises straight up outside the ear's
+face, the next runs in flat at the flange's height, over the cheeks. The
+overlap goes to 0 at grids 96, 192 and 384; the geometry tests all pass.
+
 ## To do
 
 - A test first: the pressed punch (no clamps) intersected with the mold has
@@ -57,3 +78,14 @@ the slab comes out thicker than set, the punch may tilt.
     slot, `slotReach`, in `slumpEars`);
   - check the leg's sole still covers its seat and the cheeks still guide it.
 - One branch from `main`, its own PR.
+
+## Done (2026-11-04)
+
+- The test: `the pressed punch never touches the mold` in
+  `src/worker/tooling.test.ts` — no clamps, the printed punch turned over
+  into place, bowl, cup, vase and pot at grids 96, 128, 192 and 384, slabs
+  0.8–12 mm, ears 4–12 mm; it failed with 137 mm³ (three ears) before.
+- The fix: the extra zone in `flangePoint` above. The flange gets one grid
+  step wider on each side of a leg — a few mm³.
+- The clamps' test now asks for no overlap at all instead of "no more than
+  without the clamps".

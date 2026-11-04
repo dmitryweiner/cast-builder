@@ -226,6 +226,6 @@ export function tabSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Ma
     }
     return scope.keep(csg.Manifold.difference([prism(scope, section, layout.tabBottomZ, layout.tabTopZ), ...cuts]));
   });
-  // the punch is printed flange down: z → top − z
-  return scope.keep(scope.keep(scope.keep(csg.Manifold.union(tabs)).mirror([0, 0, 1])).translate([0, 0, layout.tabTopZ]));
+  // the punch is printed flange down, turned over as buildPunch turns it: y → −y, z → top − z
+  return scope.keep(scope.keep(scope.keep(csg.Manifold.union(tabs)).rotate([180, 0, 0])).translate([0, 0, layout.tabTopZ]));
 }

@@ -61,12 +61,15 @@ describe('screw, tab, stop', () => {
 
   it('the shank crosses the tab and the gap and takes all the lug’s thread, with travel to spare', () => {
     const pressed = TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM;
-    expect(SCREW.shank).toBeGreaterThanOrEqual(pressed + 8);
+    // and no longer: the first test print (2026-11-04) found 45 mm 15 % more than needed
+    expect(SCREW.shank).toBe(pressed + 8);
   });
 
-  it('the stop fits the gap, its boss enters the tab’s hole and the screw’s tip sits in its dimple', () => {
-    expect(PAD.h).toBeLessThan(PAD_GAP_MM);
-    expect(PAD_GAP_MM - PAD.h).toBeLessThanOrEqual(0.5);
+  it('the stop with its boss slides into the gap of the pressed pair, the boss enters the tab’s hole, the screw’s tip sits in its dimple', () => {
+    // a little lower than the gap, boss included: a stop as tall as the gap with the boss over it did not go in
+    const height = PAD.h + PAD.bossH;
+    expect(height).toBeLessThan(PAD_GAP_MM);
+    expect(PAD_GAP_MM - height).toBeLessThanOrEqual(0.6);
     expect(PAD.bossD).toBeLessThan(CLEAR_HOLE_MM);
     expect(CLEAR_HOLE_MM - PAD.bossD).toBeLessThanOrEqual(0.8);
     expect(PAD.bossH).toBeLessThan(TAB_T_MM);

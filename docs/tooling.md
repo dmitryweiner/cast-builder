@@ -174,10 +174,13 @@ flange.
 **Print screws and stops** (under it) adds three screws and three stops to
 the same STL, to the right of the punch:
 
-- **screw** — M10 × 2, 45 mm under a knurled head Ø24 with a slot, the tip
+- **screw** — M10 × 2, 38 mm under a knurled head Ø24 with a slot, the tip
   chamfered;
-- **stop** — a disc Ø18 × 9.7 mm with a boss on top that enters the
-  tab's hole and a conical dimple below for the screw's tip.
+- **stop** — a disc Ø18 × 7.5 mm with a boss Ø10.4 × 2 mm on top that
+  enters the tab's hole and a conical dimple below for the screw's tip;
+  9.5 mm in all, half a millimetre under the 10 mm gap, so it slides in.
+  (A set printed before 2026-11-04 had 45 mm screws and stops 11.7 mm
+  tall, too tall for the gap: print the new one.)
 
 They do not depend on the model or the shrinkage — print them once and use
 them with every later mold, leaving the second box off. The pitch, the
@@ -187,10 +190,12 @@ How to work with the clamps:
 
 1. Slab in the mold, the punch on top. Put a screw through each tab into
    its lug and tighten them in turn until the legs stand on the ears.
-2. To part the two: take the screws out, put a stop into each gap — the
-   boss up into the tab's hole — and turn the screws into the lugs from
-   below. Tightened in turn, they lift the punch evenly. The heads need
-   3–4 cm under the lugs: stand a low mold on a ring or two blocks.
+2. To part the two: take the screws out, slide a stop into each gap on
+   the lug's seat, the boss up under the tab's hole, and turn the screws
+   into the lugs from below. The tip finds the stop's dimple and lifts it,
+   the boss goes into the tab's hole; tightened in turn, the screws lift
+   the punch evenly. The heads need about 3 cm under the lugs: stand a low
+   mold on a ring or two blocks.
 
 Print the screws standing on their heads and the stops dimple down, both
 with 100 % infill or five walls or more; the threads print best at 0.2 mm

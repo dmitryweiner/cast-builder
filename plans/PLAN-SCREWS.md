@@ -343,11 +343,37 @@ Found on the way, in `main` too, not fixed here: at the angular edge of a
 leg the lathe's face slants from the lip (down at the ear's outer face) to
 the narrow flange point (in at the rim), and grazes the ear's corner — up
 to 1.5 mm deep, ~45 mm³ per ear on the bowl. The tests check that the
-clamps add nothing to it.
+clamps add nothing to it. (Fixed after the first test print, below.)
 
 Also fixed in this PR (in `main` too): the punch of a bowl with throwing
 rings outside got a torus round the rim and horizontal shelves — see the
 commit "Slump punch: a smooth silhouette, an honest offset…".
+
+## The first test print (2026-11-04)
+
+The user printed the bowl's mold, punch and set. Found and fixed (branch
+`slump-field-test`):
+
+- **The tabs were on the other side of the legs from the lugs.** The punch
+  was put flange down by a mirror in z (`mirrorZ`); turned over by hand the
+  print is the mirror image of the design. Legs and ears are symmetric and
+  did not show it; the tabs beside them did. Now `turnOver` (half a turn
+  about x) for the punch and the tabs; the tests put the printed punch back
+  the same way, so a mirror fails them.
+- **The screws were 15 % too long:** the shank is now the tab, the gap and
+  the lug's thread with 8 mm of travel, 38 mm instead of 45.
+- **The stop did not go into the gap:** its disc alone was 0.3 mm under the
+  10 mm gap and the boss stood 2 mm over it. Now the disc is 7.5 mm, 9.5 mm
+  with the boss; the boss enters the tab's hole when the screw from below
+  lifts the stop. A test slides the stop in along the radius and lifts it.
+
+- **The legs grazed the ears' corners** (found in the third round above, in
+  `main` too): fixed here as well, see `TODO-PUNCH-LEGS.md`; the clamps' test now
+  asks for no overlap at all.
+
+The set printed before is not compatible (the stop does not fit); the gap,
+the thread and the hole are unchanged, so a new set fits the old molds. An
+old punch has its tabs on the wrong side: the punch is printed again.
 
 ## Not in this plan
 
