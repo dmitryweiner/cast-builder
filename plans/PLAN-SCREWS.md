@@ -349,6 +349,27 @@ Also fixed in this PR (in `main` too): the punch of a bowl with throwing
 rings outside got a torus round the rim and horizontal shelves — see the
 commit "Slump punch: a smooth silhouette, an honest offset…".
 
+## The first test print (2026-11-04)
+
+The user printed the bowl's mold, punch and set. Found and fixed (branch
+`slump-field-test`):
+
+- **The tabs were on the other side of the legs from the lugs.** The punch
+  was put flange down by a mirror in z (`mirrorZ`); turned over by hand the
+  print is the mirror image of the design. Legs and ears are symmetric and
+  did not show it; the tabs beside them did. Now `turnOver` (half a turn
+  about x) for the punch and the tabs; the tests put the printed punch back
+  the same way, so a mirror fails them.
+- **The screws were 15 % too long:** the shank is now the tab, the gap and
+  the lug's thread with 8 mm of travel, 38 mm instead of 45.
+- **The stop did not go into the gap:** its disc alone was 0.3 mm under the
+  10 mm gap and the boss stood 2 mm over it. Now the disc is 7.5 mm, 9.5 mm
+  with the boss; the boss enters the tab's hole when the screw from below
+  lifts the stop. A test slides the stop in along the radius and lifts it.
+
+The set printed before is not compatible (the stop does not fit); the gap,
+the thread and the hole are unchanged, so a new set fits the old molds.
+
 ## Not in this plan
 
 - Other screw sizes or an adjustable fit (it would break reuse).

@@ -175,6 +175,10 @@ Regenerate them only on purpose.
   that is not round gets a warning, not a refusal.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
   measure — the legs never miss the ears.
+- The punch is printed flange down, **turned over** (half a turn about x,
+  `turnOver`), never mirrored: a mirror in z put the tabs on the other side
+  of the legs from the lugs once the print was turned by hand. A test that
+  puts the printed punch back over the mold turns it the same way.
 - The screw clamps' screws, stops, holes, the gap under the tab and the
   tab's thickness are constants (`geo/thread.ts`) and never scaled by the
   shrinkage: one printed set fits every mold. The lugs and tabs are built
