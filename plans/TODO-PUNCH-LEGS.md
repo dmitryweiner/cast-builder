@@ -3,6 +3,9 @@
 Found on 2026-11-03 while testing the screw clamps (`PLAN-SCREWS.md`).
 It is in `main` too and has nothing to do with the screws.
 
+**Status: fixed** on 2026-11-04 (branch `slump-field-test`), see "Done"
+at the end.
+
 ## What happens
 
 The punch is a lathe (`buildPunch`, `geo/press.ts`): the points of the
@@ -53,7 +56,7 @@ the lip's bottom, 10 mm lower. It halves with every doubling of the grid:
 does not clear it until the lip is out of the ear's corner: the sliver runs
 the whole lip's height, so a print goes down only by scraping or flexing it.
 
-A cheap fix, tried and reverted (not committed): one more zone in
+The fix: one more zone in
 `flangePoint` — for `reach < legDistance(u) ≤ reach + 2π / nu` the points
 stay as they are (`dr = 0, dz = 0`: wide, at the flange's height). The face
 across the first step past the leg then rises straight up outside the ear's
@@ -75,3 +78,14 @@ overlap goes to 0 at grids 96, 192 and 384; the geometry tests all pass.
     slot, `slotReach`, in `slumpEars`);
   - check the leg's sole still covers its seat and the cheeks still guide it.
 - One branch from `main`, its own PR.
+
+## Done (2026-11-04)
+
+- The test: `the pressed punch never touches the mold` in
+  `src/worker/tooling.test.ts` — no clamps, the printed punch turned over
+  into place, bowl, cup, vase and pot at grids 96, 128, 192 and 384, slabs
+  0.8–12 mm, ears 4–12 mm; it failed with 137 mm³ (three ears) before.
+- The fix: the extra zone in `flangePoint` above. The flange gets one grid
+  step wider on each side of a leg — a few mm³.
+- The clamps' test now asks for no overlap at all instead of "no more than
+  without the clamps".

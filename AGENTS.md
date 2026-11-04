@@ -120,8 +120,8 @@ Regenerate them only on purpose.
 - `plans/PLAN-SOLID.md` — how it was done, decisions and results.
 - `plans/PLAN-SCREWS.md` — screw clamps for the slump mold: printed M10 × 2
   screws and stops, lugs and tabs; decisions, measurements.
-- `plans/TODO-PUNCH-LEGS.md` — the punch's legs graze the corners of the
-  ears (found 2026-11-03, in `main` too): what, how much, what to do.
+- `plans/TODO-PUNCH-LEGS.md` — the punch's legs grazed the corners of the
+  ears (found 2026-11-03, fixed 2026-11-04): what, how much, the fix.
 - `plans/TODO-UI-03.11.2026.md` — small UI/UX improvements asked for;
   `plans/PLAN-UI.md` — how they were done (the layout of the siblings, a
   burgundy theme, the model thumbnail).
@@ -174,7 +174,10 @@ Regenerate them only on purpose.
   down-facing face over the foot is the relief of the mold's floor. A model
   that is not round gets a warning, not a refusal.
 - The mold measures itself (`SlumpFit`) and the punch is built from that
-  measure — the legs never miss the ears.
+  measure — the legs never miss the ears. One grid step past a leg's edge
+  the flange's points stay wide and high: a face going down and in at once
+  would cut the ear's outer corner. A test asks the pressed punch for no
+  overlap with the mold at all.
 - The punch is printed flange down, **turned over** (half a turn about x,
   `turnOver`), never mirrored: a mirror in z put the tabs on the other side
   of the legs from the lugs once the print was turned by hand. A test that

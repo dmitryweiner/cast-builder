@@ -1029,12 +1029,22 @@ export function buildPunch(source: PressSource, options: PressOptions, fit: Slum
   // its top — a plane contact), the lip lower, along the ear's outer face.
   // Between the legs the same points squeeze towards the mold's rim: there
   // the flange only presses the clay on the top, and a wide ring would be
-  // plastic for nothing.
+  // plastic for nothing. One grid step past a leg's edge they stay wide and
+  // at the flange's height: the face across that step rises straight up
+  // outside the ear's face, the next one runs in flat over the cheeks. Down
+  // and in at once, one face slanted through the ear's outer corner
+  // (plans/TODO-PUNCH-LEGS.md).
   const narrowMm = Math.min(fit.topOuterMm + FLANGE_OVER_RIM_MM, ear.seatInMm - PUNCH_STEP_MM);
+  const edge = reach + (2 * Math.PI) / nu;
   const flangePoint = (r: number, z: number, k: number, drop: number): LathePoint => ({
     r,
     z,
-    offset: (u) => (legDistance(u) <= reach ? { dr: 0, dz: -drop } : { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 }),
+    offset: (u) => {
+      const d = legDistance(u);
+      if (d <= reach) return { dr: 0, dz: -drop };
+      if (d <= edge + 1e-9) return { dr: 0, dz: 0 };
+      return { dr: narrowMm + k * FLANGE_PACK_MM - r, dz: 0 };
+    },
   });
   const contour: LathePoint[] = [
     // the vent below; the floor of the working surface, if the rounding left one
