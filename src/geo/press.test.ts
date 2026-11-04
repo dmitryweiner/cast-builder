@@ -14,6 +14,7 @@ import {
   PUNCH_CLEARANCE_MM,
   PUNCH_LEG_WIDTH_MM,
   punchLayout,
+  pressWarnings,
   punchSection,
   BOSS_R_MM,
   screwLayout,
@@ -561,6 +562,29 @@ describe('punch', () => {
   it('the slab is clamped: no thicker than 0.4 of the height', () => {
     expect(slabThickness(60, 50)).toBe(20);
     expect(slabThickness(0.1, 50)).toBeGreaterThan(0.5);
+  });
+});
+
+describe('slump warnings', () => {
+  const round = analyticSource(
+    () => 40,
+    () => 40,
+    50,
+    16,
+  );
+
+  it('a piece narrowing above its widest point catches: the depth of the catch is told', () => {
+    expect(pressWarnings({ ...round, catchMm: 12 }, 6)).toEqual([{ code: 'press.undercut', params: { mm: '12.0' } }]);
+  });
+
+  it('a catch the slab survives is no warning: relief, a rim rounded off', () => {
+    expect(pressWarnings({ ...round, catchMm: 1.5 }, 6)).toEqual([]);
+  });
+
+  it("not round when the radius varies by more than half the slab: relief within it is the mold's business", () => {
+    expect(pressWarnings({ ...round, outOfRoundMm: 4 }, 6)).toEqual([{ code: 'press.notRound', params: { mm: '4.0' } }]);
+    expect(pressWarnings({ ...round, outOfRoundMm: 2 }, 6)).toEqual([]);
+    expect(pressWarnings({ ...round, outOfRoundMm: 4 }, 10)).toEqual([]);
   });
 });
 

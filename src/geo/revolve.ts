@@ -32,10 +32,18 @@ export interface PressSource {
   outwardMm: number;
   /** the largest spread of radii in one row, mm: 0 for a true body of revolution */
   outOfRoundMm: number;
+  /**
+   * the deepest catch of the outside, mm: how much narrower it is anywhere
+   * than its widest point below at the same angle — what holds a slab in the
+   * mold. The rim's rounding (`RIM_BAND_MM`) is left out.
+   */
+  catchMm: number;
   /** relief of the bottom seen from below: lift over the table at (x, y), mm; absent for a flat bottom */
   floorAt?: (x: number, y: number) => number;
 }
 
+/** How far past its ends a segment still counts as hit, as a share of its length. */
+const HIT_SLACK = 1e-9;
 /** Smallest radius of a node: the surface never crosses the axis. */
 export const MIN_RADIUS_MM = 1.5;
 /** Cell of the bottom's height map, mm: fine enough for a letter of a mark. */
@@ -50,6 +58,12 @@ const FLOOR_RELIEF_MM = 0.05;
  * bands.
  */
 export const SILHOUETTE_SMOOTH_MM = 2.5;
+/**
+ * The top of the piece where a narrowing is no catch, mm: a rim rounded off
+ * by half the wall (clayform's printable export) leans in by a millimetre or
+ * two, and the slab is cut at the rim anyway.
+ */
+export const RIM_BAND_MM = 3;
 
 /** Samples the outer surface of a placed model (axis through the origin, bottom on z = 0). */
 export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSource {
@@ -116,6 +130,8 @@ export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSour
     }
   }
 
+  const catchMm = deepestCatch(radii, nu, nv, Math.floor(nv * (1 - RIM_BAND_MM / heightMm)));
+
   let footMm = Infinity;
   for (let i = 0; i < nu; i++) footMm = Math.min(footMm, radii[i]);
   const floorAt = floorRelief(mesh, heightMm, footMm);
@@ -130,8 +146,23 @@ export function meshSource(mesh: IndexedMesh, nu: number, nv: number): PressSour
     },
     outwardMm,
     outOfRoundMm,
+    catchMm,
     ...(floorAt ? { floorAt } : {}),
   };
+}
+
+/** Up the rows to `top` at every angle: the widest radius so far less the radius at hand, at most. */
+function deepestCatch(radii: Float64Array, nu: number, nv: number, top: number): number {
+  let deepest = 0;
+  for (let i = 0; i < nu; i++) {
+    let widest = 0;
+    for (let j = 0; j <= Math.min(nv, top); j++) {
+      const r = radii[j * nu + i];
+      widest = Math.max(widest, r);
+      deepest = Math.max(deepest, widest - r);
+    }
+  }
+  return deepest;
 }
 
 /**
@@ -208,8 +239,12 @@ function sliceAt(positions: Float32Array, indices: Uint32Array, triangles: reado
   return out;
 }
 
-/** Distance along the ray from the axis to the farthest segment it crosses; NaN if none. */
-function farthestHit(segments: readonly number[], dx: number, dy: number): number {
+/**
+ * Distance along the ray from the axis to the farthest segment it crosses;
+ * NaN if none. A ray through the common end of two segments may find that
+ * end a rounding error outside both: the ends are let in by a hair.
+ */
+export function farthestHit(segments: readonly number[], dx: number, dy: number): number {
   let best = NaN;
   for (let s = 0; s < segments.length; s += 4) {
     const px = segments[s];
@@ -220,7 +255,7 @@ function farthestHit(segments: readonly number[], dx: number, dy: number): numbe
     if (Math.abs(denom) < 1e-12) continue;
     // p + s·e = t·d: s from the cross product with d, t from the one with e
     const along = (px * dy - py * dx) / denom;
-    if (along < 0 || along > 1) continue;
+    if (along < -HIT_SLACK || along > 1 + HIT_SLACK) continue;
     const t = (px * ey - py * ex) / denom;
     if (t > 0 && !(t <= best)) best = t;
   }

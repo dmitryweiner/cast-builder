@@ -222,15 +222,3 @@ export function withScheme(report: MoldReport, scheme: MoldScheme): MoldReport {
   const plug = report.parts.some((part) => part.id === PLUG.id);
   return { ...report, scheme, parts: partsOf(scheme, plug), reason: [{ code: 'mold.manual' }] };
 }
-
-/**
- * Undercuts of a slump mold. The piece leaves the dished mold upwards, and a
- * face of its outside looking up hinders — `pullUndercut(…, 'up')`. A
- * warning, not a ban: the slab is flexible and survives a small catch.
- */
-export function pressWarning(surface: Pick<SurfaceMesh, 'positions' | 'indices'>): Message | null {
-  const { fraction, worst } = pullUndercut(surface, 'up');
-  if (fraction <= HALVES_TOLERANCE) return null;
-  const worstDeg = (Math.asin(Math.min(1, worst)) * 180) / Math.PI;
-  return { code: 'press.undercut', params: { pct: (fraction * 100).toFixed(1), deg: worstDeg.toFixed(0) } };
-}

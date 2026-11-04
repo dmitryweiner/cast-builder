@@ -56,5 +56,5 @@ export function analyticSource(
   let outwardMm = 0;
   for (let j = 0; j <= n; j++)
     for (let i = 0; i < n; i++) outwardMm = Math.max(outwardMm, radius((2 * Math.PI * i) / n, j / n) - silhouette(j / n));
-  return { heightMm, grid, radiusAt: silhouette, outwardMm, outOfRoundMm: 0 };
+  return { heightMm, grid, radiusAt: silhouette, outwardMm, outOfRoundMm: 0, catchMm: 0 };
 }

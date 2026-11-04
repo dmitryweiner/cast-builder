@@ -14,6 +14,7 @@
 import type { Grid, SurfaceMesh } from './surface';
 import { assembleHollowMesh, scaleMesh, turnOver } from './surface';
 import type { CapSpec } from './bottom';
+import type { Message } from './message';
 import { meshNormals } from './normals';
 import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
@@ -127,6 +128,28 @@ export interface PressOptions {
  */
 export function slabThickness(slabMm: number, heightMm: number): number {
   return clamp(slabMm, SLAB_MIN_MM, Math.min(SLAB_MAX_MM, heightMm * 0.4));
+}
+
+/**
+ * A catch of the outside the slab survives, mm: relief a millimetre deep
+ * lets go as the clay shrinks and the slab gives; a shoulder narrowing to a
+ * neck is tens of millimetres and holds the piece in the mold.
+ */
+const CATCH_MM = 2;
+
+/**
+ * What to tell about a piece in a slump mold: warnings, never a refusal.
+ * Both are measured on the outside the mold copies, not on the inside of a
+ * hollow piece. The punch is round, so the slab is as uneven as the piece is
+ * out of round; within half the slab that is relief, past it the shape.
+ */
+export function pressWarnings(source: Pick<PressSource, 'heightMm' | 'catchMm' | 'outOfRoundMm'>, slabMm: number): Message[] {
+  const warnings: Message[] = [];
+  if (source.catchMm > CATCH_MM) warnings.push({ code: 'press.undercut', params: { mm: source.catchMm.toFixed(1) } });
+  if (source.outOfRoundMm > slabThickness(slabMm, source.heightMm) / 2) {
+    warnings.push({ code: 'press.notRound', params: { mm: source.outOfRoundMm.toFixed(1) } });
+  }
+  return warnings;
 }
 
 /**

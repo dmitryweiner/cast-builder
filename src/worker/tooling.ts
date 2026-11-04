@@ -10,7 +10,7 @@ import type { Mouth } from '../geo/mouth';
 import { solidify } from '../geo/solidify';
 import { bodies } from '../geo/pieces';
 import { meshSource } from '../geo/revolve';
-import { buildPunch, buildSlumpShell, screwLayout } from '../geo/press';
+import { buildPunch, buildSlumpShell, pressWarnings, screwLayout } from '../geo/press';
 import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
 import { cheekCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
@@ -21,7 +21,7 @@ import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
 import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
 import { buildBaths, buildMaster } from '../geo/mold';
-import { analyzeMold, pressWarning, withScheme } from '../geo/mold/analyze';
+import { analyzeMold, withScheme } from '../geo/mold/analyze';
 import type { MoldState } from '../geo/mold/state';
 import { pickedScheme, sanitizeSettings, sanitizeSetup } from '../state';
 import type { JobInfo, JobPart, JobProgress, JobResult, ToolingJob } from './protocol';
@@ -30,8 +30,6 @@ import type { JobInfo, JobPart, JobProgress, JobResult, ToolingJob } from './pro
 export const PREVIEW_RESOLUTION = 128;
 /** No mold has more than four parts — two halves, a bottom plate and a plug. */
 const MAX_MOLD_PARTS = 4;
-/** A radius varying more than this round the axis makes a slump mold doubtful, mm. */
-const NOT_ROUND_MM = 1;
 /** The screw stands on its head: its own frame has the head below z = 0. */
 const SCREW_HEAD_UP = SCREW.headH;
 /** Screws and stops on the bed, each a column along y with a gap between them, mm. */
@@ -194,9 +192,7 @@ function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
   );
 
   const info = emptyInfo();
-  const undercut = pressWarning(job.model);
-  if (undercut) info.warnings.push(undercut);
-  if (source.outOfRoundMm > NOT_ROUND_MM) info.warnings.push({ code: 'press.notRound', params: { mm: source.outOfRoundMm.toFixed(1) } });
+  info.warnings.push(...pressWarnings(source, options.slabMm));
 
   if (exporting) progress.next({ code: 'progress.checkMeshes' });
   return { parts: [part('slump', mesh, exporting)], info };
