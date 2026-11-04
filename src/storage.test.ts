@@ -71,10 +71,28 @@ describe('settings storage', () => {
     const settings = loadSettings(storage);
     expect(settings.mold).toEqual({ ...before, screws: false, printScrews: false });
   });
+
+  it('settings saved before the bed layout load it as auto, 15 mm, pour boxes apart, and keep the rest', () => {
+    const storage = new MemoryStorage();
+    const { bed: _bed, ...old } = { ...defaultSettings(), mode: 'slump' };
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: old }));
+    const settings = loadSettings(storage);
+    expect(settings.bed).toEqual({ place: 'auto', gapMm: 15, oneFile: false });
+    expect(settings.mode).toBe('slump');
+  });
 });
 
 describe('sanitizers', () => {
-  const junk = [null, undefined, 42, 'x', [], { mode: 'vessel' }, { mouth: { zMm: NaN, auto: 'yes' }, plug: { recessMm: -5 } }];
+  const junk = [
+    null,
+    undefined,
+    42,
+    'x',
+    [],
+    { mode: 'vessel' },
+    { bed: { gapMm: -3, place: 7 } },
+    { mouth: { zMm: NaN, auto: 'yes' }, plug: { recessMm: -5 } },
+  ];
 
   it('never throw and are idempotent', () => {
     for (const raw of junk) {
@@ -89,5 +107,12 @@ describe('sanitizers', () => {
     const setup = { ...defaultSetup(), mouth: { auto: false, zMm: 120, radiusMm: 40 }, plug: { on: true, recessMm: 8, galleryMm: 44 } };
     expect(sanitizeSetup(setup)).toEqual(setup);
     expect(sanitizeSetup({ plug: { recessMm: -5 } }).plug.recessMm).toBe(0);
+    const bed = { place: 'column', gapMm: 8, oneFile: true };
+    expect(sanitizeSettings({ bed }).bed).toEqual(bed);
+    expect(sanitizeSettings({ bed: { place: 'diagonal', gapMm: 900, oneFile: 'yes' } }).bed).toEqual({
+      place: 'auto',
+      gapMm: 50,
+      oneFile: false,
+    });
   });
 });
