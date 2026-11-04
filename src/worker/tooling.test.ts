@@ -13,7 +13,7 @@ import { lugSolids } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from '../geo/surface';
 import { bodies } from '../geo/pieces';
-import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, minorRadius } from '../geo/thread';
+import { CLEAR_HOLE_MM, PAD, PAD_GAP_MM, SCREW, THREAD, THREAD_FIT_MM, minorRadius } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 
 let csg: CsgApi;
@@ -231,7 +231,7 @@ describe('slumpTooling with screws', () => {
     scope.dispose();
   });
 
-  it('a stop on a seat fits under the tab of the pressed punch: it touches neither part', () => {
+  it('a stop on a seat slides under the tab of the pressed punch; lifted, its boss enters the hole', () => {
     const built = build('bowl', 12, true);
     const layout = built.layout;
     if (!layout) throw new Error('no layout');
@@ -246,8 +246,13 @@ describe('slumpTooling with screws', () => {
       const placed = scope.keep(pad.translate([x - (min[0] + PAD.d / 2), y - (min[1] + PAD.d / 2), layout.seatZ + 0.01 - min[2]]));
       expect(scope.keep(placed.intersect(mold)).volume()).toBeLessThan(1e-3);
       expect(scope.keep(placed.intersect(pressed)).volume()).toBeLessThan(1e-3);
-      // and it fills the gap: lifted by half a millimetre it would hit the tab
-      expect(scope.keep(scope.keep(placed.translate([0, 0, 0.5])).intersect(pressed)).volume()).toBeGreaterThan(1);
+      // slid in from outside along the radius at the seat's height, it meets nothing on its way
+      const out = scope.keep(placed.translate([x * 0.5, y * 0.5, 0]));
+      expect(scope.keep(csg.Manifold.hull([placed, out]).intersect(pressed)).volume()).toBeLessThan(1e-3);
+      // lifted by a screw from below, the boss goes into the tab's hole and the disc stops on the tab
+      const lift = PAD_GAP_MM - PAD.h - 0.01;
+      expect(scope.keep(scope.keep(placed.translate([0, 0, lift - 0.05])).intersect(pressed)).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(scope.keep(placed.translate([0, 0, lift + 0.5])).intersect(pressed)).volume()).toBeGreaterThan(1);
     }
     scope.dispose();
   });

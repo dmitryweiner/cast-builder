@@ -58,26 +58,34 @@ export const LUG_THREAD_MIN_MM = 8;
 /**
  * The printed screw: a knurled thumb head with a slot, the threaded shank
  * from under the head to the tip, the tip chamfered at 45° down to `tipR`.
+ * The shank is the tab, the gap and the lug's thread with 8 mm of travel:
+ * the first test print found 45 mm 15 % longer than needed.
  */
 export const SCREW = {
   headD: 24,
   headH: 10,
-  shank: 45,
+  shank: TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + 8,
   slotW: 2.6,
   slotDepth: 4,
   tipR: 3.5,
 } as const;
 
+/** The stop's boss, mm: half a millimetre lower than the gap with it, so the stop slides in. */
+const PAD_BOSS_H = 2;
+
 /**
- * The stop: a disc a little lower than the gap; on top a boss that enters
- * the tab's hole and centres it, below a 45° conical dimple for the
- * screw's tip. Printed dimple down.
+ * The stop: a disc, with the boss on top a little lower than the gap — it
+ * slides in between the seat and the tab of the pressed pair (the first
+ * set had the disc alone 0.3 mm under the gap and the boss over it: 1.7 mm
+ * too tall to go in). Lifted by the screw from below, the boss enters the tab's hole
+ * and centres the stop; a 45° conical dimple below takes the screw's tip.
+ * Printed dimple down.
  */
 export const PAD = {
   d: 18,
-  h: PAD_GAP_MM - 0.3,
+  h: PAD_GAP_MM - 0.5 - PAD_BOSS_H,
   bossD: 10.4,
-  bossH: 2,
+  bossH: PAD_BOSS_H,
   dimpleD: 9,
   dimpleDepth: 2,
 } as const;
