@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from '../geo/csg';
-import { CsgScope, initCSG, toManifold } from '../geo/csg';
+import { CsgScope, fromManifold, initCSG, toManifold } from '../geo/csg';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture } from '../geo/testing';
 import { validateMesh } from '../geo/validate';
@@ -26,6 +26,8 @@ import {
   minorRadius,
 } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
+import { castRays } from '../geo/release';
+import { TILE_LAND_MM, TILE_PROUD_MM } from '../geo/tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -50,7 +52,7 @@ const jobFor = (name: string, over: Partial<ToolingJob> = {}): ToolingJob => {
 
 describe('runJob', () => {
   it('builds every mode for a pot', () => {
-    const expected: Record<Mode, string[]> = {
+    const expected: Partial<Record<Mode, string[]>> = {
       master: ['master'],
       bath: ['bath-half-A', 'bath-half-B', 'bath-bottom'],
       slump: ['slump', 'punch'],
@@ -564,6 +566,90 @@ describe('slumpTooling with screws', () => {
       expect(scope.keep(lugs.intersect(clay)).volume(), name).toBeLessThan(1e-3);
       scope.dispose();
     }
+  });
+});
+
+describe('tile mold', () => {
+  const tileJob = (over: Partial<ToolingJob> = {}, name = 'keychain'): ToolingJob => jobFor(name, { mode: 'tile', ...over });
+
+  it('the keychain: one closed mold, the tile sunk face down, the back 0.2 mm proud of the rim, no catch', () => {
+    const { parts, info } = runJob(csg, tileJob({ kind: 'export' }));
+    expect(parts.map((part) => part.id)).toEqual(['tile']);
+    expect(info.blocking).toEqual([]);
+    expect(info.catches).toEqual([{ id: 'tile', depthMm: 0, at: null }]);
+    const mold = parts[0];
+    expect(mold.blocking).toEqual([]);
+    expect(validateMesh(mold).watertight).toBe(true);
+    const shrink = 1 + defaultMold().shrinkPct / 100;
+    const [w, d, h] = mold.note.split('×').map(Number);
+    // the plate 55 × 33 grown by the shrinkage and by the land round it
+    expect(w).toBeCloseTo(55 * shrink + 2 * TILE_LAND_MM, -0.5);
+    expect(d).toBeCloseTo(33 * shrink + 2 * TILE_LAND_MM, -0.5);
+    // the floor under the face, the tile's thickness less the proud back
+    expect(h).toBeCloseTo(defaultMold().bathWallMm + 4.5 * shrink - TILE_PROUD_MM, 0);
+  });
+
+  it('the ring hole is a post up to the rim; a letter is a dimple in the floor', () => {
+    const { parts } = runJob(csg, tileJob());
+    const mold = parts[0];
+    const shrink = 1 + defaultMold().shrinkPct / 100;
+    const rays = castRays(mold, 2, 0.25);
+    const top = (x: number, y: number): number => {
+      const node = rays.nodeAt(x, y);
+      return rays.values[rays.start[node + 1] - 1];
+    };
+    const rim = defaultMold().bathWallMm + 4.5 * shrink - TILE_PROUD_MM;
+    // the mold in its own frame: centre it on the plate as the bed lays it out
+    const box = validateMesh(mold).bbox;
+    const cx = (box.min[0] + box.max[0]) / 2;
+    const cy = (box.min[1] + box.max[1]) / 2;
+    // turned over about x: x stays, y changes sign — the hole (x = −22.4) stays at the left
+    expect(top(cx - 22.35 * shrink, cy)).toBeCloseTo(rim, 1);
+    // the field of the plate below the letters (y = −12, turned to +12): the floor of the cavity, 3 mm under the back
+    expect(top(cx + 10 * shrink, cy + 12 * shrink)).toBeCloseTo(rim - 3 * shrink + TILE_PROUD_MM, 1);
+  });
+
+  it('the keychain face down: its back is not flat — refused, the back named', () => {
+    const { parts, info } = runJob(csg, tileJob({ model: placeModel(fixture('keychain'), { turn: flip(IDENTITY_TURN), spinDeg: 0 }) }));
+    expect(parts.map((part) => part.id)).toEqual(['tile']);
+    expect(info.blocking.map((m) => m.code)).toEqual(['tile.back']);
+    expect(info.catches[0].depthMm).toBeGreaterThan(1);
+  });
+
+  it('a bowl is no tile: the mold catches under its flaring wall, refused however much is allowed', () => {
+    const { info } = runJob(csg, tileJob({ mold: { ...defaultMold(), allowedCatchMm: 6 } }, 'bowl'));
+    expect(info.blocking.map((m) => m.code)).toEqual(['tile.back']);
+    expect(info.catches[0].depthMm).toBeGreaterThan(6);
+  });
+
+  it('a relief overhanging the face catches under the overhang', () => {
+    const scope = new CsgScope();
+    try {
+      // a plate with a mushroom on it: the cap overhangs its stem by 4 mm, 2 mm over the plate
+      const plate = scope.keep(csg.Manifold.cube([40, 40, 3], true).translate([0, 0, 1.5]));
+      const stem = scope.keep(csg.Manifold.cylinder(2.5, 2, 2, 48).translate([0, 0, 3]));
+      const cap = scope.keep(csg.Manifold.cylinder(1, 6, 6, 48).translate([0, 0, 5]));
+      const mushroom = fromManifold(scope.keep(csg.Manifold.union([plate, stem, cap])));
+      const { info } = runJob(csg, tileJob({ model: placeModel(mushroom, defaultOrientation()) }));
+      expect(info.blocking.map((m) => m.code)).toEqual(['tile.catch']);
+      expect(info.catches[0].depthMm).toBeGreaterThan(1);
+      expect(info.catches[0].at?.[2]).toBeGreaterThan(3);
+    } finally {
+      scope.dispose();
+    }
+  });
+
+  it('a catch within the allowed one passes', () => {
+    const face = { model: placeModel(fixture('keychain'), { turn: flip(IDENTITY_TURN), spinDeg: 0 }) };
+    expect(runJob(csg, tileJob({ ...face, mold: { ...defaultMold(), allowedCatchMm: 3 } })).info.blocking).toEqual([]);
+  });
+
+  it('refuses a model that is not a solid', () => {
+    const open = jobFor('keychain', { mode: 'tile' });
+    const broken = { positions: open.model.positions, indices: open.model.indices.slice(3) };
+    const { parts, info } = runJob(csg, { ...open, model: broken });
+    expect(parts).toEqual([]);
+    expect(info.blocking.map((m) => m.code)).toEqual(['model.notSolid']);
   });
 });
 

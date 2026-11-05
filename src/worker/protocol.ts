@@ -37,6 +37,15 @@ export interface JobPart {
   blocking: Message[];
 }
 
+/** How deep a part of a press mold without a punch catches the piece (geo/release.ts). */
+export interface Catch {
+  /** the part, as in `JobPart.id` */
+  id: string;
+  depthMm: number;
+  /** where the deepest catch is, in the placed model's frame scaled by the shrinkage; null — none */
+  at: [number, number, number] | null;
+}
+
 /** What the worker learned about the model on its way. */
 export interface JobInfo {
   /** solid as it came, filled, open; null in the slump mode, which reads only the outside */
@@ -49,8 +58,10 @@ export interface JobInfo {
   /** why this parting, sentence by sentence */
   reason: Message[];
   warnings: Message[];
-  /** what keeps the whole job from a result (the model is not a solid) */
+  /** what keeps the whole job from a result (the model is not a solid) or from the download (a catch too deep) */
   blocking: Message[];
+  /** the tile mold and the split mold: how deep each part catches */
+  catches: Catch[];
 }
 
 export interface JobResult {

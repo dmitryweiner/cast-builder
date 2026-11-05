@@ -63,8 +63,19 @@ const PREVIEW_DELAY_MS = 400;
 const DOWNLOAD_GAP_MS = 250;
 const EXAMPLE_URL = './examples/teapot.stl';
 
-const TABS: Record<Mode, string> = { master: 'tabMaster', bath: 'tabBath', slump: 'tabSlump' };
-const EXPORT_LABEL: Record<Mode, Key> = { master: 'export.master', bath: 'export.bath', slump: 'export.slump' };
+/** The tabs: the press molds share one, with a switch of their kind inside. */
+const TABS = [
+  { id: 'tabMaster', mode: (): Mode => 'master' },
+  { id: 'tabBath', mode: (): Mode => 'bath' },
+  { id: 'tabSlump', mode: (s: Settings): Mode => s.press },
+] as const;
+const EXPORT_LABEL: Record<Mode, Key> = {
+  master: 'export.master',
+  bath: 'export.bath',
+  slump: 'export.slump',
+  tile: 'export.slump',
+  split: 'export.slump',
+};
 
 interface Model {
   /** file name without the extension: the downloads are named after it */
@@ -368,7 +379,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   function syncPanel(): void {
     for (const row of rows) row.sync();
-    for (const mode of MODES) el(TABS[mode], HTMLButtonElement).setAttribute('aria-selected', String(mode === settings.mode));
+    for (const tab of TABS) el(tab.id, HTMLButtonElement).setAttribute('aria-selected', String(tab.mode(settings) === settings.mode));
     mouthCard.hidden = settings.mode === 'slump';
     // a master is one part: nothing to lay out
     bedCard.hidden = settings.mode === 'master';
@@ -599,8 +610,9 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   // ---- events ----
 
-  for (const mode of MODES) {
-    el(TABS[mode], HTMLButtonElement).addEventListener('click', () => {
+  for (const tab of TABS) {
+    el(tab.id, HTMLButtonElement).addEventListener('click', () => {
+      const mode = tab.mode(settings);
       if (mode === settings.mode) return;
       last = null;
       setSettings({ ...settings, mode });

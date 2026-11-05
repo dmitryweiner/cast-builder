@@ -34,6 +34,8 @@ export interface MoldState {
   threadFitMm: number;
   /** the lugs' holes threaded for the printed screws; off — plain, for a steel M10 bolt and a nut */
   threadedLugs: boolean;
+  /** how deep a press mold without a punch (tile, two halves) may catch the piece, mm (geo/release.ts) */
+  allowedCatchMm: number;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -45,6 +47,8 @@ export const BATH_WALL_MIN_MM = 1.2;
 export const BATH_WALL_MAX_MM = 12;
 export const CLEAR_MIN_MM = 3;
 export const CLEAR_MAX_MM = 60;
+/** Deeper than this no slab comes out of a press mold, however leather-hard. */
+export const CATCH_MAX_MM = 6;
 export { EAR_MAX_MM, EAR_MIN_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM, THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM };
 
 export function defaultMold(): MoldState {
@@ -64,6 +68,7 @@ export function defaultMold(): MoldState {
     printStops: false,
     threadFitMm: THREAD_FIT_MM,
     threadedLugs: true,
+    allowedCatchMm: 1,
   };
 }
 
@@ -95,5 +100,6 @@ export function sanitizeMold(raw: unknown): MoldState {
     printStops: typeof source.printStops === 'boolean' ? source.printStops : printScrews,
     threadFitMm: clamp(num(source.threadFitMm, fallback.threadFitMm), THREAD_FIT_MIN_MM, THREAD_FIT_MAX_MM),
     threadedLugs: typeof source.threadedLugs === 'boolean' ? source.threadedLugs : fallback.threadedLugs,
+    allowedCatchMm: clamp(num(source.allowedCatchMm, fallback.allowedCatchMm), 0, CATCH_MAX_MM),
   };
 }

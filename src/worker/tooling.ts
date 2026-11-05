@@ -19,6 +19,10 @@ import { PAD, SCREW, threadPoints } from '../geo/thread';
 import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
+import type { RayMesh } from '../geo/release';
+import { castRays, releaseDepth } from '../geo/release';
+import { buildTileMold, TILE_PROUD_MM } from '../geo/tile';
+import { sizeOf } from '../geo/model';
 import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
 import { buildBaths, buildMaster } from '../geo/mold';
 import { analyzeMold, withScheme } from '../geo/mold/analyze';
@@ -84,11 +88,78 @@ export function runJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobP
   // one piece per mold, whatever the mode: "Lid beside" in Clayform makes two
   const pieces = bodies(job.model);
   if (pieces > 1) return { parts: [], info: { ...emptyInfo(), blocking: [{ code: 'model.pieces', params: { n: pieces } }] } };
-  return job.mode === 'slump' ? slumpJob(csg, job, onProgress) : moldJob(csg, job, onProgress);
+  if (job.mode === 'slump') return slumpJob(csg, job, onProgress);
+  if (job.mode === 'tile') return tileJob(csg, job, onProgress);
+  return moldJob(csg, job, onProgress);
 }
 
 function emptyInfo(): JobInfo {
-  return { status: null, mouth: null, rimMm: null, scheme: null, reason: [], warnings: [], blocking: [] };
+  return { status: null, mouth: null, rimMm: null, scheme: null, reason: [], warnings: [], blocking: [], catches: [] };
+}
+
+/**
+ * The cell of the release check, mm: a share of the piece's size — a
+ * keychain's relief is a millimetre and a half, a vase is 120 mm tall —
+ * finer in an export.
+ */
+export function releaseCell(extentMm: number, exporting: boolean): number {
+  return Math.min(1, Math.max(0.25, extentMm / (exporting ? 240 : 160)));
+}
+
+/** The placed model grown by the shrinkage, as the release check reads it. */
+function scaledMesh(model: ToolingJob['model'], shrink: number): RayMesh {
+  const positions = new Float32Array(model.positions.length);
+  for (let i = 0; i < positions.length; i++) positions[i] = model.positions[i] * shrink;
+  return { positions, indices: model.indices };
+}
+
+function largestExtent(positions: Float32Array): number {
+  const [w, d, h] = sizeOf(positions);
+  return Math.max(w, d, h);
+}
+
+/**
+ * The tile mold: the model read as it is — a raised border is relief, not
+ * an opening to fill — checked for release upwards from its back, and sunk
+ * face down into a block. A catch too deep blocks the download; the mold is
+ * still shown.
+ */
+function tileJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
+  const exporting = job.kind === 'export';
+  const info = emptyInfo();
+  const progress = new Progress(onProgress, exporting ? 4 : 3);
+  const scope = new CsgScope();
+  try {
+    progress.next({ code: 'progress.model' });
+    let model;
+    try {
+      model = scope.keep(toManifold(csg, job.model, { merge: true }));
+    } catch {
+      info.blocking.push({ code: 'model.notSolid' });
+      return { parts: [], info };
+    }
+    const shrink = 1 + job.mold.shrinkPct / 100;
+
+    progress.next({ code: 'progress.release' });
+    const mesh = scaledMesh(job.model, shrink);
+    const cell = releaseCell(largestExtent(mesh.positions), exporting);
+    // the mold lies over the face, its rim at the back, and leaves upwards
+    const release = releaseDepth(castRays(mesh, 2, cell), { plane: TILE_PROUD_MM, side: 1 });
+    info.catches.push({ id: 'tile', depthMm: release.depthMm, at: release.at });
+    const limit = job.mold.allowedCatchMm;
+    if (release.depthMm > limit && release.at) {
+      const params = { mm: release.depthMm.toFixed(1), limit: limit.toFixed(1), z: release.at[2].toFixed(1) };
+      // locked right over the rim: under the back, not under the face
+      info.blocking.push({ code: release.at[2] - TILE_PROUD_MM < 1.5 * cell ? 'tile.back' : 'tile.catch', params });
+    }
+
+    progress.next({ code: 'progress.tile' });
+    const mold = fromManifold(buildTileMold(csg, scope, scope.keep(model.scale(shrink)), job.mold.bathWallMm));
+    if (exporting) progress.next({ code: 'progress.checkMeshes' });
+    return { parts: [part('tile', mold, exporting)], info };
+  } finally {
+    scope.dispose();
+  }
 }
 
 export function pressOptions(mold: MoldState): PressOptions {

@@ -60,6 +60,7 @@ describe('settings storage', () => {
       orientation: { turn: [0, 0, 1, 0, 1, 0, -1, 0, 0], spinDeg: 90 },
       mouth: { auto: false, zMm: 80, radiusMm: 20 },
       plug: { on: true, recessMm: 5, galleryMm: 30 },
+      split: { axis: 'y', pct: 40 },
     };
     expect(saveProject(storage, { settings, setup })).toBe('ok');
     expect(loadProject(storage)).toEqual({ settings, setup });
@@ -70,6 +71,18 @@ describe('settings storage', () => {
     const settings = { ...defaultSettings(), mode: 'master' as const, resolution: 384 };
     storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings }));
     expect(loadProject(storage)).toEqual({ settings, setup: defaultSetup() });
+  });
+
+  it('a project saved before the press molds (version 2) loads with them at their defaults', () => {
+    const storage = new MemoryStorage();
+    const { split, ...setup } = { ...defaultSetup(), orientation: { turn: [1, 0, 0, 0, 1, 0, 0, 0, 1], spinDeg: 45 } };
+    const { press, ...settings } = { ...defaultSettings(), mode: 'slump' as const };
+    const { allowedCatchMm, ...mold } = settings.mold;
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, settings: { ...settings, mold }, setup }));
+    expect(loadProject(storage)).toEqual({
+      settings: { ...settings, press, mold: { ...mold, allowedCatchMm } },
+      setup: { ...setup, split },
+    });
   });
 
   it('reports a failed write and never throws', () => {

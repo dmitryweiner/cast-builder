@@ -16,6 +16,10 @@ export type MessageCode =
   | 'mold.noPlug'
   | 'press.undercut'
   | 'press.notRound'
+  // press molds without a punch (release, tile, split)
+  | 'tile.catch'
+  | 'tile.back'
+  | 'split.catch'
   // the loaded model (pieces, solidify, model)
   | 'model.pieces'
   | 'model.notSolid'
@@ -40,7 +44,10 @@ export type MessageCode =
   | 'progress.analyze'
   | 'progress.master'
   | 'progress.block'
-  | 'progress.part';
+  | 'progress.part'
+  | 'progress.release'
+  | 'progress.tile'
+  | 'progress.split';
 
 export interface Message {
   code: MessageCode;

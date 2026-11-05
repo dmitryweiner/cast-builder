@@ -138,6 +138,12 @@ export const en = {
   'press.notRound':
     'The piece is not round: its radius varies by up to {mm} mm around the axis, more than half the slab. The punch is round, so the slab will be uneven — slump molding suits a body of revolution.',
 
+  'tile.catch':
+    'The tile will not come out of its mold: it catches {mm} mm deep (allowed {limit} mm), {z} mm over its back. A tile mold wants a plate whose face is a relief seen from above, nothing overhanging.',
+  'tile.back':
+    'The back of the tile is not flat: the mold catches {mm} mm deep at the rim (allowed {limit} mm). The back lies down, the face up — turn the model over if its face is down.',
+  'split.catch':
+    'Half {half} will not come off: the piece catches {mm} mm deep (allowed {limit} mm) at {z} mm of the height. Move the plane, spin the model or press Find.',
   'mesh.nonFinite': 'The mesh has broken coordinates.',
   'mesh.badIndices': 'The mesh has broken triangles.',
   'mesh.empty': 'The mesh is empty.',
@@ -156,6 +162,9 @@ export const en = {
   'progress.master': 'master positive',
   'progress.block': 'plaster block',
   'progress.part': 'part {i} of {n}',
+  'progress.release': 'undercut check',
+  'progress.tile': 'tile mold',
+  'progress.split': 'half {i} of {n}',
   'progress.preview': 'building the tooling…',
   'progress.export': 'building…',
 
