@@ -5,7 +5,7 @@
 // happens when drawn, and a change of language is just drawing again.
 
 import { make } from './dom';
-import type { Key } from '../i18n';
+import type { Key, Params } from '../i18n';
 import { t } from '../i18n';
 
 /**
@@ -46,6 +46,8 @@ export interface CheckControl<T> {
   key: string;
   label: Key;
   hint?: Key;
+  /** a line under the box, always in sight (a hint is a tooltip): sizes, what to buy; hidden with the row and when its own `when` says */
+  note?: { key: Key; params?: Params; when?: Visibility<T> };
   when?: Visibility<T>;
   get(state: T): boolean;
   set(state: T, value: boolean): T;
@@ -80,6 +82,8 @@ export function renderControls<T>(
     const row = make('label', 'row');
     /** what `when` hides along with the row */
     const nodes: HTMLElement[] = [row];
+    /** shown with the row only when their own condition holds too */
+    const extras: { node: HTMLElement; when: Visibility<T> }[] = [];
     const name = make('span', 'row-name', t(control.label));
     if (control.hint) name.title = t(control.hint);
     row.append(name);
@@ -95,6 +99,12 @@ export function renderControls<T>(
       syncers.push((state) => {
         box.checked = control.get(state);
       });
+      if (control.note) {
+        const line = make('p', 'row-note', t(control.note.key, control.note.params));
+        line.id = `${box.id}_note`;
+        nodes.push(line);
+        if (control.note.when) extras.push({ node: line, when: control.note.when });
+      }
     } else if (control.kind === 'select') {
       const select = make('select');
       select.id = `${idPrefix}_${control.key}`;
@@ -163,9 +173,11 @@ export function renderControls<T>(
     }
 
     const when = control.when;
-    if (when) {
+    if (when || extras.length > 0) {
       const show = (state: T): void => {
-        for (const node of nodes) node.hidden = !when(state);
+        const visible = when ? when(state) : true;
+        for (const node of nodes) node.hidden = !visible;
+        for (const extra of extras) extra.node.hidden = !visible || !extra.when(state);
       };
       show(read());
       syncers.push(show);

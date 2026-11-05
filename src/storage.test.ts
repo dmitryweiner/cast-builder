@@ -109,10 +109,24 @@ describe('settings storage', () => {
   it('settings saved before the screw clamps load with them off and keep the rest', () => {
     const storage = new MemoryStorage();
     const before = { ...defaultSettings().mold, slabMm: 7 };
-    const { screws: _screws, printScrews: _printScrews, threadFitMm: _fit, ...old } = before;
+    const { screws: _screws, printScrews: _printScrews, threadFitMm: _fit, threadedLugs: _threaded, printStops: _stops, ...old } = before;
     storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings: { mode: 'slump', mold: old } }));
     const settings = loadSettings(storage);
-    expect(settings.mold).toEqual({ ...before, screws: false, printScrews: false, threadFitMm: 0.5 });
+    expect(settings.mold).toEqual({
+      ...before,
+      screws: false,
+      printScrews: false,
+      threadFitMm: 0.5,
+      threadedLugs: true,
+      printStops: false,
+    });
+  });
+
+  it('settings saved before the stops had a box of their own print them as the screws were', () => {
+    const storage = new MemoryStorage();
+    const { printStops: _stops, ...old } = { ...defaultSettings().mold, screws: true, printScrews: true };
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, settings: { mode: 'slump', mold: old } }));
+    expect(loadSettings(storage).mold).toMatchObject({ screws: true, printScrews: true, printStops: true });
   });
 
   it('settings saved before the bed layout load it as auto, 15 mm, pour boxes apart, and keep the rest', () => {

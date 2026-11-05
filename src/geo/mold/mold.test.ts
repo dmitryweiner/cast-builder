@@ -397,6 +397,24 @@ describe('sanitizeMold', () => {
     expect(sanitizeMold({ screws: 1, printScrews: 'true' })).toMatchObject({ screws: false, printScrews: false });
   });
 
+  it('the stops are printed on their own; a record without them takes the screws’ choice', () => {
+    expect(defaultMold().printStops).toBe(false);
+    expect(sanitizeMold({ printScrews: false, printStops: true })).toMatchObject({ printScrews: false, printStops: true });
+    expect(sanitizeMold({ printScrews: true })).toMatchObject({ printScrews: true, printStops: true });
+    expect(sanitizeMold({ printScrews: true, printStops: 'no' })).toMatchObject({ printScrews: true, printStops: true });
+    expect(sanitizeMold({}).printStops).toBe(false);
+    const once = sanitizeMold({ printScrews: true });
+    expect(sanitizeMold(once)).toEqual(once);
+  });
+
+  it('the lugs are threaded by default; the choice takes only a boolean', () => {
+    expect(defaultMold().threadedLugs).toBe(true);
+    expect(sanitizeMold({ threadedLugs: false }).threadedLugs).toBe(false);
+    expect(sanitizeMold({ threadedLugs: 'no' }).threadedLugs).toBe(true);
+    const once = sanitizeMold({ threadedLugs: false });
+    expect(sanitizeMold(once)).toEqual(once);
+  });
+
   it('the thread fit is 0.5 mm by default, clamped to 0.2–0.7', () => {
     expect(defaultMold().threadFitMm).toBe(THREAD_FIT_MM);
     expect(THREAD_FIT_MM).toBe(0.5);

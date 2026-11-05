@@ -147,8 +147,10 @@ grooves under the mold keep the table from closing its vent.
 | Round bottom | 0–100 %   | 100     | the punch's bottom: 100 — a cap from the axis, 0 — a flat floor; the slab is nowhere thinner than set |
 | Vents        | 1–8 mm    | 2.5     | the holes in the mold and the punch                                                                   |
 | Detail       | 128–384   | 192     | the grid of the exported mold; the preview uses 128                                                   |
-| Screw clamps | on / off  | off     | lugs with a thread on the mold beside the ears, tabs with holes on the punch beside the legs          |
-| Print screws | on / off  | off     | three screws and three stops in the same STL (only with the clamps)                                   |
+| Screw clamps | on / off  | off     | lugs on the mold beside the ears, tabs with holes on the punch beside the legs                        |
+| Thread       | on / off  | on      | the lugs' holes threaded for the printed screws; off — plain, for steel bolts (only with the clamps)  |
+| Print screws | on / off  | off     | three screws in the same STL (only with the clamps and the thread)                                    |
+| Print stops  | on / off  | off     | three stops in the same STL (only with the clamps)                                                    |
 
 How to work: lay the slab on the mold and press it in by hand; cut the
 overhang to under a centimetre; lower the punch until its legs stop on the
@@ -157,32 +159,49 @@ ears; lift the punch and trim the slab along the rim.
 ### Screw clamps
 
 **Screw clamps** (a checkbox) press the punch in without a press and push
-it back off with the same screws. Beside each ear the mold gets a **lug**
-with an M10 × 2 thread through it, and beside each leg the punch gets a
-**tab** with a plain 11 mm hole over it. The ears and legs stay as they
-are: they still centre the punch and stop it at the slab's thickness.
+it back off with screws. Beside each ear the mold gets a **lug** with a hole
+through it, and beside each leg the punch gets a **tab** with a plain 11 mm
+hole over it, chamfered on top. The ears and legs stay as they are: they
+still centre the punch and stop it at the slab's thickness.
 
 Both are plain blocks: in plan a round boss round the screw joined by
 straight sides to the ear (the leg). The lug leans on the ear's cheek, its
 boss 2 mm into it, and meets the wall only by the ear; the cheek is cut
 down round the stop. Its top is exactly 10 mm under the tab of the pressed
 punch; it keeps out of the cavity and, above the ears' top, out of the clay
-hanging over the rim. Its underside slopes at 45° up away from the ear and
-is cut along the ear's own 45° slope, so **the mold prints standing without
-supports**. The thread is 12 mm (six turns) where the ear's slope holds the
-whole hole; with a thin slab or a small ear it starts higher, down to 8 mm
-(a plain bore under it). Only if it would be shorter still does the ear's
-outer face go a little lower. On a shape that widens below the rim (no
-slump mold takes it out anyway) the ear cannot hold the lug: the ring round
-the hole overhangs there. The tab is 8 mm thick from the flange's top and
-lies flat on the bed with it; over the clay it is only as thick as the
-flange.
+hanging over the rim. The tab is 8 mm thick from the flange's top and lies
+flat on the bed with it; over the clay it is only as thick as the flange.
 
-**Print screws and stops** (under it) adds three screws and three stops to
-the same STL, a column of each after the punch:
+**The landing.** The boss of a lug ends 12 mm under its top in a flat ring
+Ø18 round the hole, square to the screw: a steel washer and nut sit there,
+or the jaw of a G-clamp. Under it a Ø20 × 14 mm room is kept free (cut out
+of the ear's rib where it reaches there). Past the boss the lug's underside
+slopes at 45° up away from the ear and leans on the ear's own 45° slope,
+but the landing itself faces down: **the slicer puts supports under each
+landing**. Its height is the same on every mold, so one bolt length fits
+them all.
 
-- **screw** — M10 × 2, 38 mm under a knurled head Ø24 with a slot, the tip
-  chamfered;
+**Thread in the lugs** (on by default) cuts an M10 × 2 thread through the
+whole lug, 12 mm (six turns), for the printed screws. Off, the lug's hole
+is plain Ø11 like the tab's: a steel M10 bolt (ISO, pitch 1.5) goes through
+both, a washer and a nut on the landing. The panel names the bolt: **M10 ×
+55**, the shortest standard length through the tab (8), the gap (10), the
+lug (12), a washer (2) and a nut (8) with the punch still 8 mm up and the
+bolt a little past the nut. Without the thread **Thread fit** and **Print
+screws** are hidden.
+
+**Print screws** and **Print stops** add three screws and three stops to
+the same STL, a column of each after the punch; the line under each box
+names the sizes:
+
+- **screw** — M10 × 2 (not the ISO 1.5), 38 mm under a knurled head Ø24
+  with a slot. The first 7 mm under the head stand in the tab's plain hole
+  and are a plain neck as wide as the thread, joined to the head by a 45°
+  cone; the thread runs out into the neck, the tip is chamfered. (The second
+  test print, 2026-11-05, tore screws at the head, where the thread's root
+  met the head's flat: the neck is the fix. A set printed before fits the
+  new molds, and a new screw fits the old ones — it stands half a
+  millimetre proud on a hole without the chamfer.)
 - **stop** — a disc Ø18 × 7.5 mm with a boss Ø10.4 × 2 mm on top that
   enters the tab's hole and a conical dimple below for the screw's tip;
   9.5 mm in all, half a millimetre under the 10 mm gap, so it slides in.
@@ -190,25 +209,33 @@ the same STL, a column of each after the punch:
   tall, too tall for the gap: print the new one.)
 
 They do not depend on the model or the shrinkage — print them once and use
-them with every later mold, leaving the second box off. The pitch and the
-10 mm gap are fixed for that reason.
+them with every later mold, leaving the boxes off. The pitch and the 10 mm
+gap are fixed for that reason.
 
-**Thread fit** (shown with the clamps on) is the clearance of the threaded
+**Thread fit** (shown with the thread on) is the clearance of the threaded
 holes in the lugs, 0.5 mm by default, 0.2–0.7. If the screws go in tight,
 make it larger. It changes only the holes in the mold, never the screws, so
 a set already printed fits a mold with any fit. Like every size of the
 clamps, it is in the millimetres of the print, not grown by the shrinkage.
 
-How to work with the clamps:
+How to press, three ways:
 
-1. Slab in the mold, the punch on top. Put a screw through each tab into
-   its lug and tighten them in turn until the legs stand on the ears.
-2. To part the two: take the screws out, slide a stop into each gap on
-   the lug's seat, the boss up under the tab's hole, and turn the screws
-   into the lugs from below. The tip finds the stop's dimple and lifts it,
-   the boss goes into the tab's hole; tightened in turn, the screws lift
-   the punch evenly. The heads need about 3 cm under the lugs: stand a low
-   mold on a ring or two blocks.
+- **printed screws** — through each tab into its lug, tightened in turn
+  until the legs stand on the ears. Pressing pulls a screw in tension, the
+  weak direction of a printed part: go gently.
+- **steel bolts** (the thread off) — an M10 × 55 bolt down through the tab
+  and the lug, a washer and a nut on the landing.
+- **a G-clamp** — one jaw on the tab, the other on the landing; works with
+  the thread on or off.
+
+To part the two: take the screws out, slide a stop into each gap on the
+lug's seat, the boss up under the tab's hole, and turn the printed screws
+into the lugs from below. The tip finds the stop's dimple and lifts it, the
+boss goes into the tab's hole; tightened in turn, the screws lift the punch
+evenly (pushing is compression: the printed screws hold it). The heads need
+about 3 cm under the lugs: stand a low mold on a ring or two blocks. Without
+the thread there is nothing for a bolt from below to screw into: part by
+hand.
 
 Print the screws standing on their heads and the stops dimple down, both
 with 100 % infill or five walls or more; the threads print best at 0.2 mm

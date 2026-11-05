@@ -375,6 +375,12 @@ The set printed before is not compatible (the stop does not fit); the gap,
 the thread and the hole are unchanged, so a new set fits the old molds. An
 old punch has its tabs on the wrong side: the punch is printed again.
 
+## The second test print (2026-11-05)
+
+The screws tore at the head when pressing: see `PLAN-CLAMP-HARDWARE.md` —
+a flat landing under each lug for a steel nut or a G-clamp, the thread
+optional, the stops on their own, a plain neck under the screw's head.
+
 ## Not in this plan
 
 - Other screw sizes. (An adjustable fit came later and did not break reuse:

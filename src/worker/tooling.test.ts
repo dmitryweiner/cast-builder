@@ -9,11 +9,22 @@ import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
 import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
 import { BOSS_R_MM, EAR_MAX_MM, EAR_MIN_MM, EAR_SEAT_MM, buildSlumpShell, punchLayout } from '../geo/press';
-import { lugSolids } from '../geo/screwSolids';
+import { lugSolids, screwSolid } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from '../geo/surface';
 import { bodies } from '../geo/pieces';
-import { CLEAR_HOLE_MM, PAD, PAD_GAP_MM, SCREW, THREAD, THREAD_FIT_MAX_MM, THREAD_FIT_MM, minorRadius } from '../geo/thread';
+import {
+  CLEAR_HOLE_MM,
+  LUG_THREAD_MM,
+  NUT_ROOM,
+  PAD,
+  PAD_GAP_MM,
+  SCREW,
+  THREAD,
+  THREAD_FIT_MAX_MM,
+  THREAD_FIT_MM,
+  minorRadius,
+} from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 
 let csg: CsgApi;
@@ -198,7 +209,7 @@ describe('slumpTooling', () => {
     for (const [name, grid, slabMm, earMm] of cases) {
       const source = meshSource(placeModel(fixture(name), defaultOrientation()), grid, grid);
       const options = { ...pressOptions({ ...defaultMold(), slabMm, earMm }), screws: false };
-      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
+      const built = slumpTooling(csg, source, options, { exporting: true, printScrews: false, printStops: false });
       const layout = punchLayout(source, options, buildSlumpShell(source, options).fit);
       const top = (layout.flangeZ + layout.flangeT) * (1 + options.shrinkPct / 100);
       const scope = new CsgScope();
@@ -215,7 +226,7 @@ describe('slumpTooling with screws', () => {
   const build = (name: string, shrinkPct: number, exporting: boolean, print = true, threadFitMm = THREAD_FIT_MM) => {
     const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
     const options = { ...pressOptions({ ...defaultMold(), shrinkPct, threadFitMm }), screws: true };
-    return slumpTooling(csg, source, options, { exporting, print });
+    return slumpTooling(csg, source, options, { exporting, printScrews: print, printStops: print });
   };
   const solidOf = (scope: CsgScope, mesh: SurfaceMesh) => scope.keep(toManifold(csg, mesh));
   /** The punch as printed, turned over into its pressed place as a hand turns it: half a turn about x, never a mirror. */
@@ -236,7 +247,7 @@ describe('slumpTooling with screws', () => {
         csg,
         meshSource(placeModel(fixture(name), defaultOrientation()), N, N),
         { ...pressOptions({ ...defaultMold(), shrinkPct }), screws: false },
-        { exporting: true, print: false },
+        { exporting: true, printScrews: false, printStops: false },
       );
       expect(validateMesh(built.mold).watertight, name).toBe(true);
       expect(validateMesh(built.punch).watertight, name).toBe(true);
@@ -276,6 +287,51 @@ describe('slumpTooling with screws', () => {
     },
   );
 
+  it('without the thread a lug has a plain hole: a steel M10 bolt passes the lug and the tab; the fit changes nothing', () => {
+    const source = meshSource(placeModel(fixture('cup'), defaultOrientation()), N, N);
+    const plainHole = (threadFitMm: number) =>
+      slumpTooling(
+        csg,
+        source,
+        { ...pressOptions({ ...defaultMold(), threadFitMm, threadedLugs: false }), screws: true },
+        { exporting: true, printScrews: false, printStops: false },
+      );
+    const built = plainHole(THREAD_FIT_MM);
+    const layout = built.layout;
+    if (!layout) throw new Error('no layout');
+    const loose = plainHole(THREAD_FIT_MAX_MM).mold.positions;
+    // (toEqual on a hundred thousand numbers takes the better part of a minute)
+    expect(loose.length === built.mold.positions.length && loose.every((v, i) => v === built.mold.positions[i])).toBe(true);
+    const scope = new CsgScope();
+    const mold = solidOf(scope, built.mold);
+    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
+    for (const angle of layout.angles) {
+      const x = layout.axisMm * Math.cos(angle);
+      const y = layout.axisMm * Math.sin(angle);
+      const bolt = column(scope, x, y, THREAD.d / 2 + 0.2);
+      expect(scope.keep(mold.intersect(bolt)).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(punch.intersect(bolt)).volume()).toBeLessThan(1e-3);
+      // a plain hole, no wider than the tab's: plastic just outside it
+      expect(scope.keep(mold.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 0.15))).volume()).toBeGreaterThan(1);
+    }
+    scope.dispose();
+  });
+
+  it('a screw through the tab of the pressed punch: its neck and the cone under its head clear the hole', () => {
+    const built = build('bowl', 12, true);
+    const layout = built.layout;
+    if (!layout) throw new Error('no layout');
+    const scope = new CsgScope();
+    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
+    // the screw head up, the head's underside on the tab's top
+    const screw = scope.keep(screwSolid(csg, scope, 48).rotate([180, 0, 0]));
+    for (const angle of layout.angles) {
+      const placed = scope.keep(screw.translate([layout.axisMm * Math.cos(angle), layout.axisMm * Math.sin(angle), layout.tabTopZ + 0.01]));
+      expect(scope.keep(placed.intersect(punch)).volume()).toBeLessThan(1e-3);
+    }
+    scope.dispose();
+  });
+
   it('a stop on a seat slides under the tab of the pressed punch; lifted, its boss enters the hole', () => {
     const built = build('bowl', 12, true);
     const layout = built.layout;
@@ -311,7 +367,7 @@ describe('slumpTooling with screws', () => {
     ] as const) {
       const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
       const options = { ...pressOptions({ ...defaultMold(), slabMm }), screws: true };
-      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
+      const built = slumpTooling(csg, source, options, { exporting: true, printScrews: false, printStops: false });
       const layout = built.layout;
       if (!layout) throw new Error('no layout');
       const scope = new CsgScope();
@@ -321,10 +377,10 @@ describe('slumpTooling with screws', () => {
         const y = layout.axisMm * Math.sin(angle);
         // the tip goes from the lug's bottom to 2 mm over the seat, pushing the stop
         const shank = scope.keep(
-          csg.Manifold.cylinder(SCREW.shank, THREAD.d / 2 + 0.2, THREAD.d / 2 + 0.2, 32).translate([x, y, layout.lugBottomZ - SCREW.shank]),
+          csg.Manifold.cylinder(SCREW.shank, THREAD.d / 2 + 0.2, THREAD.d / 2 + 0.2, 32).translate([x, y, layout.landingZ - SCREW.shank]),
         );
         // the head down to the table at most: a low mold stands on blocks
-        const low = Math.max(0, layout.lugBottomZ - SCREW.shank - SCREW.headH);
+        const low = Math.max(0, layout.landingZ - SCREW.shank - SCREW.headH);
         const high = Math.max(low + 0.01, layout.seatZ + 2 - SCREW.shank);
         const head = scope.keep(csg.Manifold.cylinder(high - low, SCREW.headD / 2, SCREW.headD / 2, 48).translate([x, y, low]));
         expect(scope.keep(mold.intersect(shank)).volume(), `${name} shank`).toBeLessThan(1e-2);
@@ -334,7 +390,7 @@ describe('slumpTooling with screws', () => {
     }
   });
 
-  it('the lugs print without supports: nothing round them overhangs more than 45° or than the wall', () => {
+  it('the lugs print without supports but for the landing: nothing else round them overhangs more than 45° or than the wall', () => {
     // (not on a pot or a vase: they widen below the rim, no slump mold takes them out, and the hole's wall overhangs there)
     for (const [name, slabMm, earMm] of [
       ['bowl', 6, 8],
@@ -344,8 +400,8 @@ describe('slumpTooling with screws', () => {
     ] as const) {
       const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
       const options = { ...pressOptions({ ...defaultMold(), slabMm, earMm }), screws: true };
-      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
-      const plain = slumpTooling(csg, source, { ...options, screws: false }, { exporting: true, print: false });
+      const built = slumpTooling(csg, source, options, { exporting: true, printScrews: false, printStops: false });
+      const plain = slumpTooling(csg, source, { ...options, screws: false }, { exporting: true, printScrews: false, printStops: false });
       const layout = built.layout;
       if (!layout) throw new Error('no layout');
       const step = (2 * Math.PI) / N;
@@ -361,6 +417,13 @@ describe('slumpTooling with screws', () => {
           const cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3;
           const cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3;
           if (cz < layout.footZ - 1 || cz > layout.seatZ) continue;
+          // the landing round each hole faces down on purpose: it prints on supports
+          const onLanding =
+            Math.abs(cz - layout.landingZ) < 0.05 &&
+            layout.angles.some(
+              (angle) => Math.hypot(cx - layout.axisMm * Math.cos(angle), cy - layout.axisMm * Math.sin(angle)) < NUT_ROOM.d / 2 + 0.5,
+            );
+          if (onLanding) continue;
           const near = layout.angles.some((angle, i) => {
             const rel = wrap(Math.atan2(cy, cx) - layout.ears[i]);
             const far = angle - layout.ears[i] + Math.asin((BOSS_R_MM + 1.5) / layout.axisMm);
@@ -377,6 +440,40 @@ describe('slumpTooling with screws', () => {
         return most;
       };
       expect(worst(built.mold), name).toBeLessThan(Math.max(worst(plain.mold), Math.SQRT1_2) + 0.02);
+    }
+  });
+
+  it('a flat landing round the exit of each hole, 12 mm under the seat, and room under it for a washer and a nut', () => {
+    for (const [name, slabMm] of [
+      ['bowl', 6],
+      ['cup', 3],
+      ['cup', 6],
+      ['vase', 10],
+    ] as const) {
+      const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
+      const options = { ...pressOptions({ ...defaultMold(), slabMm }), screws: true };
+      const built = slumpTooling(csg, source, options, { exporting: true, printScrews: false, printStops: false });
+      const layout = built.layout;
+      if (!layout) throw new Error('no layout');
+      expect(layout.seatZ - layout.landingZ).toBeCloseTo(LUG_THREAD_MM, 9);
+      const scope = new CsgScope();
+      const mold = solidOf(scope, built.mold);
+      const inner = THREAD.d / 2 + layout.fitMm + 0.2;
+      const outer = BOSS_R_MM - 0.2;
+      const ring = scope.keep(
+        scope.keep(csg.Manifold.cylinder(0.5, outer, outer, 96)).subtract(scope.keep(csg.Manifold.cylinder(0.5, inner, inner, 96))),
+      );
+      const room = scope.keep(csg.Manifold.cylinder(NUT_ROOM.h, NUT_ROOM.d / 2, NUT_ROOM.d / 2, 96));
+      for (const angle of layout.angles) {
+        const x = layout.axisMm * Math.cos(angle);
+        const y = layout.axisMm * Math.sin(angle);
+        // just over the landing the ring is plastic all round; under it nothing, the ear included
+        const over = scope.keep(ring.translate([x, y, layout.landingZ + 0.01]));
+        expect(scope.keep(mold.intersect(over)).volume(), `${name} slab ${slabMm}`).toBeGreaterThan(over.volume() * 0.99);
+        const under = scope.keep(room.translate([x, y, layout.landingZ - NUT_ROOM.h - 0.01]));
+        expect(scope.keep(mold.intersect(under)).volume(), `${name} slab ${slabMm}`).toBeLessThan(1e-2);
+      }
+      scope.dispose();
     }
   });
 
@@ -398,17 +495,28 @@ describe('slumpTooling with screws', () => {
 
   it('runJob: the mold and the punch, the screws and the stops when they are printed — the app lays them out in one STL', () => {
     const settings = defaultSettings();
-    const job = (screws: boolean, printScrews: boolean): ToolingJob =>
-      jobFor('cup', { mode: 'slump', kind: 'export', resolution: 128, mold: { ...settings.mold, screws, printScrews } });
+    const job = (screws: boolean, printScrews: boolean, printStops = printScrews, threadedLugs = true): ToolingJob =>
+      jobFor('cup', {
+        mode: 'slump',
+        kind: 'export',
+        resolution: 128,
+        mold: { ...settings.mold, screws, printScrews, printStops, threadedLugs },
+      });
+    const ids = (built: ToolingJob) => runJob(csg, built).parts.map((part) => part.id);
     const labels: string[] = [];
     const printed = runJob(csg, job(true, true), (progress) => labels.push(progress.label.code));
     expect(labels).toEqual(['progress.slump', 'progress.screws', 'progress.punch', 'progress.checkMeshes']);
     expect(printed.parts.map((part) => part.id)).toEqual(['slump', 'punch', 'screws', 'stops']);
     expect(printed.parts.flatMap((part) => part.blocking)).toEqual([]);
     expect(printed.parts.map((part) => bodies(part))).toEqual([1, 1, 3, 3]);
-    expect(runJob(csg, job(true, false)).parts.map((part) => part.id)).toEqual(['slump', 'punch']);
-    // the screws are printed only with the clamps
-    expect(runJob(csg, job(false, true)).parts.map((part) => part.id)).toEqual(['slump', 'punch']);
+    expect(ids(job(true, false))).toEqual(['slump', 'punch']);
+    // the screws and the stops each on their own
+    expect(ids(job(true, true, false))).toEqual(['slump', 'punch', 'screws']);
+    expect(ids(job(true, false, true))).toEqual(['slump', 'punch', 'stops']);
+    // printed screws need the thread: without it the stops only
+    expect(ids(job(true, true, true, false))).toEqual(['slump', 'punch', 'stops']);
+    // nothing is printed without the clamps
+    expect(ids(job(false, true))).toEqual(['slump', 'punch']);
   });
 
   it('a preview: the lugs and the tabs are laid over the mold and the punch unfused', () => {
@@ -417,7 +525,7 @@ describe('slumpTooling with screws', () => {
       csg,
       meshSource(placeModel(fixture('cup'), defaultOrientation()), N, N),
       { ...pressOptions(defaultMold()), screws: false },
-      { exporting: false, print: false },
+      { exporting: false, printScrews: false, printStops: false },
     );
     expect(bodies(built.mold)).toBe(4);
     expect(bodies(built.punch)).toBe(4);
@@ -432,7 +540,7 @@ describe('slumpTooling with screws', () => {
     ] as const) {
       const source = meshSource(placeModel(fixture(name), defaultOrientation()), N, N);
       const options = { ...pressOptions({ ...defaultMold(), slabMm }), screws: true };
-      const built = slumpTooling(csg, source, options, { exporting: true, print: false });
+      const built = slumpTooling(csg, source, options, { exporting: true, printScrews: false, printStops: false });
       const layout = built.layout;
       if (!layout) throw new Error('no layout');
       const scope = new CsgScope();

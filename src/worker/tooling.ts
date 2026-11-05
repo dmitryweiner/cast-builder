@@ -14,7 +14,7 @@ import { meshSource } from '../geo/revolve';
 import { buildPunch, buildSlumpShell, pressWarnings, screwLayout } from '../geo/press';
 import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
-import { cheekCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
+import { moldCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
 import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
@@ -101,6 +101,7 @@ export function pressOptions(mold: MoldState): PressOptions {
     roundPct: mold.punchRoundPct,
     screws: mold.screws,
     fitMm: mold.threadFitMm,
+    threaded: mold.threadedLugs,
   };
 }
 
@@ -129,7 +130,7 @@ export function slumpTooling(
   csg: CsgApi,
   source: PressSource,
   options: PressOptions,
-  { exporting, print }: { exporting: boolean; print: boolean },
+  { exporting, printScrews, printStops }: { exporting: boolean; printScrews: boolean; printStops: boolean },
 ): SlumpTooling {
   const slump = buildSlumpShell(source, options);
   const punch = buildPunch(source, options, slump.fit);
@@ -141,21 +142,24 @@ export function slumpTooling(
     const lugs = lugSolids(csg, scope, layout, n);
     const tabs = tabSolids(csg, scope, layout);
     // An export fuses the lugs and tabs on; a preview lays them over. The
-    // cheeks cut round the stops cannot be laid over: there a preview pays
-    // for the shell's import too.
+    // cheeks cut round the stops and the room under the landings cannot be
+    // laid over: there a preview pays for the shell's import too.
     const fuse = (mesh: SurfaceMesh, extra: Manifold, cuts: Manifold | null = null): SurfaceMesh => {
       if (!exporting && !cuts) return mergeMeshes([mesh, fromManifold(extra)]);
       const solid = scope.keep(toManifold(csg, mesh));
       const cut = cuts ? scope.keep(solid.subtract(cuts)) : solid;
       return exporting ? fromManifold(scope.keep(cut.add(extra))) : mergeMeshes([fromManifold(cut), fromManifold(extra)]);
     };
-    const mold = fuse(slump.mesh, lugs, cheekCuts(csg, scope, layout));
+    const mold = fuse(slump.mesh, lugs, moldCuts(csg, scope, layout));
     const holed = fuse(punch, tabs);
-    if (!print) return { mold, punch: holed, screws: [], pads: [], layout };
-    const screw = fromManifold(scope.keep(screwSolid(csg, scope, n).translate([0, 0, SCREW_HEAD_UP])));
-    const pad = fromManifold(padSolid(csg, scope, n));
     const count = layout.angles.length;
-    return { mold, punch: holed, screws: Array(count).fill(screw), pads: Array(count).fill(pad), layout };
+    // printed screws need the thread; the stops serve a steel bolt too
+    const screws =
+      printScrews && options.threaded
+        ? Array(count).fill(fromManifold(scope.keep(screwSolid(csg, scope, n).translate([0, 0, SCREW_HEAD_UP]))))
+        : [];
+    const pads = printStops ? Array(count).fill(fromManifold(padSolid(csg, scope, n))) : [];
+    return { mold, punch: holed, screws, pads, layout };
   } finally {
     scope.dispose();
   }
@@ -179,7 +183,7 @@ function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
   progress.next({ code: 'progress.slump' });
   const source = meshSource(job.model, segments, segments);
   progress.next({ code: options.screws ? 'progress.screws' : 'progress.punch' });
-  const built = slumpTooling(csg, source, options, { exporting, print: job.mold.printScrews });
+  const built = slumpTooling(csg, source, options, { exporting, printScrews: job.mold.printScrews, printStops: job.mold.printStops });
   if (options.screws) progress.next({ code: 'progress.punch' });
   const pieces: [string, SurfaceMesh[]][] = [
     ['slump', [built.mold]],

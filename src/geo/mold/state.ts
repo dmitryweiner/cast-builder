@@ -26,10 +26,14 @@ export interface MoldState {
   ventMm: number;
   /** screw clamps on the slump mold: lugs with threaded holes beside the ears, tabs of the punch with plain ones */
   screws: boolean;
-  /** the screws and stops for them in the same file — they are reusable, printed once */
+  /** the screws in the same file — they are reusable, printed once; only with the thread */
   printScrews: boolean;
+  /** the stops in the same file, on their own: they serve a steel bolt too */
+  printStops: boolean;
   /** radial clearance of the lugs' threaded holes, mm of the print: the screws stay the same */
   threadFitMm: number;
+  /** the lugs' holes threaded for the printed screws; off — plain, for a steel M10 bolt and a nut */
+  threadedLugs: boolean;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -57,7 +61,9 @@ export function defaultMold(): MoldState {
     ventMm: VENT_MM,
     screws: false,
     printScrews: false,
+    printStops: false,
     threadFitMm: THREAD_FIT_MM,
+    threadedLugs: true,
   };
 }
 
@@ -69,6 +75,7 @@ export function sanitizeMold(raw: unknown): MoldState {
   const fallback = defaultMold();
   const source: Record<string, unknown> = typeof raw === 'object' && raw !== null ? { ...raw } : {};
   const plasterMm = clamp(num(source.plasterMm, fallback.plasterMm), PLASTER_MIN_MM, PLASTER_MAX_MM);
+  const printScrews = typeof source.printScrews === 'boolean' ? source.printScrews : fallback.printScrews;
   return {
     shrinkPct: clamp(num(source.shrinkPct, fallback.shrinkPct), 0, SHRINK_MAX_PCT),
     plasterMm,
@@ -83,7 +90,10 @@ export function sanitizeMold(raw: unknown): MoldState {
     punchRoundPct: clamp(num(source.punchRoundPct, fallback.punchRoundPct), 0, 100),
     ventMm: clamp(num(source.ventMm, fallback.ventMm), VENT_MIN_MM, VENT_MAX_MM),
     screws: typeof source.screws === 'boolean' ? source.screws : fallback.screws,
-    printScrews: typeof source.printScrews === 'boolean' ? source.printScrews : fallback.printScrews,
+    printScrews,
+    // a record from before the stops had a box of their own printed them with the screws
+    printStops: typeof source.printStops === 'boolean' ? source.printStops : printScrews,
     threadFitMm: clamp(num(source.threadFitMm, fallback.threadFitMm), THREAD_FIT_MIN_MM, THREAD_FIT_MAX_MM),
+    threadedLugs: typeof source.threadedLugs === 'boolean' ? source.threadedLugs : fallback.threadedLugs,
   };
 }

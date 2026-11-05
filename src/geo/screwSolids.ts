@@ -7,14 +7,12 @@ import type { CsgApi, CsgScope } from './csg';
 import type { ScrewLayout } from './press';
 import { BOSS_R_MM } from './press';
 import type { ThreadForm } from './thread';
-import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_SLICES, threadSection } from './thread';
+import { CLEAR_HOLE_MM, NUT_ROOM, PAD, SCREW, THREAD, THREAD_SLICES, minorRadius, threadSection } from './thread';
 
 /** Segments of a full turn for the cavity a lug keeps out of and the columns cut off it. */
 const ROUND_SEGMENTS = 192;
 /** Segments of a boss. */
 const BOSS_SEGMENTS = 48;
-/** The plain bore under a lug's thread is this much wider than the thread's hole, mm. */
-const BORE_CLEAR_MM = 0.3;
 
 /**
  * A threaded rod from z0 to z1 along z: the thread's section extruded with
@@ -33,8 +31,11 @@ export function threadRod(csg: CsgApi, scope: CsgScope, form: ThreadForm, grow: 
  * The printed screw in its own frame: the head from z = −headH to 0, the
  * shank from 0 to `shank`. The head is knurled for the fingers and slotted
  * for a screwdriver or a coin (the slot is at its outer end, on the bed
- * when it prints standing on its head); the tip is chamfered at 45° to find
- * the thread and to sit in the stop's dimple.
+ * when it prints standing on its head). Under the head a plain neck as
+ * wide as the thread, joined to the head by a 45° cone: the first print
+ * tore at the head, where the thread's root met the head's flat. The neck
+ * stands in the tab's plain hole; the thread runs out into it at 45°. The
+ * tip is chamfered at 45° to find the thread and to sit in the stop's dimple.
  */
 export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
   const R = THREAD.d / 2;
@@ -57,25 +58,30 @@ export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
   );
   const head = scope.keep(headSolid.subtract(slot));
 
-  // the thread starts inside the head, so the two never meet on a plane
+  const revolved = (points: [number, number][]): Manifold => scope.keep(scope.keep(new csg.CrossSection([points], 'Positive')).revolve(n));
+  const minor = minorRadius(THREAD);
+  const runOut = SCREW.neck + R - minor;
+  const neck = revolved([
+    [0, -0.5],
+    [R + 1, -0.5],
+    [R + 1, 0],
+    [R, 1],
+    [R, SCREW.neck],
+    [minor, runOut],
+    [0, runOut],
+  ]);
+  // the thread from half a millimetre into the run-out: its crests never lie on the neck's surface
   const thread = threadRod(csg, scope, THREAD, 0, -0.5, SCREW.shank, n);
   const chamfer = R + 0.5 - SCREW.tipR;
-  const outline = scope.keep(
-    new csg.CrossSection(
-      [
-        [
-          [0, -1],
-          [R + 0.5, -1],
-          [R + 0.5, SCREW.shank - chamfer],
-          [SCREW.tipR, SCREW.shank],
-          [0, SCREW.shank],
-        ],
-      ],
-      'Positive',
-    ),
-  );
-  const shank = scope.keep(thread.intersect(scope.keep(outline.revolve(n))));
-  return scope.keep(head.add(shank));
+  const outline = revolved([
+    [0, SCREW.neck + 0.5],
+    [R + 0.5, SCREW.neck + 0.5],
+    [R + 0.5, SCREW.shank - chamfer],
+    [SCREW.tipR, SCREW.shank],
+    [0, SCREW.shank],
+  ]);
+  const shank = scope.keep(thread.intersect(outline));
+  return scope.keep(csg.Manifold.union([head, neck, shank]));
 }
 
 /**
@@ -130,10 +136,12 @@ function column(csg: CsgApi, scope: CsgScope, radius: number, z0: number, z1: nu
 
 /**
  * The lugs of the mold, one beside each ear (screwLayout): in plan the hull
- * of the boss and of the cheek's side down into the wall; the underside
- * rising at 45° away from the ear and kept within the ear's outline widened
- * at 45°, so it prints without supports; cut back off the cavity and off
- * the clay over the rim, with a threaded hole through it.
+ * of the boss and of the cheek's side down into the wall; past the boss the
+ * underside rises at 45° away from the ear and is kept within the ear's
+ * outline widened at 45°, so it prints without supports; the boss comes
+ * down to the flat landing (on supports) with room for a nut under it. Cut
+ * back off the cavity and off the clay over the rim, with a threaded hole
+ * through it.
  */
 export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: number): Manifold {
   const z0 = Math.max(0, layout.footZ - 1);
@@ -158,12 +166,10 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   ];
   const cavity = scope.keep(scope.keep(new csg.CrossSection([section], 'Positive')).revolve(ROUND_SEGMENTS));
   const clay = column(csg, scope, layout.seatInMm, layout.shelfZ, z1 + 1);
-  // The thread is whole from threadZ up; under it, where the slanted
-  // underside opens the hole, a plain bore: a slanted cut through the thread
-  // left arches of its teeth hanging over the opening.
-  const thread = threadRod(csg, scope, THREAD, layout.fitMm, layout.threadZ - 0.5, z1, n);
-  const bore = column(csg, scope, THREAD.d / 2 + layout.fitMm + BORE_CLEAR_MM, z0 - 1, layout.threadZ, BOSS_SEGMENTS);
-  const rod = scope.keep(thread.add(bore));
+  // the thread leaves the lug through the flat landing: whole teeth, no arches over a slanted cut
+  const rod = layout.threaded
+    ? threadRod(csg, scope, THREAD, layout.fitMm, layout.landingZ - 1, z1, n)
+    : column(csg, scope, layout.holeMm, layout.landingZ - 1, z1, Math.round(ROUND_SEGMENTS / 6));
   const support = scope.keep(
     scope.keep(new csg.CrossSection([layout.support.map(({ r, z }): [number, number] => [r, z])], 'Positive')).revolve(ROUND_SEGMENTS),
   );
@@ -175,36 +181,53 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
     const normal: [number, number, number] = [Math.sin(sideAngle) / Math.SQRT2, -Math.cos(sideAngle) / Math.SQRT2, Math.SQRT1_2];
     return scope.keep(prism(scope, footprint, z0, layout.seatZ).trimByPlane(normal, layout.footZ / Math.SQRT2));
   });
-  const holes = layout.angles.map((angle) => scope.keep(rod.translate([...polar(layout.axisMm, angle), 0])));
+  const at = (solid: Manifold, angle: number): Manifold => scope.keep(solid.translate([...polar(layout.axisMm, angle), 0]));
+  const holes = layout.angles.map((angle) => at(rod, angle));
+  const boss = column(csg, scope, BOSS_R_MM, layout.landingZ, layout.seatZ, BOSS_SEGMENTS);
+  const bosses = layout.angles.map((angle) => at(boss, angle));
   const leaning = scope.keep(scope.keep(csg.Manifold.union(lugs)).intersect(support));
-  return scope.keep(csg.Manifold.difference([leaning, cavity, clay, ...holes]));
+  const whole = scope.keep(csg.Manifold.union([leaning, ...bosses]));
+  return scope.keep(csg.Manifold.difference([whole, cavity, clay, ...holes, ...nutRooms(csg, scope, layout)]));
+}
+
+/** The room kept free under each landing for a washer and a nut: the polygon round the circle, not in it. */
+function nutRooms(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold[] {
+  const r = NUT_ROOM.d / 2 / Math.cos(Math.PI / BOSS_SEGMENTS);
+  const room = column(csg, scope, r, layout.landingZ - NUT_ROOM.h, layout.landingZ, BOSS_SEGMENTS);
+  return layout.angles.map((angle) => scope.keep(room.translate([...polar(layout.axisMm, angle), 0])));
 }
 
 /**
- * What is cut off the mold round each stop: the ear's cheek rises above the
- * seat, and the boss stands in it. null when the cheeks end below the seat.
+ * What is cut off the mold round each lug: the ear's cheek round the stop
+ * (it rises above the seat, and the boss stands in it), and the ear's rib
+ * where it reaches into the room under the landing.
  */
-export function cheekCuts(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold | null {
+export function moldCuts(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold {
+  const cuts = nutRooms(csg, scope, layout);
   const top = layout.cheekZ + 2;
-  if (top <= layout.seatZ) return null;
-  const r = PAD.d / 2 + 0.5;
-  return scope.keep(
-    csg.Manifold.union(
-      layout.angles.map((angle) => column(csg, scope, r, layout.seatZ, top).translate([...polar(layout.axisMm, angle), 0])),
-    ),
-  );
+  if (top > layout.seatZ) {
+    const r = PAD.d / 2 + 0.5;
+    for (const angle of layout.angles)
+      cuts.push(scope.keep(column(csg, scope, r, layout.seatZ, top).translate([...polar(layout.axisMm, angle), 0])));
+  }
+  return scope.keep(csg.Manifold.union(cuts));
 }
 
 /**
  * The tabs of the punch, as printed (flange down): each the hull of the boss
  * and of points in the leg's side and in the flange's ring, TAB_T_MM thick
- * from the flange's top, with a plain hole. Over the clay it is cut up to the
+ * from the flange's top, with a plain hole chamfered for the screw's neck. Over the clay it is cut up to the
  * flange's underside; over the slot and the cheeks of the ear — up past the
  * cheeks' top, when a thin slab brings the tab that low.
  */
 export function tabSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold {
   const clay = column(csg, scope, layout.seatInMm, layout.tabBottomZ - 1, layout.flangeZ);
-  const hole = column(csg, scope, CLEAR_HOLE_MM / 2, layout.tabBottomZ - 1, layout.tabTopZ + 1, Math.round(ROUND_SEGMENTS / 6));
+  const segments = Math.round(ROUND_SEGMENTS / 6);
+  const bore = column(csg, scope, CLEAR_HOLE_MM / 2, layout.tabBottomZ - 1, layout.tabTopZ + 1, segments);
+  // a 45° chamfer at the top takes the cone under the screw's head
+  const r = CLEAR_HOLE_MM / 2;
+  const chamfer = scope.keep(csg.Manifold.cylinder(1.5, r, r + 1.5, segments).translate([0, 0, layout.tabTopZ - 1]));
+  const hole = scope.keep(bore.add(chamfer));
   const notchTop = layout.cheekZ + 1;
   const inLeg = layout.legSide / 3;
   const tabs = layout.angles.map((angle, i) => {

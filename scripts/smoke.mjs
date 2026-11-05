@@ -1,7 +1,8 @@
 // Browser smoke of the real app: the sample model through every mode, its
 // thumbnail, an STL opened from a file (a hollow print gets filled), a
 // slump mold with screw clamps (their thread fit) and its printed screws and
-// stops, the parts laid out on the bed and pour boxes in one file, the
+// stops with their sizes named, a slump mold for steel bolts (plain holes,
+// stops only), the parts laid out on the bed and pour boxes in one file, the
 // project kept over a reload and Reset,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
 // the model turned and spun by a preset, language detection and memory, the
@@ -217,8 +218,11 @@ try {
     check((await page.locator('#mold_threadFit').inputValue()) === '0.5', 'the thread fit is not 0.5 mm at first');
     await page.fill('#mold_threadFit', '0.6');
     await page.check('#mold_printScrews');
+    await page.check('#mold_printStops');
+    const note = (await page.locator('#mold_printScrews_note').textContent()) ?? '';
+    check(note.startsWith('M10 × 2') && note.includes('38 mm'), `the screw's note: ${note}`);
     const listed = await parts(page, 4);
-    check(listed[2].startsWith('Screws') && listed[3].startsWith('Stops'), `slump: ${listed.join(' | ')}`);
+    check(listed[2].startsWith('Screws M10 × 2, 38 mm') && listed[3].startsWith('Stops Ø18'), `slump: ${listed.join(' | ')}`);
     // the layout is the main thread's: a row is wider than deep, at once, with no new build
     const footprint = async () =>
       (await page.locator('#bedNote').textContent())
@@ -241,6 +245,30 @@ try {
     check(downloads[0].suggestedFilename() === 'bowl-slump.stl', `file named ${downloads[0].suggestedFilename()}`);
     const pieces = stlBodies(readFileSync(await downloads[0].path()));
     check(pieces === 8, `${pieces} pieces in the STL instead of mold, punch, 3 screws and 3 stops`);
+    await context.close();
+  });
+
+  await step('a slump mold for steel bolts: plain holes, the bolt to buy named, the stops printed alone', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('cup'));
+    await mode(page, '#tabSlump', 2);
+    await page.check('#mold_screws');
+    check(!(await page.locator('#mold_threadedLugs_note').isVisible()), 'the steel is named with the thread on');
+    await page.uncheck('#mold_threadedLugs');
+    const bolt = (await page.locator('#mold_threadedLugs_note').textContent()) ?? '';
+    check(bolt.includes('M10 × 55'), `the bolt's note: ${bolt}`);
+    check(!(await page.locator('#mold_printScrews').isVisible()), 'printed screws are offered without the thread');
+    check(!(await page.locator('#mold_threadFit').isVisible()), 'the thread fit is shown without the thread');
+    await page.check('#mold_printStops');
+    const listed = await parts(page, 3);
+    check(listed[2].startsWith('Stops'), `slump: ${listed.join(' | ')}`);
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    await page.click('#exportBtn');
+    await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    const pieces = stlBodies(readFileSync(await downloads[0].path()));
+    check(pieces === 5, `${pieces} pieces in the STL instead of mold, punch and 3 stops`);
     await context.close();
   });
 

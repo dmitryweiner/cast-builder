@@ -54,29 +54,37 @@ export const PAD_GAP_MM = 10;
 /**
  * Thread in a lug under its seat, mm: six turns. A lug is that high, so it is
  * kept short — 16 mm (one and a half diameters) cost a third more plastic.
+ * Its bottom is a flat landing for a steel nut or a clamp's jaw, the same
+ * height under the seat on every mold.
  */
 export const LUG_THREAD_MM = 12;
 
 /**
- * The least thread in a lug, mm: where the ear's 45° slope cannot hold the
- * whole hole 12 mm down (a thin slab, a small ear) the thread starts higher,
- * and below this the ear's face goes lower instead (press.ts, earShortfall).
+ * Room kept free under a lug's landing, mm: a DIN 125 washer M10 is Ø20, a
+ * nut of 17 across flats 19.6 across its corners; a washer 2, a nut 8 and
+ * four of the bolt past it.
  */
-export const LUG_THREAD_MIN_MM = 8;
+export const NUT_ROOM = { d: 20, h: 14 } as const;
+
+/** How far the punch is still up while the clay is pressed, mm: a screw or a bolt bites from there. */
+export const TRAVEL_MM = 8;
 
 /**
- * The printed screw: a knurled thumb head with a slot, the threaded shank
- * from under the head to the tip, the tip chamfered at 45° down to `tipR`.
- * The shank is the tab, the gap and the lug's thread with 8 mm of travel:
- * the first test print found 45 mm 15 % longer than needed.
+ * The printed screw: a knurled thumb head with a slot, the shank from under
+ * the head to the tip, the tip chamfered at 45° down to `tipR`. The shank is
+ * the tab, the gap and the lug's thread with 8 mm of travel: the first test
+ * print found 45 mm 15 % longer than needed. Its first `neck` mm stand in
+ * the tab's plain hole and are plain, as wide as the thread: the second
+ * print tore the screws at the head, where the thread's root met the head.
  */
 export const SCREW = {
   headD: 24,
   headH: 10,
-  shank: TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + 8,
+  shank: TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + TRAVEL_MM,
   slotW: 2.6,
   slotDepth: 4,
   tipR: 3.5,
+  neck: 7,
 } as const;
 
 /** The stop's boss, mm: half a millimetre lower than the gap with it, so the stop slides in. */
@@ -98,6 +106,23 @@ export const PAD = {
   dimpleD: 9,
   dimpleDepth: 2,
 } as const;
+
+/** Steel for a lug without the thread, mm: a DIN 125 washer, a DIN 934 nut, the bolt a little past it. */
+export const STEEL = { washerT: 2, nutM: 8, past: 3 } as const;
+
+/** ISO 4017 lengths of an M10 bolt, mm. */
+const BOLT_LENGTHS = [40, 45, 50, 55, 60, 65, 70, 80, 90, 100];
+
+/**
+ * The steel bolt for a lug without the thread: the shortest standard one that
+ * goes through the tab, the gap and the lug, the washer and the nut on the
+ * landing with the punch still up by the travel. One for every mold: the
+ * landing is always LUG_THREAD_MM under the seat.
+ */
+export const STEEL_BOLT_MM = ((): number => {
+  const needed = TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + TRAVEL_MM + STEEL.washerT + STEEL.nutM + STEEL.past;
+  return BOLT_LENGTHS.find((length) => length >= needed) ?? BOLT_LENGTHS[BOLT_LENGTHS.length - 1];
+})();
 
 export function minorRadius(form: ThreadForm): number {
   return form.d / 2 - form.depth * form.pitch;
