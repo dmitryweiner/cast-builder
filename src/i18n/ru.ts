@@ -61,6 +61,10 @@ export const ru: Messages = {
   'split.axis.z': 'Z — горизонтально',
   'split.pct': 'Положение плоскости',
   'split.pct.hint': 'где плоскость режет изделие, % его размера вдоль оси',
+  'split.find': 'Найти плоскость',
+  'split.find.hint': 'ищет положение плоскости и, для вертикальной, поворот модели с самым мелким поднутрением; несколько секунд',
+  'split.finding': 'ищу плоскость…',
+  'split.found': 'Найдено: модель повёрнута на {spin}°, плоскость на {pct} %, поднутрение {mm} мм.',
   'catch.note': 'Поднутрения — {list}; допустимо {limit} мм.',
   'catch.part': '{part}: {mm} мм',
 
@@ -181,6 +185,7 @@ export const ru: Messages = {
   'progress.release': 'проверка поднутрений',
   'progress.tile': 'форма плитки',
   'progress.split': 'половина {i} из {n}',
+  'progress.find': 'поиск плоскости: {i} из {n}',
   'progress.preview': 'сборка оснастки…',
   'progress.export': 'сборка…',
 

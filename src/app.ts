@@ -159,7 +159,10 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const modelNote = el('modelNote', HTMLParagraphElement);
   const modelControls = el('modelControls', HTMLDivElement);
   const toolingControls = el('toolingControls', HTMLDivElement);
+  const splitCard = el('splitCard', HTMLDivElement);
   const splitControlsEl = el('splitControls', HTMLDivElement);
+  const findBtn = el('findBtn', HTMLButtonElement);
+  const findNote = el('findNote', HTMLParagraphElement);
   const mouthCard = el('mouthCard', HTMLElement);
   const mouthControls = el('mouthControls', HTMLDivElement);
   const mouthNote = el('mouthNote', HTMLParagraphElement);
@@ -218,6 +221,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let exporting = false;
+  let finding = false;
   let readError = '';
 
   // ---- controls ----
@@ -391,7 +395,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     for (const row of rows) row.sync();
     for (const tab of TABS) el(tab.id, HTMLButtonElement).setAttribute('aria-selected', String(tab.mode(settings) === settings.mode));
     mouthCard.hidden = settings.mode !== 'master' && settings.mode !== 'bath';
-    splitControlsEl.hidden = settings.mode !== 'split';
+    splitCard.hidden = settings.mode !== 'split';
+    findBtn.disabled = model === null || finding;
     // a master and a tile mold are one part: nothing to lay out
     bedCard.hidden = settings.mode === 'master' || settings.mode === 'tile';
     emptyEl.hidden = model !== null;
@@ -486,6 +491,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   }
 
   function setSetup(next: Setup): void {
+    // what Find said is about the setup it left
+    findNote.textContent = '';
     const turned = next.orientation !== setup.orientation;
     setup = sanitizeSetup(next);
     save();
@@ -524,6 +531,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   /** A model in hand, read from a file or kept by the last visit, with its setup. */
   function openModel(name: string, raw: IndexedMesh, start: Setup): void {
     readError = '';
+    findNote.textContent = '';
     setup = start;
     model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
@@ -625,6 +633,37 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     }
   }
 
+  /** Find: the worker looks for the plane, the setup takes the spin and the position it found. */
+  async function runFind(): Promise<void> {
+    const current = model;
+    if (!current || finding) return;
+    finding = true;
+    findBtn.disabled = true;
+    try {
+      const result = await progress.track((onProgress) => client.run(job('find', current), onProgress), {
+        label: 'split.finding',
+        delayMs: 0,
+      });
+      if (!result || current !== model) return;
+      const { found } = result;
+      if (!found) {
+        findNote.textContent = result.info.blocking.map(tm).join('\n');
+        return;
+      }
+      setSetup({
+        ...setup,
+        orientation: { ...setup.orientation, spinDeg: (setup.orientation.spinDeg + found.spinDeg) % 360 },
+        split: { ...setup.split, pct: found.pct },
+      });
+      findNote.textContent = t('split.found', { spin: found.spinDeg, pct: found.pct, mm: found.depthMm.toFixed(1) });
+    } catch (error) {
+      findNote.textContent = t('error.build', { error: message(error) });
+    } finally {
+      finding = false;
+      findBtn.disabled = model === null;
+    }
+  }
+
   // ---- events ----
 
   for (const tab of TABS) {
@@ -681,6 +720,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     openFile(event.dataTransfer?.files[0]);
   });
   exportBtn.addEventListener('click', () => void runExport());
+  findBtn.addEventListener('click', () => void runFind());
   localeSelect.addEventListener('change', () => {
     const value = localeSelect.value;
     if (!isLocale(value)) return;

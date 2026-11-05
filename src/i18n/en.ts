@@ -66,6 +66,11 @@ export const en = {
   'split.axis.z': 'Z — level',
   'split.pct': 'Plane at',
   'split.pct.hint': 'where the plane cuts the piece, % of its size along the axis',
+  'split.find': 'Find the plane',
+  'split.find.hint':
+    'looks for the position of the plane and, for an upright one, the spin of the model with the shallowest undercut; a few seconds',
+  'split.finding': 'looking for the plane…',
+  'split.found': 'Found: the model spun by {spin}°, the plane at {pct} %, undercut {mm} mm.',
   'catch.note': 'Undercuts — {list}; allowed {limit} mm.',
   'catch.part': '{part}: {mm} mm',
 
@@ -187,6 +192,7 @@ export const en = {
   'progress.release': 'undercut check',
   'progress.tile': 'tile mold',
   'progress.split': 'half {i} of {n}',
+  'progress.find': 'looking for the plane: {i} of {n}',
   'progress.preview': 'building the tooling…',
   'progress.export': 'building…',
 

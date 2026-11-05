@@ -47,7 +47,8 @@ export type MessageCode =
   | 'progress.part'
   | 'progress.release'
   | 'progress.tile'
-  | 'progress.split';
+  | 'progress.split'
+  | 'progress.find';
 
 export interface Message {
   code: MessageCode;

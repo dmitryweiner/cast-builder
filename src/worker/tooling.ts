@@ -20,11 +20,13 @@ import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
 import type { Axis, RayMesh } from '../geo/release';
+import type { RimCut } from '../geo/split/rim';
 import { rimCut } from '../geo/split/rim';
+import { findPlane } from '../geo/split/find';
 import { turnForPrint } from '../geo/split/shell';
 import { SPLIT_LAND_MM, buildHalf } from '../geo/split';
 import { meshNormals } from '../geo/normals';
-import { castRays, releaseDepth } from '../geo/release';
+import { castRays, releaseCell, releaseDepth } from '../geo/release';
 import { buildTileMold, TILE_PROUD_MM } from '../geo/tile';
 import { sizeOf } from '../geo/model';
 import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
@@ -60,7 +62,7 @@ export function sanitizeJob(raw: unknown): ToolingJob | null {
   const settings = sanitizeSettings(source);
   const setup = sanitizeSetup(source);
   return {
-    kind: source.kind === 'export' ? 'export' : 'preview',
+    kind: source.kind === 'export' || source.kind === 'find' ? source.kind : 'preview',
     model: { positions, indices },
     mode: settings.mode,
     mold: settings.mold,
@@ -96,21 +98,12 @@ export function runJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobP
   if (pieces > 1) return { parts: [], info: { ...emptyInfo(), blocking: [{ code: 'model.pieces', params: { n: pieces } }] } };
   if (job.mode === 'slump') return slumpJob(csg, job, onProgress);
   if (job.mode === 'tile') return tileJob(csg, job, onProgress);
-  if (job.mode === 'split') return splitJob(csg, job, onProgress);
+  if (job.mode === 'split') return job.kind === 'find' ? findJob(csg, job, onProgress) : splitJob(csg, job, onProgress);
   return moldJob(csg, job, onProgress);
 }
 
 function emptyInfo(): JobInfo {
   return { status: null, mouth: null, rimMm: null, scheme: null, reason: [], warnings: [], blocking: [], catches: [] };
-}
-
-/**
- * The cell of the release check, mm: a share of the piece's size — a
- * keychain's relief is a millimetre and a half, a vase is 120 mm tall —
- * finer in an export.
- */
-export function releaseCell(extentMm: number, exporting: boolean): number {
-  return Math.min(1, Math.max(0.25, extentMm / (exporting ? 240 : 160)));
 }
 
 /** The placed model grown by the shrinkage, as the release check reads it. */
@@ -286,6 +279,39 @@ const SPLIT_AXIS: Record<SplitChoice['axis'], Axis> = { x: 0, y: 1, z: 2 };
  * and the shell. An open piece's mold ends at its rim and keeps out of its
  * mouth. A catch too deep blocks the download; the halves are still shown.
  */
+/** A split mold's piece: filled, scaled, its rim read. */
+interface SplitPiece {
+  piece: Manifold;
+  mesh: SurfaceMesh;
+  rim: RimCut | null;
+  shrink: number;
+}
+
+/**
+ * The piece as a split mold sees it, or null with the reason in `info`. The
+ * mold sees the outside only; a model it cannot fill is refused, not guessed at.
+ */
+function splitPiece(csg: CsgApi, scope: CsgScope, job: ToolingJob, info: JobInfo): SplitPiece | null {
+  let model;
+  try {
+    model = scope.keep(toManifold(csg, job.model, { merge: true }));
+  } catch {
+    info.blocking.push({ code: 'model.notSolid' });
+    return null;
+  }
+  const solid = solidify(csg, scope, model);
+  info.status = solid.status;
+  if (solid.status === 'open' || solid.status === 'openBottom') {
+    info.blocking.push({ code: solid.status === 'open' ? 'model.open' : 'model.openBottom' });
+    return null;
+  }
+  const shrink = 1 + job.mold.shrinkPct / 100;
+  const piece = scope.keep(solid.solid.scale(shrink));
+  const mesh = fromManifold(piece);
+  const rim = solid.status === 'filled' && solid.rim ? rimCut(mesh, solid.rim.zMm * shrink, solid.rim.radiusMm * shrink) : null;
+  return { piece, mesh, rim, shrink };
+}
+
 function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
   const exporting = job.kind === 'export';
   const info = emptyInfo();
@@ -293,30 +319,15 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
   const scope = new CsgScope();
   try {
     progress.next({ code: 'progress.model' });
-    let model;
-    try {
-      model = scope.keep(toManifold(csg, job.model, { merge: true }));
-    } catch {
-      info.blocking.push({ code: 'model.notSolid' });
-      return { parts: [], info };
-    }
-    // the mold sees the outside only; a model it cannot fill is refused, not guessed at
-    const solid = solidify(csg, scope, model);
-    info.status = solid.status;
-    if (solid.status === 'open' || solid.status === 'openBottom') {
-      info.blocking.push({ code: solid.status === 'open' ? 'model.open' : 'model.openBottom' });
-      return { parts: [], info };
-    }
-    const shrink = 1 + job.mold.shrinkPct / 100;
-    const piece = scope.keep(solid.solid.scale(shrink));
-    const mesh = fromManifold(piece);
+    const prepared = splitPiece(csg, scope, job, info);
+    if (!prepared) return { parts: [], info };
+    const { piece, mesh, rim, shrink } = prepared;
     const box = piece.boundingBox();
     const axis = SPLIT_AXIS[job.split.axis];
     const plane = box.min[axis] + ((box.max[axis] - box.min[axis]) * job.split.pct) / 100;
 
     progress.next({ code: 'progress.release' });
     const wallMm = job.mold.bathWallMm;
-    const rim = solid.status === 'filled' && solid.rim ? rimCut(mesh, solid.rim.zMm * shrink, solid.rim.radiusMm * shrink) : null;
     const cell = releaseCell(largestExtent(mesh.positions), exporting);
     const rays = castRays(mesh, axis, cell, SPLIT_LAND_MM + cell);
     const halves = [
@@ -350,6 +361,25 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
     });
     if (exporting) progress.next({ code: 'progress.checkMeshes' });
     return { parts: parts.map(({ id, mesh: built }) => part(id, built, exporting)), info };
+  } finally {
+    scope.dispose();
+  }
+}
+
+/** "Find": the plane along the user's axis (and the spin, for an upright one) with the shallowest catch. */
+function findJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
+  const info = emptyInfo();
+  const progress = new Progress(onProgress, 1);
+  const scope = new CsgScope();
+  try {
+    progress.next({ code: 'progress.model' });
+    const prepared = splitPiece(csg, scope, job, info);
+    if (!prepared) return { parts: [], info, found: null };
+    const found = findPlane(prepared.mesh, SPLIT_AXIS[job.split.axis], prepared.rim, (i, n) => {
+      progress.total = n + 1;
+      progress.next({ code: 'progress.find', params: { i, n } });
+    });
+    return { parts: [], info, found };
   } finally {
     scope.dispose();
   }

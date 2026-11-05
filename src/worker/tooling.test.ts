@@ -716,6 +716,25 @@ describe('split mold', () => {
     }
   });
 
+  it('Find: the plane and the spin with the shallowest catch, no parts built', () => {
+    const scope = new CsgScope();
+    try {
+      // a block with a blind hole into its +y face: across x it catches, a quarter turn opens it
+      const block = scope.keep(csg.Manifold.cube([40, 40, 40], true).translate([0, 0, 20]));
+      const drill = scope.keep(scope.keep(scope.keep(csg.Manifold.cylinder(15, 4, 4, 48)).rotate([-90, 0, 0])).translate([10, 6, 20]));
+      const job = splitJob(fromManifold(scope.keep(block.subtract(drill))), { split: { axis: 'x', pct: 50 } });
+      expect(runJob(csg, job).info.blocking.map((m) => m.code)).toEqual(['split.catch']);
+      const steps: JobProgress[] = [];
+      const { parts, found } = runJob(csg, { ...job, kind: 'find' }, (step) => steps.push(step));
+      expect(parts).toEqual([]);
+      expect(found).toMatchObject({ spinDeg: 90, depthMm: 0 });
+      expect(steps.length).toBeGreaterThan(2);
+      expect(steps.every((step, i) => step.step === i && step.step < step.total)).toBe(true);
+    } finally {
+      scope.dispose();
+    }
+  });
+
   it('a lid as printed is refused: it has to be turned over first', () => {
     const { parts, info } = runJob(csg, jobFor('lid-printed', { mode: 'split' }));
     expect(parts).toEqual([]);

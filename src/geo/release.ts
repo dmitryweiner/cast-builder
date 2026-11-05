@@ -168,6 +168,15 @@ export function reachOf(rays: RayGrid, plane: number, side: 1 | -1): Float64Arra
 }
 
 /**
+ * The cell of the release check, mm: a share of the piece's size — a
+ * keychain's relief is a millimetre and a half, a vase is 120 mm tall —
+ * finer in an export.
+ */
+export function releaseCell(extentMm: number, exporting: boolean): number {
+  return Math.min(1, Math.max(0.25, extentMm / (exporting ? 240 : 160)));
+}
+
+/**
  * A locked voxel no farther from the clay than this, in cells squared (a
  * diagonal), is noise: facets along the pull leave such voxels with no catch
  * at all. The check does not see catches under about a cell and a half.

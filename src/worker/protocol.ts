@@ -10,11 +10,15 @@ import type { Mouth } from '../geo/mouth';
 import type { SolidStatus } from '../geo/solidify';
 import type { MoldScheme } from '../geo/mold/analyze';
 import type { MoldState } from '../geo/mold/state';
+import type { FoundPlane } from '../geo/split/find';
 import type { Mode, MouthChoice, PlugChoice, SchemeChoice, SplitChoice } from '../state';
 
 export interface ToolingJob {
-  /** a preview is coarser where it can be (the slump grid) and skips the mesh checks */
-  kind: 'preview' | 'export';
+  /**
+   * a preview is coarser where it can be (the slump grid) and skips the mesh
+   * checks; `find` builds nothing — it looks for a split mold's plane
+   */
+  kind: 'preview' | 'export' | 'find';
   /** the model turned and placed: the axis through the origin, the bottom on z = 0 */
   model: { positions: Float32Array; indices: Uint32Array };
   mode: Mode;
@@ -69,6 +73,8 @@ export interface JobInfo {
 export interface JobResult {
   parts: JobPart[];
   info: JobInfo;
+  /** what `find` found: the spin to add and the plane's position; absent for other jobs, null if the model was refused */
+  found?: FoundPlane | null;
 }
 
 /**
