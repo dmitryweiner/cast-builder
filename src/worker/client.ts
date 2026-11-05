@@ -43,9 +43,10 @@ export class ToolingClient {
         this.start(pending);
         return;
       }
-      // An export is never thrown out of the queue: it was asked for by a
-      // button, and there is no second time. A preview comes again with the next edit.
-      if (this.waiting?.job.kind === 'export' && job.kind !== 'export') {
+      // An export or a search is never thrown out of the queue: it was asked
+      // for by a button, and there is no second time. A preview comes again
+      // with the next edit.
+      if (this.waiting && this.waiting.job.kind !== 'preview') {
         resolve(null);
         return;
       }

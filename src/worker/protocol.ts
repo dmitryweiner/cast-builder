@@ -10,11 +10,15 @@ import type { Mouth } from '../geo/mouth';
 import type { SolidStatus } from '../geo/solidify';
 import type { MoldScheme } from '../geo/mold/analyze';
 import type { MoldState } from '../geo/mold/state';
-import type { Mode, MouthChoice, PlugChoice, SchemeChoice } from '../state';
+import type { FoundPlane } from '../geo/split/find';
+import type { Mode, MouthChoice, PlugChoice, SchemeChoice, SplitChoice } from '../state';
 
 export interface ToolingJob {
-  /** a preview is coarser where it can be (the slump grid) and skips the mesh checks */
-  kind: 'preview' | 'export';
+  /**
+   * a preview is coarser where it can be (the slump grid) and skips the mesh
+   * checks; `find` builds nothing — it looks for a split mold's plane
+   */
+  kind: 'preview' | 'export' | 'find';
   /** the model turned and placed: the axis through the origin, the bottom on z = 0 */
   model: { positions: Float32Array; indices: Uint32Array };
   mode: Mode;
@@ -23,6 +27,8 @@ export interface ToolingJob {
   resolution: number;
   mouth: MouthChoice;
   plug: PlugChoice;
+  /** the plane of a split mold */
+  split: SplitChoice;
 }
 
 /** A finished part: a mesh and what the panel shows about it. The panel names it by `id`. */
@@ -37,6 +43,15 @@ export interface JobPart {
   blocking: Message[];
 }
 
+/** How deep a part of a press mold without a punch catches the piece (geo/release.ts). */
+export interface Catch {
+  /** the part, as in `JobPart.id` */
+  id: string;
+  depthMm: number;
+  /** where the deepest catch is, in the placed model's frame scaled by the shrinkage; null — none */
+  at: [number, number, number] | null;
+}
+
 /** What the worker learned about the model on its way. */
 export interface JobInfo {
   /** solid as it came, filled, open; null in the slump mode, which reads only the outside */
@@ -49,13 +64,17 @@ export interface JobInfo {
   /** why this parting, sentence by sentence */
   reason: Message[];
   warnings: Message[];
-  /** what keeps the whole job from a result (the model is not a solid) */
+  /** what keeps the whole job from a result (the model is not a solid) or from the download (a catch too deep) */
   blocking: Message[];
+  /** the tile mold and the split mold: how deep each part catches */
+  catches: Catch[];
 }
 
 export interface JobResult {
   parts: JobPart[];
   info: JobInfo;
+  /** what `find` found: the spin to add and the plane's position; absent for other jobs, null if the model was refused */
+  found?: FoundPlane | null;
 }
 
 /**

@@ -41,6 +41,7 @@ import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from './ui/controls';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
+import { allowedCatch, catchNote, pressKind, splitControls } from './ui/press';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -63,8 +64,21 @@ const PREVIEW_DELAY_MS = 400;
 const DOWNLOAD_GAP_MS = 250;
 const EXAMPLE_URL = './examples/teapot.stl';
 
-const TABS: Record<Mode, string> = { master: 'tabMaster', bath: 'tabBath', slump: 'tabSlump' };
-const EXPORT_LABEL: Record<Mode, Key> = { master: 'export.master', bath: 'export.bath', slump: 'export.slump' };
+/** The tabs: the press molds share one, with a switch of their kind inside. */
+const TABS = [
+  { id: 'tabMaster', mode: (): Mode => 'master' },
+  { id: 'tabBath', mode: (): Mode => 'bath' },
+  { id: 'tabSlump', mode: (s: Settings): Mode => s.press },
+] as const;
+const EXPORT_LABEL: Record<Mode, Key> = {
+  master: 'export.master',
+  bath: 'export.bath',
+  slump: 'export.slump',
+  tile: 'export.tile',
+  split: 'export.split',
+};
+/** What the result card says first: the mold modes give their parting's reason. */
+const NOTE: Partial<Record<Mode, Key>> = { slump: 'slump.note', tile: 'tile.note', split: 'split.note' };
 
 interface Model {
   /** file name without the extension: the downloads are named after it */
@@ -145,6 +159,10 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const modelNote = el('modelNote', HTMLParagraphElement);
   const modelControls = el('modelControls', HTMLDivElement);
   const toolingControls = el('toolingControls', HTMLDivElement);
+  const splitCard = el('splitCard', HTMLDivElement);
+  const splitControlsEl = el('splitControls', HTMLDivElement);
+  const findBtn = el('findBtn', HTMLButtonElement);
+  const findNote = el('findNote', HTMLParagraphElement);
   const mouthCard = el('mouthCard', HTMLElement);
   const mouthControls = el('mouthControls', HTMLDivElement);
   const mouthNote = el('mouthNote', HTMLParagraphElement);
@@ -203,11 +221,13 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let exporting = false;
+  let finding = false;
   let readError = '';
 
   // ---- controls ----
 
   const toolingSpec: Control<Settings>[] = [
+    pressKind,
     range('shrink', 'ctl.shrink', 'ctl.shrink.hint', 0, SHRINK_MAX_PCT, 0.5, 'shrinkPct', MODES),
     range('spare', 'ctl.spare', 'ctl.spare.hint', 0, SPARE_MAX_MM, 1, 'spareMm', ['master', 'bath']),
     range('plaster', 'ctl.plaster', 'ctl.plaster.hint', PLASTER_MIN_MM, PLASTER_MAX_MM, 1, 'plasterMm', ['bath']),
@@ -215,6 +235,9 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     range('silicone', 'ctl.silicone', 'ctl.silicone.hint', CLEAR_MIN_MM, CLEAR_MAX_MM, 1, 'bathClearMm', ['bath']),
     range('bathWall', 'ctl.wall', 'ctl.bathWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['bath']),
     range('slumpWall', 'ctl.wall', 'ctl.slumpWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['slump']),
+    range('tileWall', 'ctl.wall', 'ctl.tileWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['tile']),
+    range('splitWall', 'ctl.wall', 'ctl.splitWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['split']),
+    allowedCatch,
     range('slab', 'ctl.slab', 'ctl.slab.hint', SLAB_MIN_MM, Math.min(SLAB_MAX_MM, 20), 0.1, 'slabMm', ['slump']),
     range('ear', 'ctl.ear', 'ctl.ear.hint', EAR_MIN_MM, EAR_MAX_MM, 0.5, 'earMm', ['slump']),
     range('round', 'ctl.round', 'ctl.round.hint', 0, 100, 5, 'punchRoundPct', ['slump']),
@@ -238,7 +261,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       label: 'scheme',
       hint: 'scheme.hint',
       options: SCHEME_CHOICES.map((value) => ({ value, label: `scheme.${value}` })),
-      when: (s) => s.mode !== 'slump',
+      when: (s) => s.mode === 'master' || s.mode === 'bath',
       get: (s) => s.scheme,
       set: (s, value) => ({ ...s, scheme: SCHEME_CHOICES.find((choice) => choice === value) ?? 'auto' }),
     },
@@ -352,6 +375,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const mouthRows = renderControls(mouthHost, mouthSpec, () => setup, setSetup, 'mouth');
     const schemeRows = renderControls(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
     const modelRows = renderControls(modelControls, modelSpec, () => setup, setSetup, 'model');
+    const splitRows = renderControls(splitControlsEl, splitControls, () => setup, setSetup, 'split');
     const bedRows = renderControls(bedControlsEl, bedControls, () => settings, setBed, 'bed');
     // the resolution options read as "128 × 128", not as a translated label
     for (const option of document.querySelectorAll<HTMLOptionElement>('#mold_resolution option')) {
@@ -362,16 +386,19 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       { sync: () => schemeRows.sync(settings) },
       { sync: () => mouthRows.sync(setup) },
       { sync: () => modelRows.sync(setup) },
+      { sync: () => splitRows.sync(setup) },
       { sync: () => bedRows.sync(settings) },
     ];
   }
 
   function syncPanel(): void {
     for (const row of rows) row.sync();
-    for (const mode of MODES) el(TABS[mode], HTMLButtonElement).setAttribute('aria-selected', String(mode === settings.mode));
-    mouthCard.hidden = settings.mode === 'slump';
-    // a master is one part: nothing to lay out
-    bedCard.hidden = settings.mode === 'master';
+    for (const tab of TABS) el(tab.id, HTMLButtonElement).setAttribute('aria-selected', String(tab.mode(settings) === settings.mode));
+    mouthCard.hidden = settings.mode !== 'master' && settings.mode !== 'bath';
+    splitCard.hidden = settings.mode !== 'split';
+    findBtn.disabled = model === null || finding;
+    // a master and a tile mold are one part: nothing to lay out
+    bedCard.hidden = settings.mode === 'master' || settings.mode === 'tile';
     emptyEl.hidden = model !== null;
     for (const button of turnButtons) button.disabled = model === null;
     modelNote.hidden = model === null || modelKept !== 'full';
@@ -408,7 +435,10 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       );
       partList.append(item);
     }
-    schemeNote.textContent = settings.mode === 'slump' ? t('slump.note') : info.reason.map(tm).join(' ');
+    const note = NOTE[settings.mode];
+    schemeNote.textContent = [note ? t(note) : info.reason.map(tm).join(' '), catchNote(info.catches, settings.mold.allowedCatchMm)]
+      .filter(Boolean)
+      .join(' ');
     warningsEl.textContent = info.warnings.map(tm).join('\n');
     blockersEl.textContent = [...info.blocking, ...parts.flatMap((part) => part.blocking)].map(tm).join('\n');
     // the view is empty then, and on a phone the panel may be out of sight
@@ -430,6 +460,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   }
 
   function setSettings(next: Settings): void {
+    // another mode's parts do not stay in sight while its own are built
+    if (next.mode !== settings.mode) last = null;
     settings = sanitizeSettings(next);
     save();
     syncPanel();
@@ -459,6 +491,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   }
 
   function setSetup(next: Setup): void {
+    // what Find said is about the setup it left
+    findNote.textContent = '';
     const turned = next.orientation !== setup.orientation;
     setup = sanitizeSetup(next);
     save();
@@ -497,6 +531,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   /** A model in hand, read from a file or kept by the last visit, with its setup. */
   function openModel(name: string, raw: IndexedMesh, start: Setup): void {
     readError = '';
+    findNote.textContent = '';
     setup = start;
     model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
@@ -522,6 +557,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       resolution: settings.resolution,
       mouth: setup.mouth,
       plug: setup.plug,
+      split: setup.split,
     };
   }
 
@@ -597,13 +633,43 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     }
   }
 
+  /** Find: the worker looks for the plane, the setup takes the spin and the position it found. */
+  async function runFind(): Promise<void> {
+    const current = model;
+    if (!current || finding) return;
+    finding = true;
+    findBtn.disabled = true;
+    try {
+      const result = await progress.track((onProgress) => client.run(job('find', current), onProgress), {
+        label: 'split.finding',
+        delayMs: 0,
+      });
+      if (!result || current !== model) return;
+      const { found } = result;
+      if (!found) {
+        findNote.textContent = result.info.blocking.map(tm).join('\n');
+        return;
+      }
+      setSetup({
+        ...setup,
+        orientation: { ...setup.orientation, spinDeg: (setup.orientation.spinDeg + found.spinDeg) % 360 },
+        split: { ...setup.split, pct: found.pct },
+      });
+      findNote.textContent = t('split.found', { spin: found.spinDeg, pct: found.pct, mm: found.depthMm.toFixed(1) });
+    } catch (error) {
+      findNote.textContent = t('error.build', { error: message(error) });
+    } finally {
+      finding = false;
+      findBtn.disabled = model === null;
+    }
+  }
+
   // ---- events ----
 
-  for (const mode of MODES) {
-    el(TABS[mode], HTMLButtonElement).addEventListener('click', () => {
-      if (mode === settings.mode) return;
-      last = null;
-      setSettings({ ...settings, mode });
+  for (const tab of TABS) {
+    el(tab.id, HTMLButtonElement).addEventListener('click', () => {
+      const mode = tab.mode(settings);
+      if (mode !== settings.mode) setSettings({ ...settings, mode });
     });
   }
   const turn = (next: readonly number[]): void => setSetup({ ...setup, orientation: { ...setup.orientation, turn: next } });
@@ -654,6 +720,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     openFile(event.dataTransfer?.files[0]);
   });
   exportBtn.addEventListener('click', () => void runExport());
+  findBtn.addEventListener('click', () => void runFind());
   localeSelect.addEventListener('change', () => {
     const value = localeSelect.value;
     if (!isLocale(value)) return;

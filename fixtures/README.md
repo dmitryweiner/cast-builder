@@ -21,6 +21,12 @@ Solid ones, as an STL from elsewhere may come:
 | `teapot.stl`                                 | pot 120 mm high with an applied spout whose tip is above the rim |
 | `lid-upside-down.stl`                        | the lid of that teapot, upside down as it goes into a mold       |
 
+From elsewhere:
+
+| File           | What                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `keychain.stl` | a flat keychain from Plate Builder, 55 × 33 × 4.5 mm: a plate 3 mm thick, a raised frame and letters, a hole for the ring (genus 1) |
+
 They pin the shapes the tooling is tested on; regenerate them only on
 purpose. The printable ones come from `scripts/fixtures.mjs`. The solid
 ones were `encodeSTL` of the meshes above; clayform has dropped

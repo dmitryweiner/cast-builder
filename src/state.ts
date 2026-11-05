@@ -23,10 +23,16 @@ import { isLocale } from './i18n';
  * What the export makes:
  *  master — the master positive for a silicone mold made by hand;
  *  bath   — pour boxes for silicone, one per part of the plaster mold;
- *  slump  — the dished slump mold and its punch.
+ *  slump  — the dished slump mold and its punch;
+ *  tile   — a one-part press mold for a flat plate with relief;
+ *  split  — a two-part press mold, shells parted by a plane, no punch.
  */
-export const MODES = ['master', 'bath', 'slump'] as const;
+export const MODES = ['master', 'bath', 'slump', 'tile', 'split'] as const;
 export type Mode = (typeof MODES)[number];
+
+/** The kinds of press mold: one tab in the interface, a switch inside it. */
+export const PRESS_KINDS = ['slump', 'tile', 'split'] as const;
+export type PressKind = (typeof PRESS_KINDS)[number];
 
 export const SCHEME_CHOICES = ['auto', ...MOLD_SCHEMES] as const;
 export type SchemeChoice = (typeof SCHEME_CHOICES)[number];
@@ -47,6 +53,8 @@ export interface Settings {
   /** the language picked in the switcher; null — from the browser */
   locale: Locale | null;
   mode: Mode;
+  /** the kind of press mold last picked: the slump tab opens on it */
+  press: PressKind;
   mold: MoldState;
   scheme: SchemeChoice;
   resolution: number;
@@ -57,6 +65,7 @@ export function defaultSettings(): Settings {
   return {
     locale: null,
     mode: 'bath',
+    press: 'slump',
     mold: defaultMold(),
     scheme: 'auto',
     resolution: 192,
@@ -86,10 +95,24 @@ export interface PlugChoice {
   galleryMm: number;
 }
 
+/** The axes a split mold's plane can be square to. */
+export const SPLIT_AXES = ['x', 'y', 'z'] as const;
+export type SplitAxis = (typeof SPLIT_AXES)[number];
+export const SPLIT_PCT_MIN = 5;
+export const SPLIT_PCT_MAX = 95;
+
+export interface SplitChoice {
+  /** the plane is square to this axis of the placed model */
+  axis: SplitAxis;
+  /** where along it, % of the filled piece's extent */
+  pct: number;
+}
+
 export interface Setup {
   orientation: Orientation;
   mouth: MouthChoice;
   plug: PlugChoice;
+  split: SplitChoice;
 }
 
 export function defaultSetup(): Setup {
@@ -97,6 +120,7 @@ export function defaultSetup(): Setup {
     orientation: defaultOrientation(),
     mouth: { auto: true, zMm: 0, radiusMm: 0 },
     plug: { on: false, recessMm: 6, galleryMm: 0 },
+    split: { axis: 'x', pct: 50 },
   };
 }
 
@@ -116,9 +140,12 @@ export function sanitizeSettings(raw: unknown): Settings {
   const fallback = defaultSettings();
   const resolution = num(source.resolution, fallback.resolution);
   const bed = record(source.bed);
+  const mode = oneOf(MODES, source.mode, fallback.mode);
   return {
     locale: isLocale(source.locale) ? source.locale : null,
-    mode: oneOf(MODES, source.mode, fallback.mode),
+    mode,
+    // the press tab shows the kind in hand
+    press: oneOf(PRESS_KINDS, mode, oneOf(PRESS_KINDS, source.press, fallback.press)),
     mold: sanitizeMold(source.mold),
     scheme: oneOf(SCHEME_CHOICES, source.scheme, fallback.scheme),
     resolution: RESOLUTIONS.some((value) => value === resolution) ? resolution : fallback.resolution,
@@ -134,6 +161,7 @@ export function sanitizeSetup(raw: unknown): Setup {
   const source = record(raw);
   const mouth = record(source.mouth);
   const plug = record(source.plug);
+  const split = record(source.split);
   const fallback = defaultSetup();
   return {
     orientation: sanitizeOrientation(source.orientation),
@@ -146,6 +174,10 @@ export function sanitizeSetup(raw: unknown): Setup {
       on: typeof plug.on === 'boolean' ? plug.on : fallback.plug.on,
       recessMm: clamp(num(plug.recessMm, fallback.plug.recessMm), 0, RECESS_MAX_MM),
       galleryMm: clamp(num(plug.galleryMm, fallback.plug.galleryMm), 0, MOUTH_MAX_MM),
+    },
+    split: {
+      axis: oneOf(SPLIT_AXES, split.axis, fallback.split.axis),
+      pct: clamp(num(split.pct, fallback.split.pct), SPLIT_PCT_MIN, SPLIT_PCT_MAX),
     },
   };
 }

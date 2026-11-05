@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, resetSettings, sanitizeSettings } from './state';
+import { defaultSettings, defaultSetup, resetSettings, sanitizeSettings, sanitizeSetup } from './state';
 
 describe('reset', () => {
   it('puts every setting back to the default, the language and the mode tab kept', () => {
@@ -16,5 +16,31 @@ describe('reset', () => {
 
   it('a browser-picked language stays browser-picked', () => {
     expect(resetSettings({ ...defaultSettings(), mode: 'master' })).toEqual({ ...defaultSettings(), mode: 'master' });
+  });
+});
+
+describe('press kinds', () => {
+  it('the slump tab remembers its kind: the bowl with a punch, the tile or the two halves', () => {
+    expect(defaultSettings().press).toBe('slump');
+    for (const mode of ['slump', 'tile', 'split'] as const) expect(sanitizeSettings({ mode }).press).toBe(mode);
+    // another tab keeps the kind last picked
+    expect(sanitizeSettings({ mode: 'bath', press: 'split' })).toMatchObject({ mode: 'bath', press: 'split' });
+    expect(sanitizeSettings({ mode: 'bath', press: 'master' }).press).toBe('slump');
+    const once = sanitizeSettings({ mode: 'tile', press: 'split' });
+    expect(once.press).toBe('tile');
+    expect(sanitizeSettings(once)).toEqual(once);
+  });
+});
+
+describe('the split setup', () => {
+  it('a vertical plane square to x through the middle by default; the axis one of x, y, z; the position 5–95 %', () => {
+    expect(defaultSetup().split).toEqual({ axis: 'x', pct: 50 });
+    expect(sanitizeSetup({ split: { axis: 'x', pct: 30 } }).split).toEqual({ axis: 'x', pct: 30 });
+    expect(sanitizeSetup({ split: { axis: 'w', pct: 300 } }).split).toEqual({ axis: 'x', pct: 95 });
+    expect(sanitizeSetup({ split: 'x' }).split).toEqual(defaultSetup().split);
+    // a record from before the split had a setup of its own
+    expect(sanitizeSetup({ orientation: { spinDeg: 90 } }).split).toEqual(defaultSetup().split);
+    const once = sanitizeSetup({ split: { axis: 'y', pct: 2 } });
+    expect(sanitizeSetup(once)).toEqual(once);
   });
 });

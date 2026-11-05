@@ -18,7 +18,7 @@ import { validateMesh } from '../validate';
 import { analyzeMold, pullUndercut, withScheme } from './analyze';
 import { buildBaths, buildBlocks, buildMaster } from './index';
 import type { Mouth } from './index';
-import { defaultMold, sanitizeMold } from './state';
+import { CATCH_MAX_MM, defaultMold, sanitizeMold } from './state';
 import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from '../thread';
 import { undersideVoid } from './underside';
 
@@ -405,6 +405,14 @@ describe('sanitizeMold', () => {
     expect(sanitizeMold({}).printStops).toBe(false);
     const once = sanitizeMold({ printScrews: true });
     expect(sanitizeMold(once)).toEqual(once);
+  });
+
+  it('a press mold allows a catch of 1 mm by default, clamped to 0–6 mm', () => {
+    expect(defaultMold().allowedCatchMm).toBe(1);
+    expect(sanitizeMold({ allowedCatchMm: 4 }).allowedCatchMm).toBe(4);
+    expect(sanitizeMold({ allowedCatchMm: -1 }).allowedCatchMm).toBe(0);
+    expect(sanitizeMold({ allowedCatchMm: 60 }).allowedCatchMm).toBe(CATCH_MAX_MM);
+    expect(sanitizeMold({ allowedCatchMm: 'deep' }).allowedCatchMm).toBe(1);
   });
 
   it('the lugs are threaded by default; the choice takes only a boolean', () => {
