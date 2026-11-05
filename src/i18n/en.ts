@@ -74,9 +74,18 @@ export const en = {
   'ctl.vent.hint': 'holes in the mold bottom and along the punch axis, mm: they let air out and break the suction',
   'ctl.screws': 'Screw clamps',
   'ctl.screws.hint':
-    'lugs with an M10 × 2 thread on the mold beside the ears and tabs with holes on the punch beside the legs: pull the punch down with screws instead of a press, push it off with the same screws turned in from below',
-  'ctl.printScrews': 'Print screws and stops',
-  'ctl.printScrews.hint': 'three M10 × 2 screws and three stops in the same file; they fit every mold, so print them once',
+    'lugs on the mold beside the ears and tabs with holes on the punch beside the legs: pull the punch down with screws, steel bolts or a G-clamp on the flat landing under a lug instead of a press, push it off with screws turned in from below',
+  'ctl.threadedLugs': 'Thread in the lugs',
+  'ctl.threadedLugs.hint':
+    'for the printed M10 × 2 screws; off — plain Ø11 holes, as in the tabs, for a steel M10 bolt with a washer and a nut on the landing under the lug',
+  'ctl.threadedLugs.note': 'Steel, per lug: a bolt M{d} × {length} (ISO, pitch 1.5), a washer and a nut M{d}',
+  'ctl.printScrews': 'Print screws',
+  'ctl.printScrews.hint': 'three screws in the same file; they fit every mold, so print them once',
+  'ctl.printScrews.note': 'M{d} × {pitch} (pitch {pitch} mm, not the ISO 1.5), {length} mm under the head, head Ø{head}',
+  'ctl.printStops': 'Print stops',
+  'ctl.printStops.hint':
+    'three stops in the same file: slid between a lug and a tab, they let a screw from below push the punch off; they fit every mold, so print them once',
+  'ctl.printStops.note': 'Ø{d} × {h} mm, for the {gap} mm gap',
   'ctl.threadFit': 'Thread fit, mm',
   'ctl.threadFit.hint':
     'clearance of the threaded holes in the lugs: more if the screws go in tight; only the mold changes, the printed screws stay the same',
@@ -159,8 +168,8 @@ export const en = {
   'part.bath': 'Pour box: {part}',
   'part.slump': 'Slump mold',
   'part.punch': 'Punch',
-  'part.screws': 'Screws',
-  'part.stops': 'Stops',
+  'part.screws': 'Screws M{d} × {pitch}, {length} mm',
+  'part.stops': 'Stops Ø{d} × {h} mm',
   'size.box': '{dims} mm',
 
   'export.master': 'Export master',

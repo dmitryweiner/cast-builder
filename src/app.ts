@@ -39,7 +39,7 @@ import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitiz
 import type { KeyValueStorage, StorageWrite } from './storage';
 import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from './ui/controls';
-import { screwControls } from './ui/screws';
+import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
@@ -99,6 +99,8 @@ function translatePage(locale: Locale): void {
 /** The name of a tooling part by its `id`: `bath-…` is the pour box for a part, the rest the part itself. */
 export function partLabel(id: string): string {
   if (id.startsWith('bath-')) return t('part.bath', { part: lowerFirst(partLabel(id.slice(5))) });
+  if (id === 'screws') return t('part.screws', screwParams);
+  if (id === 'stops') return t('part.stops', stopParams);
   return tDynamic(`part.${id}`);
 }
 

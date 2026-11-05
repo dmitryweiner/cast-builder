@@ -457,6 +457,12 @@ select {
 .check-row .row-name {
   color: var(--text);
 }
+.row-note {
+  margin-block: -4px 6px;
+  margin-inline-start: 26px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
 .adj-btn {
   inline-size: 26px;
   block-size: 26px;

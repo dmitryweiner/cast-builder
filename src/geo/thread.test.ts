@@ -8,7 +8,10 @@ import {
   PAD,
   PAD_GAP_MM,
   TAB_T_MM,
+  TRAVEL_MM,
   SCREW,
+  STEEL,
+  STEEL_BOLT_MM,
   THREAD,
   THREAD_FIT_MAX_MM,
   THREAD_FIT_MIN_MM,
@@ -81,5 +84,15 @@ describe('screw, tab, stop', () => {
     expect(PAD.dimpleD / 2).toBeGreaterThan(SCREW.tipR);
     expect(PAD.dimpleD / 2).toBeLessThan(THREAD.d / 2);
     expect(PAD.dimpleDepth).toBeLessThan(PAD.h / 2);
+  });
+});
+
+describe('the steel bolt', () => {
+  it('is the shortest ISO length through the tab, the gap and the lug, a washer and a nut, with the travel', () => {
+    const needed = TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + TRAVEL_MM + STEEL.washerT + STEEL.nutM + STEEL.past;
+    expect(needed).toBe(51);
+    expect(STEEL_BOLT_MM).toBe(55);
+    // the printed screw has the same travel
+    expect(SCREW.shank).toBe(TAB_T_MM + PAD_GAP_MM + LUG_THREAD_MM + TRAVEL_MM);
   });
 });
