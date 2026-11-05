@@ -7,7 +7,7 @@
 // imports this module; the main thread never loads the WASM.
 
 import Module from 'manifold-3d';
-import type { Manifold, Mesh, ManifoldToplevel } from 'manifold-3d';
+import type { CrossSection, Manifold, Mesh, ManifoldToplevel } from 'manifold-3d';
 import type { SurfaceMesh } from './surface';
 import { meshNormals } from './normals';
 
@@ -92,6 +92,24 @@ export function toManifold(
     throw new Error(`toManifold: mesh is not a closed solid (${status})`);
   }
   return solid;
+}
+
+/**
+ * The outline of a section with its holes filled: the outer rings only. A
+ * hole through a tile or a ring sculpture is a post of its mold, not a hole
+ * through the mold's land.
+ */
+export function outerOutline(csg: CsgApi, scope: CsgScope, section: CrossSection): CrossSection {
+  const outer = section.toPolygons().filter((ring) => {
+    let twice = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const [ax, ay] = ring[i];
+      const [bx, by] = ring[(i + 1) % ring.length];
+      twice += ax * by - bx * ay;
+    }
+    return twice > 0;
+  });
+  return scope.keep(new csg.CrossSection(outer, 'Positive'));
 }
 
 /** Manifold → mesh with recomputed vertex normals. */

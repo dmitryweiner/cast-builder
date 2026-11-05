@@ -220,7 +220,7 @@ function smoothSilhouette(radii: readonly number[], dz: number, sigma: number): 
 }
 
 /** Segments of the slice at height z, x0 y0 x1 y1 in a row. */
-function sliceAt(positions: Float32Array, indices: Uint32Array, triangles: readonly number[], z: number): number[] {
+export function sliceAt(positions: Float32Array, indices: Uint32Array, triangles: readonly number[], z: number): number[] {
   const out: number[] = [];
   for (const t of triangles) {
     const crossings: number[] = [];
@@ -247,19 +247,34 @@ function sliceAt(positions: Float32Array, indices: Uint32Array, triangles: reado
 export function farthestHit(segments: readonly number[], dx: number, dy: number): number {
   let best = NaN;
   for (let s = 0; s < segments.length; s += 4) {
-    const px = segments[s];
-    const py = segments[s + 1];
-    const ex = segments[s + 2] - px;
-    const ey = segments[s + 3] - py;
-    const denom = dx * ey - dy * ex;
-    if (Math.abs(denom) < 1e-12) continue;
-    // p + s·e = t·d: s from the cross product with d, t from the one with e
-    const along = (px * dy - py * dx) / denom;
-    if (along < -HIT_SLACK || along > 1 + HIT_SLACK) continue;
-    const t = (px * ey - py * ex) / denom;
+    const t = hitAt(segments, s, dx, dy);
     if (t > 0 && !(t <= best)) best = t;
   }
   return best;
+}
+
+/** The same to the nearest segment: the inside of a wall, seen from the axis. */
+export function nearestHit(segments: readonly number[], dx: number, dy: number): number {
+  let best = NaN;
+  for (let s = 0; s < segments.length; s += 4) {
+    const t = hitAt(segments, s, dx, dy);
+    if (t > 0 && !(t >= best)) best = t;
+  }
+  return best;
+}
+
+/** Where the ray from the axis along (dx, dy) crosses segment `s`; NaN if it does not. */
+function hitAt(segments: readonly number[], s: number, dx: number, dy: number): number {
+  const px = segments[s];
+  const py = segments[s + 1];
+  const ex = segments[s + 2] - px;
+  const ey = segments[s + 3] - py;
+  const denom = dx * ey - dy * ex;
+  if (Math.abs(denom) < 1e-12) return NaN;
+  // p + s·e = t·d: s from the cross product with d, t from the one with e
+  const along = (px * dy - py * dx) / denom;
+  if (along < -HIT_SLACK || along > 1 + HIT_SLACK) return NaN;
+  return (px * ey - py * ex) / denom;
 }
 
 /**

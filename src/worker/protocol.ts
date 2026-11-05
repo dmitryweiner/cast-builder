@@ -10,7 +10,7 @@ import type { Mouth } from '../geo/mouth';
 import type { SolidStatus } from '../geo/solidify';
 import type { MoldScheme } from '../geo/mold/analyze';
 import type { MoldState } from '../geo/mold/state';
-import type { Mode, MouthChoice, PlugChoice, SchemeChoice } from '../state';
+import type { Mode, MouthChoice, PlugChoice, SchemeChoice, SplitChoice } from '../state';
 
 export interface ToolingJob {
   /** a preview is coarser where it can be (the slump grid) and skips the mesh checks */
@@ -23,6 +23,8 @@ export interface ToolingJob {
   resolution: number;
   mouth: MouthChoice;
   plug: PlugChoice;
+  /** the plane of a split mold */
+  split: SplitChoice;
 }
 
 /** A finished part: a mesh and what the panel shows about it. The panel names it by `id`. */

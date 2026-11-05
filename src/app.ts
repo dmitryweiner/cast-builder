@@ -533,6 +533,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       resolution: settings.resolution,
       mouth: setup.mouth,
       plug: setup.plug,
+      split: setup.split,
     };
   }
 

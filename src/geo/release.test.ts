@@ -39,6 +39,24 @@ describe('releaseDepth', () => {
     expect(releaseDepth(rays, { plane, side: -1 }).depthMm).toBeLessThan(0.3);
   });
 
+  it('reads the clay the same on both sides: a ring split across its hole: the bore catches the same on both sides', () => {
+    const scope = new CsgScope();
+    try {
+      // a ring lying in the plane z = 0, split by x = 0: each half is a C, open to its own side
+      const ring = fromManifold(
+        scope.keep(
+          scope.keep(csg.Manifold.cylinder(6, 20, 20, 128, true)).subtract(scope.keep(csg.Manifold.cylinder(8, 12, 12, 128, true))),
+        ),
+      );
+      const rays = castRays(ring, 0, 0.5);
+      // the bore holds the mold of the other half's side: from x = 0 the ray runs through air, then the wall
+      expect(releaseDepth(rays, { plane: 0, side: 1 }).depthMm).toBeGreaterThan(5);
+      expect(releaseDepth(rays, { plane: 0, side: -1 }).depthMm).toBeCloseTo(releaseDepth(rays, { plane: 0, side: 1 }).depthMm, 1);
+    } finally {
+      scope.dispose();
+    }
+  });
+
   it('mold that a cutter takes away is no catch', () => {
     const rays = castRays(sphere(20), 0, 0.5);
     expect(releaseDepth(rays, { plane: -8, side: 1, cut: () => true }).depthMm).toBe(0);

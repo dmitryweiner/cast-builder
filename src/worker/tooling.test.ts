@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from '../geo/csg';
 import { CsgScope, fromManifold, initCSG, toManifold } from '../geo/csg';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
-import { fixture } from '../geo/testing';
+import { fixture, wavyVase } from '../geo/testing';
+import type { IndexedMesh } from '../geo/stl';
 import { validateMesh } from '../geo/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
@@ -46,6 +47,7 @@ const jobFor = (name: string, over: Partial<ToolingJob> = {}): ToolingJob => {
     resolution: settings.resolution,
     mouth: setup.mouth,
     plug: setup.plug,
+    split: setup.split,
     ...over,
   };
 };
@@ -650,6 +652,73 @@ describe('tile mold', () => {
     const { parts, info } = runJob(csg, { ...open, model: broken });
     expect(parts).toEqual([]);
     expect(info.blocking.map((m) => m.code)).toEqual(['model.notSolid']);
+  });
+});
+
+describe('split mold', () => {
+  const splitJob = (model: IndexedMesh, over: Partial<ToolingJob> = {}): ToolingJob => ({
+    ...jobFor('cup', { mode: 'split' }),
+    model: placeModel(model, defaultOrientation()),
+    ...over,
+  });
+
+  it('a wavy vase: two closed shells, nothing catches, printed parting face up', () => {
+    const { parts, info } = runJob(csg, splitJob(wavyVase(csg), { kind: 'export' }));
+    expect(info.status).toBe('filled');
+    expect(parts.map((part) => part.id)).toEqual(['split-A', 'split-B']);
+    expect(info.blocking).toEqual([]);
+    expect(info.catches.map((c) => [c.id, c.depthMm])).toEqual([
+      ['split-A', 0],
+      ['split-B', 0],
+    ]);
+    const shrink = 1 + defaultMold().shrinkPct / 100;
+    for (const part of parts) {
+      const report = validateMesh(part);
+      expect(report.watertight, part.id).toBe(true);
+      expect(part.blocking, part.id).toEqual([]);
+      expect(report.bbox.min[2]).toBeCloseTo(0, 3);
+      // the half's depth from the plane: the vase's radius and the wall behind it
+      expect(report.extents[2]).toBeGreaterThan(30 * shrink + defaultMold().bathWallMm - 0.5);
+      expect(report.extents[2]).toBeLessThan(30 * shrink + defaultMold().bathWallMm + 2);
+      // the parting face is the top: a ray down the middle of the cavity meets the mold only under the piece
+      const rays = castRays(part, 2, 1);
+      const centre = rays.nodeAt((report.bbox.min[0] + report.bbox.max[0]) / 2, (report.bbox.min[1] + report.bbox.max[1]) / 2);
+      const hits = rays.values.subarray(rays.start[centre], rays.start[centre + 1]);
+      expect(hits[hits.length - 1]).toBeLessThan(report.extents[2] - 20);
+    }
+  });
+
+  it('a ball split under its equator: the upper half catches on the bulge — refused, the half named; allowed deeper, it builds', () => {
+    const scope = new CsgScope();
+    try {
+      const ball = fromManifold(scope.keep(csg.Manifold.sphere(30, 128)));
+      const job = splitJob(ball, { split: { axis: 'z', pct: 30 } });
+      const { parts, info } = runJob(csg, job);
+      expect(parts).toHaveLength(2);
+      expect(info.status).toBe('solid');
+      const shrink = 1 + defaultMold().shrinkPct / 100;
+      const [a, b] = info.catches;
+      expect(a.depthMm).toBe(0);
+      expect(b.depthMm).toBeCloseTo(30 * shrink * (Math.hypot(0.4, 1) - 1), 0);
+      expect(info.blocking).toEqual([{ code: 'split.catch', params: expect.objectContaining({ half: 'B', limit: '1.0' }) }]);
+      expect(runJob(csg, { ...job, mold: { ...defaultMold(), allowedCatchMm: 3 } }).info.blocking).toEqual([]);
+    } finally {
+      scope.dispose();
+    }
+  });
+
+  it('a body of revolution splits through its axis clean, by x and by y', () => {
+    for (const axis of ['x', 'y'] as const) {
+      const { info } = runJob(csg, { ...jobFor('cup-hollow', { mode: 'split' }), split: { axis, pct: 50 } });
+      expect(info.blocking, axis).toEqual([]);
+      expect(info.catches.map((c) => c.depthMm)).toEqual([0, 0]);
+    }
+  });
+
+  it('a lid as printed is refused: it has to be turned over first', () => {
+    const { parts, info } = runJob(csg, jobFor('lid-printed', { mode: 'split' }));
+    expect(parts).toEqual([]);
+    expect(info.blocking.map((m) => m.code)).toEqual(['model.openBottom']);
   });
 });
 

@@ -19,7 +19,11 @@ import { PAD, SCREW, threadPoints } from '../geo/thread';
 import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
-import type { RayMesh } from '../geo/release';
+import type { Axis, RayMesh } from '../geo/release';
+import { rimCut } from '../geo/split/rim';
+import { turnForPrint } from '../geo/split/shell';
+import { SPLIT_LAND_MM, buildHalf } from '../geo/split';
+import { meshNormals } from '../geo/normals';
 import { castRays, releaseDepth } from '../geo/release';
 import { buildTileMold, TILE_PROUD_MM } from '../geo/tile';
 import { sizeOf } from '../geo/model';
@@ -27,6 +31,7 @@ import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
 import { buildBaths, buildMaster } from '../geo/mold';
 import { analyzeMold, withScheme } from '../geo/mold/analyze';
 import type { MoldState } from '../geo/mold/state';
+import type { SplitChoice } from '../state';
 import { pickedScheme, sanitizeSettings, sanitizeSetup } from '../state';
 import type { JobInfo, JobPart, JobProgress, JobResult, ToolingJob } from './protocol';
 
@@ -63,6 +68,7 @@ export function sanitizeJob(raw: unknown): ToolingJob | null {
     resolution: settings.resolution,
     mouth: setup.mouth,
     plug: setup.plug,
+    split: setup.split,
   };
 }
 
@@ -90,6 +96,7 @@ export function runJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobP
   if (pieces > 1) return { parts: [], info: { ...emptyInfo(), blocking: [{ code: 'model.pieces', params: { n: pieces } }] } };
   if (job.mode === 'slump') return slumpJob(csg, job, onProgress);
   if (job.mode === 'tile') return tileJob(csg, job, onProgress);
+  if (job.mode === 'split') return splitJob(csg, job, onProgress);
   return moldJob(csg, job, onProgress);
 }
 
@@ -269,6 +276,80 @@ function slumpJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
   if (exporting) progress.next({ code: 'progress.checkMeshes' });
   const parts = pieces.filter(([, meshes]) => meshes.length > 0).map(([id, meshes]) => part(id, mergeMeshes(meshes), exporting));
   return { parts, info };
+}
+
+const SPLIT_AXIS: Record<SplitChoice['axis'], Axis> = { x: 0, y: 1, z: 2 };
+
+/**
+ * The split mold: the piece filled and scaled, cut by the plane; for each
+ * half (A on the − side, B on the + side) the release check along its pull
+ * and the shell. An open piece's mold ends at its rim and keeps out of its
+ * mouth. A catch too deep blocks the download; the halves are still shown.
+ */
+function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgress) => void): JobResult {
+  const exporting = job.kind === 'export';
+  const info = emptyInfo();
+  const progress = new Progress(onProgress, exporting ? 5 : 4);
+  const scope = new CsgScope();
+  try {
+    progress.next({ code: 'progress.model' });
+    let model;
+    try {
+      model = scope.keep(toManifold(csg, job.model, { merge: true }));
+    } catch {
+      info.blocking.push({ code: 'model.notSolid' });
+      return { parts: [], info };
+    }
+    // the mold sees the outside only; a model it cannot fill is refused, not guessed at
+    const solid = solidify(csg, scope, model);
+    info.status = solid.status;
+    if (solid.status === 'open' || solid.status === 'openBottom') {
+      info.blocking.push({ code: solid.status === 'open' ? 'model.open' : 'model.openBottom' });
+      return { parts: [], info };
+    }
+    if (solid.status === 'filled') info.warnings.push({ code: 'model.filled' });
+    const shrink = 1 + job.mold.shrinkPct / 100;
+    const piece = scope.keep(solid.solid.scale(shrink));
+    const mesh = fromManifold(piece);
+    const box = piece.boundingBox();
+    const axis = SPLIT_AXIS[job.split.axis];
+    const plane = box.min[axis] + ((box.max[axis] - box.min[axis]) * job.split.pct) / 100;
+
+    progress.next({ code: 'progress.release' });
+    const wallMm = job.mold.bathWallMm;
+    const rim = solid.status === 'filled' && solid.rim ? rimCut(mesh, solid.rim.zMm * shrink, solid.rim.radiusMm * shrink) : null;
+    const cell = releaseCell(largestExtent(mesh.positions), exporting);
+    const rays = castRays(mesh, axis, cell, SPLIT_LAND_MM + cell);
+    const halves = [
+      { id: 'split-A', half: 'A', side: -1 },
+      { id: 'split-B', half: 'B', side: 1 },
+    ] as const;
+    for (const { id, half, side } of halves) {
+      const release = releaseDepth(rays, { plane, side, ...(rim ? { cut: rim.contains } : {}) });
+      info.catches.push({ id, depthMm: release.depthMm, at: release.at });
+      const limit = job.mold.allowedCatchMm;
+      if (release.depthMm > limit && release.at) {
+        const params = { half, mm: release.depthMm.toFixed(1), limit: limit.toFixed(1), z: (release.at[2] / shrink).toFixed(0) };
+        info.blocking.push({ code: 'split.catch', params });
+      }
+    }
+
+    // the cutter reaches past the land on every side
+    const reach = Math.hypot(box.max[0] - box.min[0], box.max[1] - box.min[1]) + 2 * SPLIT_LAND_MM;
+    const cutter = rim
+      ? scope.keep(csg.Manifold.union(rim.meshes(reach, box.max[2] + SPLIT_LAND_MM).map((section) => scope.keep(toManifold(csg, section)))))
+      : null;
+    const parts = halves.map(({ id, side }, i) => {
+      progress.next({ code: 'progress.split', params: { i: i + 1, n: halves.length } });
+      const built = fromManifold(buildHalf(csg, scope, piece, rays, { plane, side, wallMm, cutter }));
+      const turned = turnForPrint(built, axis, side);
+      return { id, mesh: { ...turned, normals: meshNormals(turned.positions, turned.indices) } };
+    });
+    if (exporting) progress.next({ code: 'progress.checkMeshes' });
+    return { parts: parts.map(({ id, mesh: built }) => part(id, built, exporting)), info };
+  } finally {
+    scope.dispose();
+  }
 }
 
 /** The master positive or the pour boxes — whichever the mode says. */

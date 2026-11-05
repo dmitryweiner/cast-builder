@@ -17,6 +17,7 @@
 
 import type { Manifold } from 'manifold-3d';
 import type { CsgApi, CsgScope } from './csg';
+import { outerOutline } from './csg';
 
 /** The land round the cavity, mm: a scraper rides on it. */
 export const TILE_LAND_MM = 10;
@@ -32,21 +33,7 @@ export function buildTileMold(csg: CsgApi, scope: CsgScope, tile: Manifold, floo
   // half a turn about x: the face down at z = floor, the back up at z = top + floor
   const turned = scope.keep(scope.keep(tile.rotate([180, 0, 0])).translate([0, 0, top + floorMm]));
   // the outline only: a hole through the tile is a post of the mold, not a hole through it
-  const outer = scope
-    .keep(turned.project())
-    .toPolygons()
-    .filter((ring) => signedArea(ring) > 0);
-  const land = scope.keep(scope.keep(new csg.CrossSection(outer, 'Positive')).offset(TILE_LAND_MM, 'Round'));
+  const land = scope.keep(outerOutline(csg, scope, scope.keep(turned.project())).offset(TILE_LAND_MM, 'Round'));
   const block = scope.keep(land.extrude(top + floorMm - TILE_PROUD_MM));
   return scope.keep(block.subtract(turned));
-}
-
-function signedArea(ring: readonly (readonly number[])[]): number {
-  let twice = 0;
-  for (let i = 0; i < ring.length; i++) {
-    const [ax, ay] = ring[i];
-    const [bx, by] = ring[(i + 1) % ring.length];
-    twice += ax * by - bx * ay;
-  }
-  return twice / 2;
 }

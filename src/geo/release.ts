@@ -51,7 +51,8 @@ export interface RayGrid {
  */
 const NODE_SHIFT = 0.5137;
 
-export function castRays(mesh: RayMesh, axis: Axis, cell: number): RayGrid {
+/** The rays through a grid over the mesh's extent across them, `marginMm` wider on every side. */
+export function castRays(mesh: RayMesh, axis: Axis, cell: number, marginMm = 0): RayGrid {
   const { positions, indices } = mesh;
   const [p, q] = acrossOf(axis);
   let pMin = Infinity,
@@ -64,10 +65,10 @@ export function castRays(mesh: RayMesh, axis: Axis, cell: number): RayGrid {
     qMin = Math.min(qMin, positions[i + q]);
     qMax = Math.max(qMax, positions[i + q]);
   }
-  const o0 = (Math.floor(pMin / cell) - 1 + NODE_SHIFT) * cell;
-  const o1 = (Math.floor(qMin / cell) - 1 + NODE_SHIFT) * cell;
-  const n0 = Math.ceil((pMax - o0) / cell) + 2;
-  const n1 = Math.ceil((qMax - o1) / cell) + 2;
+  const o0 = (Math.floor((pMin - marginMm) / cell) - 1 + NODE_SHIFT) * cell;
+  const o1 = (Math.floor((qMin - marginMm) / cell) - 1 + NODE_SHIFT) * cell;
+  const n0 = Math.ceil((pMax + marginMm - o0) / cell) + 2;
+  const n1 = Math.ceil((qMax + marginMm - o1) / cell) + 2;
 
   // two passes: count the crossings per node, then write them
   const counts = new Uint32Array(n0 * n1 + 1);
@@ -166,6 +167,13 @@ export function reachOf(rays: RayGrid, plane: number, side: 1 | -1): Float64Arra
   return out;
 }
 
+/**
+ * A locked voxel no farther from the clay than this, in cells squared (a
+ * diagonal), is noise: facets along the pull leave such voxels with no catch
+ * at all. The check does not see catches under about a cell and a half.
+ */
+const NOISE_CELLS2 = 2;
+
 export interface ReleaseOptions {
   /** the parting plane: the coordinate along the rays' axis */
   plane: number;
@@ -207,11 +215,16 @@ export function releaseDepth(rays: RayGrid, { plane, side, cut }: ReleaseOptions
     const hits = crossings(rays, node);
     if (hits.length === 0) continue;
     const last = reach[node];
-    let below = 0;
+    // crossings behind the voxel, counted the way the voxels go: odd — inside (a ray has an even number)
+    let passed = 0;
+    let next = side > 0 ? 0 : hits.length - 1;
     for (let k = 0; k < nw; k++) {
       const w = along(k);
-      while (below < hits.length && hits[below] < w) below++;
-      if (below % 2 === 1) distance[node * nw + k] = 0;
+      while (next >= 0 && next < hits.length && side * (hits[next] - w) < 0) {
+        passed++;
+        next += side;
+      }
+      if (passed % 2 === 1) distance[node * nw + k] = 0;
       else if ((k + 0.5) * cell < last) {
         if (!cut) locked.push(node, k);
         else {
@@ -224,16 +237,21 @@ export function releaseDepth(rays: RayGrid, { plane, side, cut }: ReleaseOptions
   if (locked.length === 0) return { depthMm: 0, at: null, lockedMm3: 0 };
 
   squaredDistances(distance, n0, n1, nw);
-  let best = -1;
+  // a voxel beside the clay, even across a corner, is the grid's own step: a facet running along the pull
+  let best = NOISE_CELLS2;
   let bestAt: [number, number, number] | null = null;
+  let count = 0;
   for (let i = 0; i < locked.length; i += 2) {
     const d = distance[locked[i] * nw + locked[i + 1]];
+    if (d <= NOISE_CELLS2) continue;
+    count++;
     if (d > best) {
       best = d;
       bestAt = point(locked[i], locked[i + 1]);
     }
   }
-  return { depthMm: Math.sqrt(best) * cell, at: bestAt, lockedMm3: (locked.length / 2) * cell ** 3 };
+  if (!bestAt) return { depthMm: 0, at: null, lockedMm3: 0 };
+  return { depthMm: Math.sqrt(best) * cell, at: bestAt, lockedMm3: count * cell ** 3 };
 }
 
 /**
