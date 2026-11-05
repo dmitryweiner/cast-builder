@@ -2,7 +2,9 @@
 // thumbnail, an STL opened from a file (a hollow print gets filled), a
 // slump mold with screw clamps (their thread fit) and its printed screws and
 // stops with their sizes named, a slump mold for steel bolts (plain holes,
-// stops only), the parts laid out on the bed and pour boxes in one file, the
+// stops only), the parts laid out on the bed and pour boxes in one file, a
+// keychain's tile mold (refused face down), a hollow cup in a mold of two
+// halves (a file each or one, Find, the press kind remembered), the
 // project kept over a reload and Reset,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
 // the model turned and spun by a preset, language detection and memory, the
@@ -288,6 +290,76 @@ try {
     check(downloads[0].suggestedFilename() === 'cup-hollow-bath.stl', `file named ${downloads[0].suggestedFilename()}`);
     const pieces = stlBodies(readFileSync(await downloads[0].path()));
     check(pieces === 3, `${pieces} pieces in the STL instead of three pour boxes`);
+    await context.close();
+  });
+
+  await step('a keychain as a tile mold: one part, nothing catches, one STL; face down it is refused', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('keychain'));
+    await page.click('#tabSlump');
+    await page.selectOption('#mold_press', 'tile');
+    const listed = await parts(page, 1);
+    check(listed[0].startsWith('Tile mold'), `tile: ${listed.join(' | ')}`);
+    check((await page.locator('#schemeNote').textContent()).includes('tile mold: 0.0 mm'), 'no undercut named');
+    check(!(await page.locator('#bedCard').isVisible()) && !(await page.locator('#mouthCard').isVisible()), 'cards of other modes shown');
+    check(
+      !(await page.locator('#mold_slab').isVisible()) && !(await page.locator('#splitCard').isVisible()),
+      'slump or split controls shown',
+    );
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    await page.click('#exportBtn');
+    await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    check(downloads.length === 1, `${downloads.length} downloads instead of 1`);
+    check(downloads[0].suggestedFilename() === 'keychain-tile.stl', `file named ${downloads[0].suggestedFilename()}`);
+    check(stlBodies(readFileSync(await downloads[0].path())) === 1, 'the tile mold is not one piece');
+    await page.click('#turnFlip');
+    await page.waitForFunction(() => document.querySelector('#blockers')?.textContent?.includes('not flat'), null, { timeout: 60000 });
+    check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for a tile face down');
+    await context.close();
+  });
+
+  await step('a hollow cup in a mold of two halves: the plane, a file each or one, Find; the kind is remembered', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('cup-hollow'));
+    await page.click('#tabSlump');
+    await page.selectOption('#mold_press', 'split');
+    const listed = await parts(page, 2);
+    check(listed[0].startsWith('Half A') && listed[1].startsWith('Half B'), `split: ${listed.join(' | ')}`);
+    check((await page.locator('#split_axis').isVisible()) && (await page.locator('#split_pct').inputValue()) === '50', 'no plane controls');
+    check((await page.locator('#schemeNote').textContent()).includes('half B: 0.0 mm'), 'no undercuts named');
+    check(!(await page.locator('#bed_place').isVisible()), 'a layout is offered for halves a file each');
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    const exported = async (count) => {
+      await page.click('#exportBtn');
+      await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+      // the downloads go one by one, a quarter of a second apart
+      for (let i = 0; i < 40 && downloads.length < count; i++) await page.waitForTimeout(100);
+      await page.waitForTimeout(500);
+    };
+    await exported(2);
+    const names = downloads.map((download) => download.suggestedFilename());
+    check(names.join() === 'cup-hollow-split-A.stl,cup-hollow-split-B.stl', `files: ${names.join()}`);
+    for (const download of downloads)
+      check(stlBodies(readFileSync(await download.path())) === 1, `${download.suggestedFilename()} is not one piece`);
+    await page.check('#bed_oneFile');
+    downloads.length = 0;
+    await exported(1);
+    check(
+      downloads.length === 1 && downloads[0].suggestedFilename() === 'cup-hollow-split.stl',
+      `one file: ${downloads.map((d) => d.suggestedFilename()).join()}`,
+    );
+    check(stlBodies(readFileSync(await downloads[0].path())) === 2, 'the one file is not two halves');
+    await page.click('#findBtn');
+    await page.waitForFunction(() => document.querySelector('#findNote')?.textContent?.startsWith('Found'), null, { timeout: 120000 });
+    // another tab and back: the press tab opens on the kind last picked
+    await page.click('#tabMaster');
+    await parts(page, 1);
+    await page.click('#tabSlump');
+    check((await page.locator('#mold_press').inputValue()) === 'split', 'the press kind was forgotten');
+    await parts(page, 2);
     await context.close();
   });
 

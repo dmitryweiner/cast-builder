@@ -6,6 +6,8 @@
 // every position only reads them anew (geo/release.ts). Coarse first, on a
 // big cell; then round the best, finer. A tie goes to the smaller turn of the
 // piece and to the plane nearer its middle: the user's setup moves least.
+// The scan goes in that order, so a piece that comes apart clean is found at
+// once; one that catches everywhere costs the whole scan.
 //
 // Pure: the piece comes as a mesh, filled and scaled.
 
@@ -87,13 +89,18 @@ function largest(positions: Float32Array): number {
 
 function scan(mesh: RayMesh, axis: Axis, rim: RimCut | null, spins: number[], pcts: number[], cell: number, tick: () => void): FoundPlane {
   let best: FoundPlane | null = null;
-  for (const spinDeg of spins) {
+  // in the order a tie is broken: the first clean plane is the best one, and the scan stops there
+  const bySpin = spins.toSorted((a, b) => turn(a) - turn(b));
+  const byPct = pcts.toSorted((a, b) => Math.abs(a - 50) - Math.abs(b - 50));
+  for (const spinDeg of bySpin) {
     tick();
+    if (best?.depthMm === 0) continue;
     const spun = spinMesh(mesh, spinDeg);
     const rays = castRays(spun, axis, cell);
     const cut = rim ? unspunCut(rim, spinDeg) : undefined;
     const [lo, hi] = extent(spun.positions, axis);
-    for (const pct of pcts) {
+    for (const pct of byPct) {
+      if (best?.depthMm === 0) break;
       const plane = lo + ((hi - lo) * pct) / 100;
       const a = releaseDepth(rays, { plane, side: -1, ...(cut ? { cut } : {}) }).depthMm;
       // the other half cannot make it better than this one makes it worse

@@ -3,7 +3,9 @@
 Cast Builder — a static, offline-capable web app that builds slip-casting
 tooling for a ready STL: a master positive with a pouring collar, printed
 pour boxes for silicone (one per part of a plaster mold the app designs
-itself), and a dished slump mold with its punch. TypeScript + Vite, no
+itself), a dished slump mold with its punch, and press molds with no punch:
+a tile mold for a flat plate with relief and a mold of two printed halves
+for a piece that is not round. TypeScript + Vite, no
 framework, Three.js for the view, manifold-3d (WASM) for the boolean
 operations in a worker. Tests on Vitest (node and jsdom) and a Playwright
 smoke. UI in English and Russian. Deployed to GitHub Pages.
@@ -27,6 +29,8 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   mode, a slump mold with screw clamps and their printed set (8 pieces, the
   sizes named) laid out in a row and in a column (the thread fit set), one
   for steel bolts (plain holes, stops only: 5 pieces), pour boxes in one file,
+  the keychain's tile mold (refused face down), a hollow cup in two halves
+  (a file each and one file, Find, the press kind remembered),
   the project kept over a reload and Reset, the thumbnail, a file upload,
   real downloads, turning and spin presets, languages, the phone sheet and
   width;
@@ -66,9 +70,10 @@ Regenerate them only on purpose.
   list of the build (the worker chunk and its WASM included).
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
   through the worker, downloads.
-- `src/state.ts` — `Settings` (the user's habits) and `Setup` (the model in
-  hand: orientation, mouth, plug), with their sanitizers; `resetSettings`
-  (all but the language and the mode).
+- `src/state.ts` — `Settings` (the user's habits; `press` the kind the press
+  tab opens on) and `Setup` (the model in hand: orientation, mouth, plug,
+  the split plane), with their sanitizers; `resetSettings` (all but the
+  language and the mode).
 - `src/storage.ts` — the project in localStorage, two versioned keys: the
   settings with the setup (`cast-builder`, written on every change) and the
   model itself (`cast-builder-model`, written only when a model is opened;
@@ -86,6 +91,13 @@ Regenerate them only on purpose.
   - `revolve.ts` — a mesh read as a body of revolution for the slump mold;
   - `press.ts` — the slump mold and its punch, the layout of their screw
     clamps (`screwLayout`; no CSG);
+  - `release.ts` — whether a piece comes out of a press mold with no punch,
+    how deep it catches in mm (`castRays`, `releaseDepth`, `reachOf`; pure);
+  - `tile.ts` — the tile mold (CSG, worker only);
+  - `split/` — the mold of two halves: the shells as height fields and
+    their turn for the print (`shell`, pure), the cut over an open piece's
+    rim and inside its mouth (`rim`, pure), the search for the plane
+    (`find`, pure), a half assembled (`index`, CSG, worker only);
   - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, tab, gap,
     screw (its neck), stop, the room under the landing, the steel bolt
     (`STEEL_BOLT_MM`); the fit's default and limits; `screwSolids.ts` — the
@@ -111,7 +123,9 @@ Regenerate them only on purpose.
   the bed and the axes (tested in node). `src/ui/`
   — controls (a range may carry preset buttons, a checkbox a note under it;
   `screws.ts` the clamps, the thread, its fit, the print boxes with the
-  sizes they print; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
+  sizes they print; `bed.ts` the layout on the bed and `inOneFile`;
+  `press.ts` the press kind, the allowed undercut, the split plane, the
+  undercuts found), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
@@ -235,7 +249,28 @@ Regenerate them only on purpose.
   punch, the screws and the stops — and the app lays them out for the view
   and, in one file, for the STL. A change of the layout or the gap lays the
   last build out again with no new build. One STL: the slump mold always,
-  pour boxes when asked (`inOneFile`).
+  pour boxes and split halves when asked (`inOneFile`).
+- A press mold with no punch (tile, split) must come off by itself: the
+  release check measures **depth** in mm — the locked mold's distance to
+  the clay on voxels along the pull — never an area share (a gentle wave
+  is 15 % of a vase's area). Over the allowed undercut (`allowedCatchMm`,
+  the user's) the download is blocked; the parts are still shown. A locked
+  voxel within a cell's diagonal of the clay is noise: catches under about
+  1.5 cells are not seen.
+- The tile mold reads the model as it is, never `solidify`: a raised
+  border is relief, not a rim. Its back lies down; the mold is the tile
+  turned over (never mirrored), the back 0.2 mm proud of the rim.
+- A split half is a height field over the plane on the release check's
+  grid: the back is the piece's reach dilated by a ball of the wall (along
+  the normal: by the seam the wall runs along the pull), never under a
+  2-wall land; cut to the land's outline (the half's shadow grown by 12 mm)
+  with the exact piece taken out. Printed turned (never mirrored), the
+  parting face up, on supports. A half keeps its largest piece only: a
+  mouth folding round the axis leaves islands of mold the rim cutter does
+  not reach.
+- An open piece's split mold ends at its rim and keeps out of its mouth:
+  one polar cutter round the axis, over z = top(θ) − 0.2 and inside the
+  mouth over the lid; the release check does not look over the lid's crest.
 - The project is kept on every change; the model only when opened, never
   on a slider. A model that does not fit removes the one kept before: a
   stale model must not reopen under a fresh setup. The setup is restored
@@ -259,9 +294,16 @@ triangles):
 | slump mold + punch, preview grid 128              | 0.03–0.1 s                                         |
 | slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                           |
 | the same with screw clamps (bowl, cup, vase…)     | preview 0.3–0.5 s (teapot 0.9 s); export 2.8–3.8 s |
+| tile mold (keychain)                              | 30–40 ms                                           |
+| split, two halves (cup, vase, hollow teapot)      | preview 0.8–1.2 s; export 0.9–1.6 s                |
+| split, MathSculpt's vase (263k triangles)         | preview 2.4–2.6 s; export 3.4–3.6 s                |
+| the release check, the vase's half                | 22 ms at 1.1 mm cells, 90 ms at 0.7 mm             |
+| Find: a clean plane at no turn / at a quarter     | 0.1 s / 14 s (hollow teapot)                       |
+| Find: the vase, catching everywhere (whole scan)  | 14 s                                               |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
-deep, a waiting preview is replaced by a fresher one, an export never.
+deep, a waiting preview is replaced by a fresher one, an export or a Find
+never.
 
 ## What is not there
 
@@ -284,6 +326,13 @@ deep, a waiting preview is replaced by a fresher one, an export never.
   app itself.
 - An axis other than the foot's centroid: a model with no flat foot falls
   back to the middle of its bounding box.
+- A split mold's parting surface that is not a plane (following the
+  silhouette, what a wavy piece really wants), a plane at a slant, more
+  than two parts, a bottom plate, keys between the halves; undercuts filled
+  by the mold itself; a block-shaped half with a flat back; the crests of a
+  wavy rim checked for catches.
+- A tile with relief on both faces, a draft added to its walls, vents in
+  the tile mold.
 
 ## Conventions
 

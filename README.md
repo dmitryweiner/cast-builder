@@ -9,6 +9,8 @@ get printable files:
 | Master     | the piece grown by the slip's shrinkage, with a pouring collar on the rim — take a silicone mold off it by hand                                                                                                           |
 | Pour boxes | the app designs the plaster mold (one part, two halves, halves and a bottom plate, a mouth plug) and gives a printed box for each part with the part's positive inside: pour silicone, get a negative, cast plaster in it |
 | Slump mold | a dished mold for pressing a clay slab in, and the punch that fits it, in one file                                                                                                                                        |
+| Tile       | a one-part press mold for a flat plate with relief — a keychain, a tile — checked that the plate comes out                                                                                                                |
+| Two halves | a press mold of two printed shells parted by a plane for a piece that is not round, no punch; the app checks how deep it catches and can find the plane                                                                   |
 
 Everything runs in the browser, offline too. The model is read as
 millimetres with its axis up; it can be turned by quarter turns and spun

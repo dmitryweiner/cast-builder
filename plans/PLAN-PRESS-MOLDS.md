@@ -1,7 +1,7 @@
 # PLAN-PRESS-MOLDS — a tile mold and a two-part press mold
 
 Branch `press-molds` (from `main`), one PR, a commit per milestone.
-Status: **approved** (2026-11-05), in progress.
+Status: **done** (2026-11-05); results at the end.
 
 ## What is asked (2026-11-05)
 
@@ -272,3 +272,46 @@ through the origin, so a spin about z in the worker is the same thing).
   vents in the tile mold.
 - A block-shaped half with a flat back (printed with no supports).
 - Keys between the halves.
+
+## Results (2026-11-05)
+
+All milestones done; `npm run check` and the smoke (dev) pass.
+
+What came out differently from the design above:
+
+- **Noise of the check.** A locked voxel beside the clay — even across a
+  corner — is the grid's own step: a cylinder's facets along the pull gave
+  0.3 mm "catches" on a clean cup. Such voxels are dropped; the check does
+  not see catches under ~1.5 cells (0.5–1 mm in an export).
+- **A bug found by the wavy vase**: on the − side the crossings were
+  counted against the voxels' order (the sphere tests passed by symmetry).
+  Fixed, with a test of a ring split across its bore.
+- **The mouth.** The rim cutter's inside of the mouth is read just over the
+  fill's lid, where the wall is whole round the axis; higher rows only
+  clear of a crest's sloping top. MathSculpt's vase folds round the axis,
+  so a ray from it crosses the wall twice and pockets of mold stayed in the
+  folds — 12 and 21 loose pieces per half. A half keeps its largest piece
+  now, and the release check does not look over the lid's crest (those
+  pockets counted as catches of 5.2 mm).
+- **The ray grid** reaches past the piece by the land (`castRays` margin).
+- **Find**: positions by 5 % coarse (2.5 % gave the same plane in twice the
+  time), the coarse cell a share of the size but ≥ 1 mm (a 2 mm cell called
+  a drilled Ø8 hole clean), the fine pass on the preview's cell so the depth
+  found is the one shown. The scan runs in the order a tie is broken and
+  stops at the first clean plane.
+- No `model.filled` warning in the split mode: its text speaks of plaster.
+
+Measured (M1 Max, node):
+
+| Job                                   | Time / result                                         |
+| ------------------------------------- | ----------------------------------------------------- |
+| tile, keychain                        | 30–40 ms, no catch; face down: refused (`tile.back`)  |
+| split, MathSculpt's vase, preview     | 2.4–2.6 s; x 50 %: 4.0 / 5.5 mm                       |
+| split, the vase, export               | 3.4–3.6 s, two closed shells of one piece each        |
+| Find, the vase                        | 14 s: spun 40°, at 50 %, 3.8 mm                       |
+| Find, hollow cup / hollow teapot      | 0.1 s / 14 s (a quarter turn: the spout in the plane) |
+| the release check, a half of the vase | 22 ms at 1.1 mm, 90 ms at 0.7 mm                      |
+
+Left for a test print: whether the 12 mm land and a 3 mm shell are stiff
+enough to press clay into by hand, and how much a leather-hard slab really
+lets go of (the allowed undercut's default).

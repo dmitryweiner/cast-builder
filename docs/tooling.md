@@ -111,6 +111,13 @@ cannot reach. Set the **ledge depth** below the rim and the **gallery
 radius** — the opening above the ledge, wider than the gate and narrower
 than the rim. If it does not fit, the mold keeps a collar and says so.
 
+## Press molds
+
+Molds the clay is pressed into by hand, all under one tab with a switch of
+their **kind**: a **bowl with a punch** (the slump mold below), a **tile**
+(a one-part mold for a flat plate with relief) and **two halves** (a mold
+for a piece that is not round). The tab opens on the kind last picked.
+
 ## Slump mold
 
 A dished mold: a clay slab is pressed **into** it, the relief lands on the
@@ -242,6 +249,77 @@ with 100 % infill or five walls or more; the threads print best at 0.2 mm
 layers or finer. If a printed screw is tight, run it in and out a few
 times, or raise the **Thread fit** for the next mold.
 
+## Tile mold
+
+One part for a flat plate with relief — a keychain, a tile, a medallion. The
+model lies as it would on the table: **its back down**, its face (the relief)
+up. The mold is the plate turned over and sunk into a block: its shadow
+grown by a 10 mm land, the floor under the face as thick as the **Wall**.
+A hole through the plate (for a ring) is a post up to the rim. The back
+stands 0.2 mm proud of the rim, so the scraper takes a hair off it.
+
+The mold has to come off the plate by itself, so the app checks it (see
+[Undercuts](#undercuts)). A face that overhangs — a letter wider at the top
+than at the bottom — catches. A back that is not flat catches at the rim:
+the panel asks to turn the model over if it lies face down.
+
+How to work: press the clay into the mold, scrape it flush with the rim,
+turn the mold over and tap the tile out. There are no vents: they would
+leave nubs on the face.
+
+| Parameter        | Range     | Default | What it does                          |
+| ---------------- | --------- | ------- | ------------------------------------- |
+| Shrinkage        | 0–30 %    | 12      | the plate grows by it                 |
+| Wall             | 1.2–12 mm | 3       | the floor of the mold under the face  |
+| Allowed undercut | 0–6 mm    | 1       | how deep the plate may catch the mold |
+
+## Two halves
+
+A mold for a piece that is not a body of revolution — a deformed ball, an
+asymmetric vase: two halves parted by a plane, no punch. Press the clay into
+each half and even it with the fingers, cut it flush with the land and the
+rim; take the halves out leather-hard and join them, scored and slipped.
+
+The plane is square to the **axis** picked — X or Y part the piece upright,
+Z across its height — at the **position** set in % of the piece's size along
+that axis. The **spin** in the Model card turns the piece under an upright
+plane. Both belong to the model in hand, like its turn.
+
+Each half is a **shell**: the wall behind the piece is the **Wall** thick
+everywhere, the seam included, and round the cavity a flat **land** 12 mm
+wide and twice the wall thick lies in the plane — cut the clay flush with
+it. A half is printed **parting face up**; its back and the land need
+supports in the slicer. A hollow piece is filled first: the mold sees only
+its outside. An open piece's mold ends at its rim — a wavy one too — and
+keeps out of its mouth: cut the clay along the mold's edge.
+
+The two halves must come off (see [Undercuts](#undercuts)); the panel names
+the depth of each. **Find the plane** looks for the position, and for an
+upright plane the spin, with the shallowest undercut and sets them; it takes
+a few seconds, up to a quarter of a minute for a large model. The mold copies
+the piece with its undercuts — a plane is a compromise for a piece with
+waves across it, and the allowed undercut says how much of one is taken.
+
+| Parameter        | Range     | Default | What it does                                   |
+| ---------------- | --------- | ------- | ---------------------------------------------- |
+| Shrinkage        | 0–30 %    | 12      | the piece grows by it                          |
+| Wall             | 1.2–12 mm | 3       | the shell of each half; the land is twice that |
+| Allowed undercut | 0–6 mm    | 1       | how deep the piece may catch a half            |
+| Plane across     | X, Y, Z   | X       | the axis the parting plane is square to        |
+| Plane at         | 5–95 %    | 50      | where the plane cuts the piece                 |
+
+### Undercuts
+
+A tile mold and the halves have no punch to push them off: the piece must
+leave them along their pull. The app measures **how deep** the piece holds
+a mold, in mm — the mold that would run into the clay on its way off, and
+how far that is from the clay. A gentle wave lets a slab go; a bulge over
+the parting plane holds it. Leather-hard clay bends a few millimetres, soft
+clay tears: the **allowed undercut** is yours. Deeper than that, the export
+is blocked and the panel says where the catch is. Catches under about a
+millimetre and a half (a cell of the check) are not seen; over the rim of
+an open piece the halves are not checked — the clay is cut along their edge.
+
 ## Export
 
 At the bottom of the **Tooling** card, under the settings of the chosen
@@ -249,14 +327,15 @@ mode: the part list shows what the download will hold, with sizes. **Export**
 builds the parts at full detail, checks each mesh (closed, normals out) and
 downloads them, named after the model: the master and pour boxes one STL per
 part (`teapot-bath-half-A.stl`), the slump mold one STL with the punch, the
-screws and the stops (`teapot-slump.stl`).
+screws and the stops (`teapot-slump.stl`), the tile mold one STL
+(`keychain-tile.stl`), the two halves one STL each (`vase-split-A.stl`).
 
-**On the bed** (pour boxes and the slump mold) says how the parts lie in that
-STL:
+**On the bed** (pour boxes, the slump mold and the two halves) says how the
+parts lie in that STL:
 
 | Parameter       | Choices                            | Default | What it does                                                                                                               |
 | --------------- | ---------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
-| All in one file | on / off                           | off     | pour boxes only: one STL with every box (`teapot-bath.stl`) instead of a file each                                         |
+| All in one file | on / off                           | off     | pour boxes and halves: one STL with every part (`teapot-bath.stl`, `vase-split.stl`) instead of a file each                |
 | Layout          | auto, in a row, one behind another | auto    | rows along x, the rows one behind another along y; auto breaks the parts into rows so that the longer side is the shortest |
 | Gap             | 2–50 mm                            | 15      | between the parts                                                                                                          |
 
@@ -267,9 +346,10 @@ again at once, with no new build. The view shows the parts as they lie.
 ## What is remembered
 
 The project is saved in the browser on every change and comes back on the
-next visit: the model itself, its turn, mouth and plug, and the mode, the
-parameters, the parting choice, the detail and the layout on the bed. A
-newly opened model starts from the default turn, mouth and plug. The other
+next visit: the model itself, its turn, mouth, plug and split plane, and
+the mode, the kind of press mold, the parameters, the parting choice, the
+detail and the layout on the bed. A newly opened model starts from the
+default turn, mouth, plug and plane. The other
 settings stay as they were.
 
 The browser keeps a few megabytes for every app on the same site. A model
