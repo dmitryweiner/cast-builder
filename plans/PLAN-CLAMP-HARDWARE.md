@@ -1,6 +1,6 @@
 # PLAN-CLAMP-HARDWARE — the second test print: metal hardware, a landing, stops apart
 
-Branch `clamp-hardware`, one PR, a commit per milestone. Status: **approved 2026-11-05**, in work.
+Branch `clamp-hardware`, one PR, a commit per milestone. Status: **done** (approved 2026-11-05).
 
 ## What the test print showed (2026-11-05)
 
@@ -186,6 +186,30 @@ enough, a screw printed lying on two flats is the next step (not here).
 - `AGENTS.md`: invariants (the landing, the thread optional, the neck),
   layout, timings, plans index, "What is not there".
 - `PLAN-SCREWS.md`: a line under "The first test print" pointing here.
+
+## Results
+
+Measured in node (grid 128 for the lugs and the preview, 384 for
+the export), before → after:
+
+| model, slab | lugs, cm³                 | ears with the clamps, cm³ | preview, ms           | landing over the bed |
+| ----------- | ------------------------- | ------------------------- | --------------------- | -------------------- |
+| bowl, 3 / 6 | 18.9 → 21.9 / 23.5 → 22.1 | as without                | 354 → 408 / 353 → 377 | 70 / 73 mm           |
+| cup, 3 / 6  | 9.8 → 10.9 / 13.5 → 12.0  | as without                | 307 → 348 / 322 → 337 | 87 / 90 mm           |
+| vase, 3 / 6 | 23.2 → 15.5 / 23.6 → 19.1 | +82.6 / +85.0 → none      | 285 → 306 / 269 → 289 | 271 / 275 mm         |
+| pot, 6 / 12 | 20.0 → 25.3 / 21.1 → 26.6 | −19.6 / +4.9 → none       | 291 → 331 / 307 → 330 | 151 / 158 mm         |
+
+- The thread is the whole 12 mm on every model and slab (it was 8–12, and
+  8 on the pot and the vase); `earShortfall` is gone with the vase's
+  +68–85 cm³ of ears.
+- The room under the landing reaches into the ear's rib on the cup only
+  (60–110 mm³ per lug, cut off).
+- The preview is 20–60 ms slower: the rooms are cut off the shell, so it is
+  always imported. The export with the printed set: bowl 2.2 → 2.0 s, cup
+  2.3 → 2.1 s.
+- The steel bolt: tab 8 + gap 10 + lug 12 + travel 8 + washer 2 + nut 8 +
+  3 past it = 51 → **M10 × 55**.
+- Done as planned otherwise; M0 drew no variants (L2 was picked up front).
 
 ## Not in this plan
 

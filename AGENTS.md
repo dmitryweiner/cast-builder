@@ -24,8 +24,9 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
 - `npm run check` — typecheck + oxlint + prettier + unit tests. Must pass before
   any work is called done.
 - `npm run smoke` — browser smoke on the dev server: the sample through every
-  mode, a slump mold with screw clamps and their printed set (8 pieces) laid
-  out in a row and in a column (the thread fit set), pour boxes in one file,
+  mode, a slump mold with screw clamps and their printed set (8 pieces, the
+  sizes named) laid out in a row and in a column (the thread fit set), one
+  for steel bolts (plain holes, stops only: 5 pieces), pour boxes in one file,
   the project kept over a reload and Reset, the thumbnail, a file upload,
   real downloads, turning and spin presets, languages, the phone sheet and
   width;
@@ -86,8 +87,10 @@ Regenerate them only on purpose.
   - `press.ts` — the slump mold and its punch, the layout of their screw
     clamps (`screwLayout`; no CSG);
   - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, tab, gap,
-    screw, stop; the fit's default and limits; `screwSolids.ts` — the threaded rod, the screw, the stop,
-    the mold's lugs and the punch's tabs as solids (worker only);
+    screw (its neck), stop, the room under the landing, the steel bolt
+    (`STEEL_BOLT_MM`); the fit's default and limits; `screwSolids.ts` — the
+    threaded rod, the screw, the stop, the mold's lugs and the punch's tabs
+    as solids, the cuts of the mold round them (worker only);
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
@@ -106,8 +109,9 @@ Regenerate them only on purpose.
   card (drawn once per change, no controls, the three axes labelled),
   `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
   the bed and the axes (tested in node). `src/ui/`
-  — controls (a range may carry preset buttons; `screws.ts` the clamps'
-  two checkboxes and the thread fit; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
+  — controls (a range may carry preset buttons, a checkbox a note under it;
+  `screws.ts` the clamps, the thread, its fit, the print boxes with the
+  sizes they print; `bed.ts` the layout on the bed and `inOneFile`), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
 - `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
   locales, detection, templates.
@@ -136,6 +140,9 @@ Regenerate them only on purpose.
   burgundy theme, the model thumbnail).
 - `plans/PLAN-FIT-RESET-PROJECT.md` — the thread fit as a setting, Reset of
   all settings, the project (the model included) kept over a reload.
+- `plans/PLAN-CLAMP-HARDWARE.md` — the second test print (screws tore at the
+  head): a landing under the lugs for steel, the thread optional, stops on
+  their own, the screw's neck, the sizes in the panel.
 
 ## Architectural invariants
 
@@ -202,17 +209,23 @@ Regenerate them only on purpose.
   (`threadFitMm`, mm of the print): it widens the lug's threaded hole only,
   never the screw, so the set still fits. The lugs and tabs are built
   after the scaling, in the mm of the print, as prisms: in plan the hull of
-  a boss and of the ear's (the leg's) side, with a flat top. A lug's boss stands 2 mm into the ear's cheek,
-  and the cheek is cut down round the stop. A lug's underside rises at 45°
-  away from the ear and stays within the ear's outline widened up at 45°
-  (`support`): it prints without supports. The thread starts where that
-  envelope holds the hole (`threadZ`, 12 mm or less, never under 8; a plain
-  bore below); only below 8 mm does the ear's face go lower
-  (`earShortfall`), and not at all when that would not help. A lug is cut
-  back off the cavity with half a shell and off the clay over the rim; a tab
-  off the clay under the flange and off the ear's cheeks. An export fuses
-  them on; a preview lays them over unfused (the cheeks' cut needs the
-  shell's import even there).
+  a boss and of the ear's (the leg's) side, with a flat top. A lug's boss
+  stands 2 mm into the ear's cheek, and the cheek is cut down round the
+  stop. The boss ends in a flat **landing** LUG_THREAD_MM under the seat on
+  every mold (one steel bolt for all), square to the axis, with NUT_ROOM
+  kept free under it — cut off the ear's rib too; the landing prints on
+  supports, so the ear never grows for a lug. Past the boss the lug's
+  underside rises at 45° away from the ear from the landing's far edge of
+  the hole and stays within the ear's outline widened up at 45°
+  (`support`). The thread is the whole 12 mm; without it
+  (`threadedLugs` off) the hole is plain Ø11 like the tab's and the printed
+  screws are not offered. The screw's first `neck` mm (in the tab) are plain
+  and as wide as the thread, coned into the head; the tab's hole is
+  chamfered for the cone. A lug is cut back off the cavity with half a
+  shell and off the clay over the rim; a tab off the clay under the flange
+  and off the ear's cheeks. An export fuses them on; a preview lays them
+  over unfused (the cuts of the cheeks and the rooms need the shell's
+  import even there).
 - The layout on the bed is the main thread's (`arrangeOnBed`): the worker
   returns every part in its own frame — the slump mold as the mold, the
   punch, the screws and the stops — and the app lays them out for the view
@@ -255,7 +268,9 @@ deep, a waiting preview is replaced by a fresher one, an export never.
 - Pour boxes for the slump mold: the mold itself is printed, as a shell.
 - Screw clamps of another size or pitch, more than three of them; a lug
   held at 45° on a shape that widens below its rim; the jacking screws need
-  room under the lugs for their heads (a low mold stands on blocks).
+  room under the lugs for their heads (a low mold stands on blocks); parting
+  with steel (a plain hole has nothing for a bolt from below to screw
+  into); a screw printed lying on its side; a landing wider than the boss.
 - A slump mold on a hump ("+"); handles on the punch; adjustable clearance
   and leg sizes other than the ear's seat (constants in `geo/press.ts`);
   separate objects in the STL (mold and punch are one mesh — "split into
