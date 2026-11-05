@@ -101,6 +101,7 @@ export function pressOptions(mold: MoldState): PressOptions {
     roundPct: mold.punchRoundPct,
     screws: mold.screws,
     fitMm: mold.threadFitMm,
+    threaded: mold.threadedLugs,
   };
 }
 

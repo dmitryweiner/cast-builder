@@ -49,6 +49,7 @@ const options = (over: Partial<PressOptions> = {}): PressOptions => ({
   roundPct: 0,
   screws: false,
   fitMm: THREAD_FIT_MM,
+  threaded: true,
   ...over,
 });
 

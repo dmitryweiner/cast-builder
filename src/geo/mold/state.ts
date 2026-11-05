@@ -30,6 +30,8 @@ export interface MoldState {
   printScrews: boolean;
   /** radial clearance of the lugs' threaded holes, mm of the print: the screws stay the same */
   threadFitMm: number;
+  /** the lugs' holes threaded for the printed screws; off — plain, for a steel M10 bolt and a nut */
+  threadedLugs: boolean;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -58,6 +60,7 @@ export function defaultMold(): MoldState {
     screws: false,
     printScrews: false,
     threadFitMm: THREAD_FIT_MM,
+    threadedLugs: true,
   };
 }
 
@@ -85,5 +88,6 @@ export function sanitizeMold(raw: unknown): MoldState {
     screws: typeof source.screws === 'boolean' ? source.screws : fallback.screws,
     printScrews: typeof source.printScrews === 'boolean' ? source.printScrews : fallback.printScrews,
     threadFitMm: clamp(num(source.threadFitMm, fallback.threadFitMm), THREAD_FIT_MIN_MM, THREAD_FIT_MAX_MM),
+    threadedLugs: typeof source.threadedLugs === 'boolean' ? source.threadedLugs : fallback.threadedLugs,
   };
 }

@@ -159,7 +159,9 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   const cavity = scope.keep(scope.keep(new csg.CrossSection([section], 'Positive')).revolve(ROUND_SEGMENTS));
   const clay = column(csg, scope, layout.seatInMm, layout.shelfZ, z1 + 1);
   // the thread leaves the lug through the flat landing: whole teeth, no arches over a slanted cut
-  const rod = threadRod(csg, scope, THREAD, layout.fitMm, layout.landingZ - 1, z1, n);
+  const rod = layout.threaded
+    ? threadRod(csg, scope, THREAD, layout.fitMm, layout.landingZ - 1, z1, n)
+    : column(csg, scope, layout.holeMm, layout.landingZ - 1, z1, Math.round(ROUND_SEGMENTS / 6));
   const support = scope.keep(
     scope.keep(new csg.CrossSection([layout.support.map(({ r, z }): [number, number] => [r, z])], 'Positive')).revolve(ROUND_SEGMENTS),
   );

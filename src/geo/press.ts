@@ -20,7 +20,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
-import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD } from './thread';
+import { CLEAR_HOLE_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -120,6 +120,8 @@ export interface PressOptions {
   screws: boolean;
   /** radial clearance of the lugs' threaded holes, mm of the print */
   fitMm: number;
+  /** the lugs' holes threaded for the printed screws; plain, as the tabs', for a steel bolt and a nut */
+  threaded: boolean;
 }
 
 /**
@@ -653,8 +655,10 @@ export interface ScrewLayout {
    */
   seatZ: number;
   landingZ: number;
-  /** radial clearance of the threaded hole, mm */
+  /** a threaded hole, its radial clearance; or a plain one as the tab's, `holeMm` its radius */
+  threaded: boolean;
   fitMm: number;
+  holeMm: number;
   /**
    * The lug's underside past its boss, so that it prints without supports:
    * it rises at 45° away from the ear's side — from `footZ` at the side's
@@ -745,8 +749,9 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   };
   const earAt = (z: number): number => Math.min(ear.outerMm - Math.max(0, ear.faceZ - z), wallAt(z) + ear.depthMm) * grow;
   const toAxis = BOSS_R_MM - BOSS_IN_CHEEK_MM;
-  const { fitMm } = options;
-  const from = Math.max(0, landingZ - toAxis - THREAD.d / 2 - fitMm - 2);
+  const { fitMm, threaded } = options;
+  const holeMm = threaded ? THREAD.d / 2 + fitMm : CLEAR_HOLE_MM / 2;
+  const from = Math.max(0, landingZ - toAxis - holeMm - 2);
   const support: RZ[] = [{ r: 0, z: from }];
   let widest = 0;
   for (let z = from; z <= seatZ + 1 + 1e-9; z += SUPPORT_STEP_MM) {
@@ -755,7 +760,7 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   }
   support.push({ r: 0, z: support[support.length - 1].z });
   // the slope meets the landing at the hole's far edge: the hole leaves the lug through the landing
-  const footZ = landingZ - toAxis - THREAD.d / 2 - fitMm;
+  const footZ = landingZ - toAxis - holeMm;
 
   let innerMm = Infinity;
   for (const p of cavity) if (p.r > 0 && p.z >= footZ && p.z <= seatZ) innerMm = Math.min(innerMm, p.r);
@@ -769,7 +774,9 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
     shelfZ: ear.topZ * grow,
     seatZ,
     landingZ,
+    threaded,
     fitMm,
+    holeMm,
     footZ,
     support,
     inCheek,

@@ -287,6 +287,36 @@ describe('slumpTooling with screws', () => {
     },
   );
 
+  it('without the thread a lug has a plain hole: a steel M10 bolt passes the lug and the tab; the fit changes nothing', () => {
+    const source = meshSource(placeModel(fixture('cup'), defaultOrientation()), N, N);
+    const plainHole = (threadFitMm: number) =>
+      slumpTooling(
+        csg,
+        source,
+        { ...pressOptions({ ...defaultMold(), threadFitMm, threadedLugs: false }), screws: true },
+        { exporting: true, print: false },
+      );
+    const built = plainHole(THREAD_FIT_MM);
+    const layout = built.layout;
+    if (!layout) throw new Error('no layout');
+    const loose = plainHole(THREAD_FIT_MAX_MM).mold.positions;
+    // (toEqual on a hundred thousand numbers takes the better part of a minute)
+    expect(loose.length === built.mold.positions.length && loose.every((v, i) => v === built.mold.positions[i])).toBe(true);
+    const scope = new CsgScope();
+    const mold = solidOf(scope, built.mold);
+    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
+    for (const angle of layout.angles) {
+      const x = layout.axisMm * Math.cos(angle);
+      const y = layout.axisMm * Math.sin(angle);
+      const bolt = column(scope, x, y, THREAD.d / 2 + 0.2);
+      expect(scope.keep(mold.intersect(bolt)).volume()).toBeLessThan(1e-3);
+      expect(scope.keep(punch.intersect(bolt)).volume()).toBeLessThan(1e-3);
+      // a plain hole, no wider than the tab's: plastic just outside it
+      expect(scope.keep(mold.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 0.15))).volume()).toBeGreaterThan(1);
+    }
+    scope.dispose();
+  });
+
   it('a stop on a seat slides under the tab of the pressed punch; lifted, its boss enters the hole', () => {
     const built = build('bowl', 12, true);
     const layout = built.layout;
