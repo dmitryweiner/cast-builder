@@ -14,7 +14,7 @@ import { meshSource } from '../geo/revolve';
 import { buildPunch, buildSlumpShell, pressWarnings, screwLayout } from '../geo/press';
 import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
-import { cheekCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
+import { moldCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
 import type { SurfaceMesh } from '../geo/surface';
 import { mergeMeshes, translateMesh } from '../geo/surface';
@@ -141,15 +141,15 @@ export function slumpTooling(
     const lugs = lugSolids(csg, scope, layout, n);
     const tabs = tabSolids(csg, scope, layout);
     // An export fuses the lugs and tabs on; a preview lays them over. The
-    // cheeks cut round the stops cannot be laid over: there a preview pays
-    // for the shell's import too.
+    // cheeks cut round the stops and the room under the landings cannot be
+    // laid over: there a preview pays for the shell's import too.
     const fuse = (mesh: SurfaceMesh, extra: Manifold, cuts: Manifold | null = null): SurfaceMesh => {
       if (!exporting && !cuts) return mergeMeshes([mesh, fromManifold(extra)]);
       const solid = scope.keep(toManifold(csg, mesh));
       const cut = cuts ? scope.keep(solid.subtract(cuts)) : solid;
       return exporting ? fromManifold(scope.keep(cut.add(extra))) : mergeMeshes([fromManifold(cut), fromManifold(extra)]);
     };
-    const mold = fuse(slump.mesh, lugs, cheekCuts(csg, scope, layout));
+    const mold = fuse(slump.mesh, lugs, moldCuts(csg, scope, layout));
     const holed = fuse(punch, tabs);
     if (!print) return { mold, punch: holed, screws: [], pads: [], layout };
     const screw = fromManifold(scope.keep(screwSolid(csg, scope, n).translate([0, 0, SCREW_HEAD_UP])));

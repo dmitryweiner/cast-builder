@@ -54,15 +54,17 @@ export const PAD_GAP_MM = 10;
 /**
  * Thread in a lug under its seat, mm: six turns. A lug is that high, so it is
  * kept short — 16 mm (one and a half diameters) cost a third more plastic.
+ * Its bottom is a flat landing for a steel nut or a clamp's jaw, the same
+ * height under the seat on every mold.
  */
 export const LUG_THREAD_MM = 12;
 
 /**
- * The least thread in a lug, mm: where the ear's 45° slope cannot hold the
- * whole hole 12 mm down (a thin slab, a small ear) the thread starts higher,
- * and below this the ear's face goes lower instead (press.ts, earShortfall).
+ * Room kept free under a lug's landing, mm: a DIN 125 washer M10 is Ø20, a
+ * nut of 17 across flats 19.6 across its corners; a washer 2, a nut 8 and
+ * four of the bolt past it.
  */
-export const LUG_THREAD_MIN_MM = 8;
+export const NUT_ROOM = { d: 20, h: 14 } as const;
 
 /**
  * The printed screw: a knurled thumb head with a slot, the threaded shank

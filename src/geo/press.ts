@@ -20,7 +20,7 @@ import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';
 import { lathe } from './lathe';
-import { LUG_THREAD_MIN_MM, LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD } from './thread';
+import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD } from './thread';
 
 /** Offset samples: as many as preview rows, with room to spare. */
 const INSET_SAMPLES = 256;
@@ -337,21 +337,7 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
       cheekZ: ears.fit.cheekZ + shellMm,
     },
   });
-  let ears = slumpEars(rings, nu, slab, heightMm, options.earMm);
-  if (options.screws) {
-    // The lugs lean on the ears at 45°: an ear's outer face goes down until
-    // its chamfer, widened upwards at 45°, holds the whole boss (screwLayout).
-    const plain = ears;
-    let drop = 0;
-    let short = earShortfall(source, options, fitOf(ears));
-    for (let pass = 0; pass < 4 && short > 1e-6; pass++) {
-      drop += short;
-      ears = slumpEars(rings, nu, slab, heightMm, options.earMm, drop);
-      short = earShortfall(source, options, fitOf(ears));
-    }
-    // a face that still falls short (a narrowing neck caps the ear above its face) is plastic for nothing
-    if (short > 0.5) ears = plain;
-  }
+  const ears = slumpEars(rings, nu, slab, heightMm, options.earMm);
   const fit = fitOf(ears);
   for (let j = 0; j <= nv; j++) {
     const { r, z } = rings[j];
@@ -384,21 +370,6 @@ export function buildSlumpShell(source: PressSource, options: PressOptions): Slu
   for (let i = 2; i < shell.positions.length; i += 3) shell.positions[i] += shellMm;
   const mesh = { ...shell, normals: meshNormals(shell.positions, shell.indices) };
   return { mesh: scaleMesh(mesh, 1 + shrinkPct / 100), fit };
-}
-
-/**
- * How much lower an ear's outer face must go, mm before the shrinkage, for
- * its 45° envelope to hold the threaded hole of the lug beside it, with its
- * wall, LUG_THREAD_MIN_MM down from the seat; 0 when it does. A lower face
- * makes the whole ear heavier — on a gentle wall its rib all the way down —
- * so it goes only as low as the least thread needs.
- */
-function earShortfall(source: PressSource, options: PressOptions, fit: SlumpFit): number {
-  const grow = 1 + options.shrinkPct / 100;
-  const layout = screwLayout(source, options, fit);
-  const beyond = layout.axisMm + holeWallR(options.fitMm) - fit.ear.outerMm * grow;
-  const faceZ = layout.seatZ - LUG_THREAD_MIN_MM - beyond;
-  return Math.max(0, (fit.ear.faceZ * grow - faceZ) / grow);
 }
 
 /** Grooves of the sole: the lift of the sole over the table at (x, y). */
@@ -476,22 +447,14 @@ interface SlumpEars {
   fit: EarFit;
 }
 
-function slumpEars(
-  rings: readonly { r: number; z: number }[],
-  nu: number,
-  slabMm: number,
-  heightMm: number,
-  seatMm: number,
-  /** the outer face goes this much lower than usual: a screw lug leans on the ear (earShortfall) */
-  faceDrop = 0,
-): SlumpEars {
+function slumpEars(rings: readonly { r: number; z: number }[], nu: number, slabMm: number, heightMm: number, seatMm: number): SlumpEars {
   const nv = rings.length - 1;
   let ring = 1;
   for (let j = 1; j < nv; j++) if (rings[j].z <= heightMm - EAR_DROP_MM) ring = j;
   let cheekRing = ring;
   for (let j = ring + 1; j < nv; j++) if (rings[j].z <= heightMm - CHEEK_BELOW_RIM_MM) cheekRing = j;
   const topZ = rings[ring].z;
-  const faceZ = Math.max(rings[0].z, topZ - PUNCH_LIP_MM - EAR_FACE_SPARE_MM - faceDrop);
+  const faceZ = Math.max(rings[0].z, topZ - PUNCH_LIP_MM - EAR_FACE_SPARE_MM);
 
   let above = 0;
   for (let j = ring + 1; j <= nv; j++) above = Math.max(above, rings[j].r);
@@ -683,20 +646,20 @@ export interface ScrewLayout {
   /** the ears' top: the clay may lie on what is no higher */
   shelfZ: number;
   /**
-   * The lug's top (the stop stands on it); LUG_THREAD_MM under it, `lugBottomZ`;
-   * the thread is whole from `threadZ` up — there or higher, where the ear's
-   * 45° envelope holds the hole, never fewer than LUG_THREAD_MIN_MM; under
-   * it a plain bore.
+   * The lug's top (the stop stands on it); LUG_THREAD_MM under it the
+   * landing, the flat bottom of its boss round the hole's exit (a steel nut,
+   * a clamp's jaw), with NUT_ROOM kept free under it. The thread is whole
+   * between the two.
    */
   seatZ: number;
-  lugBottomZ: number;
-  threadZ: number;
+  landingZ: number;
   /** radial clearance of the threaded hole, mm */
   fitMm: number;
   /**
-   * The lug's underside, so that it prints without supports: it rises at 45°
-   * away from the ear's side — from `footZ` at the side's plane — and stays
-   * within `support`, the ear's outline widened upwards at 45°.
+   * The lug's underside past its boss, so that it prints without supports:
+   * it rises at 45° away from the ear's side — from `footZ` at the side's
+   * plane — and stays within `support`, the ear's outline widened upwards at
+   * 45°. The boss itself comes down to the landing and prints on supports.
    */
   footZ: number;
   support: RZ[];
@@ -730,8 +693,6 @@ export const BOSS_R_MM = PAD.d / 2;
 export const BOSS_IN_CHEEK_MM = 2;
 /** Step in height of the lug's support envelope, mm. */
 const SUPPORT_STEP_MM = 0.25;
-/** The threaded hole with a millimetre of wall round it: what the ear's envelope must hold, mm from the axis. */
-const holeWallR = (fitMm: number): number => THREAD.d / 2 + fitMm + 1;
 
 export function screwLayout(source: PressSource, options: PressOptions, fit: SlumpFit): ScrewLayout {
   const grow = 1 + options.shrinkPct / 100;
@@ -743,7 +704,7 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   const tabTopZ = (punch.flangeZ + punch.flangeT) * grow;
   const tabBottomZ = tabTopZ - TAB_T_MM;
   const seatZ = tabBottomZ - PAD_GAP_MM;
-  const lugBottomZ = seatZ - LUG_THREAD_MM;
+  const landingZ = seatZ - LUG_THREAD_MM;
   const seatInMm = ear.seatInMm * grow;
   let below = 0;
   for (const ring of outer) if (ring.z <= seatZ) below = Math.max(below, ring.r);
@@ -765,12 +726,12 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   }
   const high = tabTopZ + 100;
   cavity.push({ r: cavity[cavity.length - 1].r, z: high }, { r: 0, z: high });
-  // The underside rises at 45° away from the ear's side, from footZ at the
-  // side's plane — deep enough for the whole thread under the hole's far
-  // edge — and stays within `support`: the ear's outline (under its face a
-  // 45° chamfer, on a gentle wall a rib along it, slumpEars) widened upwards
-  // at 45°. Whatever lies in it leans on the ear; the ear's face goes as low
-  // as the boss needs (earShortfall).
+  // Past the boss the underside rises at 45° away from the ear's side, from
+  // footZ at the side's plane, and stays within `support`: the ear's outline
+  // (under its face a 45° chamfer, on a gentle wall a rib along it,
+  // slumpEars) widened upwards at 45°. Whatever lies in it leans on the ear.
+  // The boss comes down to the landing whatever the ear holds: it prints on
+  // supports, so the ear never grows for it.
   const inCheek = (ear.reach - ear.slotReach) / 2;
   const wallAt = (z: number): number => {
     let r = fit.outer[0].r;
@@ -785,7 +746,7 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
   const earAt = (z: number): number => Math.min(ear.outerMm - Math.max(0, ear.faceZ - z), wallAt(z) + ear.depthMm) * grow;
   const toAxis = BOSS_R_MM - BOSS_IN_CHEEK_MM;
   const { fitMm } = options;
-  const from = Math.max(0, lugBottomZ - toAxis - THREAD.d / 2 - fitMm - 2);
+  const from = Math.max(0, landingZ - toAxis - THREAD.d / 2 - fitMm - 2);
   const support: RZ[] = [{ r: 0, z: from }];
   let widest = 0;
   for (let z = from; z <= seatZ + 1 + 1e-9; z += SUPPORT_STEP_MM) {
@@ -793,15 +754,8 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
     support.push({ r: widest, z });
   }
   support.push({ r: 0, z: support[support.length - 1].z });
-  // the thread starts where the envelope holds the hole with its wall
-  const holds = support.find((p) => p.z > from && p.r >= axisMm + holeWallR(fitMm));
-  const threadZ = Math.min(seatZ - LUG_THREAD_MIN_MM, Math.max(lugBottomZ, holds ? holds.z : seatZ));
-  // Where even the lowered face cannot hold it (a belly pushes the axis far
-  // out, a narrowing neck thins the ear above its face) the hole keeps its
-  // wall anyway: that ring overhangs, but the thread stays whole.
-  for (const p of support) if (p.r > 0 && p.z >= threadZ) p.r = Math.max(p.r, axisMm + holeWallR(fitMm));
-  // deep enough at the ear's side for the whole thread under the hole's far edge
-  const footZ = threadZ - toAxis - THREAD.d / 2 - fitMm;
+  // the slope meets the landing at the hole's far edge: the hole leaves the lug through the landing
+  const footZ = landingZ - toAxis - THREAD.d / 2 - fitMm;
 
   let innerMm = Infinity;
   for (const p of cavity) if (p.r > 0 && p.z >= footZ && p.z <= seatZ) innerMm = Math.min(innerMm, p.r);
@@ -814,8 +768,7 @@ export function screwLayout(source: PressSource, options: PressOptions, fit: Slu
     seatInMm,
     shelfZ: ear.topZ * grow,
     seatZ,
-    lugBottomZ,
-    threadZ,
+    landingZ,
     fitMm,
     footZ,
     support,
