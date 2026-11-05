@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from './csg';
 import { CsgScope, initCSG } from './csg';
 import { padSolid, screwSolid, threadRod } from './screwSolids';
-import { CLEAR_HOLE_MM, PAD, SCREW, THREAD, THREAD_FIT_MM, threadSection } from './thread';
+import { CLEAR_HOLE_MM, PAD, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM, threadSection } from './thread';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -41,12 +41,30 @@ describe('screwSolid', () => {
     scope.dispose();
   });
 
+  it('has a plain neck under the head, joined to it by a 45° cone: no thread root at the head, where the first print tore', () => {
+    const scope = new CsgScope();
+    const screw = screwSolid(csg, scope, N);
+    const R = THREAD.d / 2;
+    const area = (z: number) => scope.keep(screw.slice(z)).area();
+    // the polygon of N points round the circle is a little smaller than the circle
+    const circle = (r: number) => (N / 2) * r * r * Math.sin((2 * Math.PI) / N);
+    expect(area(0.5)).toBeCloseTo(circle(R + 0.5), 0);
+    for (const z of [1.5, SCREW.neck / 2, SCREW.neck - 0.1]) expect(area(z), `z ${z}`).toBeCloseTo(circle(R), 0);
+    // the thread under the neck: its section is the thread's, less than the neck's
+    expect(area(SCREW.neck + 2)).toBeLessThan(circle(R) * 0.85);
+    // the neck passes the tab's plain hole
+    expect(R).toBeLessThan(CLEAR_HOLE_MM / 2);
+    expect(SCREW.neck).toBeLessThan(TAB_T_MM);
+    scope.dispose();
+  });
+
   it('goes into a printed threaded hole without touching it, and the hole bites into it', () => {
     const scope = new CsgScope();
     const screw = screwSolid(csg, scope, N);
-    // the screw's thread starts at z = −0.5: a hole started a whole number of pitches from there is in phase
+    // the screw's thread is in phase with a rod started at z = −0.5: a hole started a whole number of pitches from there is too
     const hole = threadRod(csg, scope, THREAD, THREAD_FIT_MM, -0.5, 40, N);
-    const block = scope.keep(scope.keep(csg.Manifold.cube([30, 30, 20], true).translate([0, 0, 15])).subtract(hole));
+    // the hole is a lug's, under the neck that stands in the tab
+    const block = scope.keep(scope.keep(csg.Manifold.cube([30, 30, 20], true).translate([0, 0, SCREW.neck + 11])).subtract(hole));
     expect(scope.keep(block.intersect(screw)).volume()).toBeLessThan(1e-3);
     // the teeth of the hole reach inside the screw's major diameter
     const envelope = scope.keep(csg.Manifold.cylinder(40, THREAD.d / 2, THREAD.d / 2, N));

@@ -9,7 +9,7 @@ import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
 import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
 import { BOSS_R_MM, EAR_MAX_MM, EAR_MIN_MM, EAR_SEAT_MM, buildSlumpShell, punchLayout } from '../geo/press';
-import { lugSolids } from '../geo/screwSolids';
+import { lugSolids, screwSolid } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from '../geo/surface';
 import { bodies } from '../geo/pieces';
@@ -313,6 +313,21 @@ describe('slumpTooling with screws', () => {
       expect(scope.keep(punch.intersect(bolt)).volume()).toBeLessThan(1e-3);
       // a plain hole, no wider than the tab's: plastic just outside it
       expect(scope.keep(mold.intersect(column(scope, x, y, CLEAR_HOLE_MM / 2 + 0.15))).volume()).toBeGreaterThan(1);
+    }
+    scope.dispose();
+  });
+
+  it('a screw through the tab of the pressed punch: its neck and the cone under its head clear the hole', () => {
+    const built = build('bowl', 12, true);
+    const layout = built.layout;
+    if (!layout) throw new Error('no layout');
+    const scope = new CsgScope();
+    const punch = pressedOf(scope, built.punch, layout.tabTopZ);
+    // the screw head up, the head's underside on the tab's top
+    const screw = scope.keep(screwSolid(csg, scope, 48).rotate([180, 0, 0]));
+    for (const angle of layout.angles) {
+      const placed = scope.keep(screw.translate([layout.axisMm * Math.cos(angle), layout.axisMm * Math.sin(angle), layout.tabTopZ + 0.01]));
+      expect(scope.keep(placed.intersect(punch)).volume()).toBeLessThan(1e-3);
     }
     scope.dispose();
   });

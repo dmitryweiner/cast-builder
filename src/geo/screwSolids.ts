@@ -7,7 +7,7 @@ import type { CsgApi, CsgScope } from './csg';
 import type { ScrewLayout } from './press';
 import { BOSS_R_MM } from './press';
 import type { ThreadForm } from './thread';
-import { CLEAR_HOLE_MM, NUT_ROOM, PAD, SCREW, THREAD, THREAD_SLICES, threadSection } from './thread';
+import { CLEAR_HOLE_MM, NUT_ROOM, PAD, SCREW, THREAD, THREAD_SLICES, minorRadius, threadSection } from './thread';
 
 /** Segments of a full turn for the cavity a lug keeps out of and the columns cut off it. */
 const ROUND_SEGMENTS = 192;
@@ -31,8 +31,11 @@ export function threadRod(csg: CsgApi, scope: CsgScope, form: ThreadForm, grow: 
  * The printed screw in its own frame: the head from z = −headH to 0, the
  * shank from 0 to `shank`. The head is knurled for the fingers and slotted
  * for a screwdriver or a coin (the slot is at its outer end, on the bed
- * when it prints standing on its head); the tip is chamfered at 45° to find
- * the thread and to sit in the stop's dimple.
+ * when it prints standing on its head). Under the head a plain neck as
+ * wide as the thread, joined to the head by a 45° cone: the first print
+ * tore at the head, where the thread's root met the head's flat. The neck
+ * stands in the tab's plain hole; the thread runs out into it at 45°. The
+ * tip is chamfered at 45° to find the thread and to sit in the stop's dimple.
  */
 export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
   const R = THREAD.d / 2;
@@ -55,25 +58,30 @@ export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
   );
   const head = scope.keep(headSolid.subtract(slot));
 
-  // the thread starts inside the head, so the two never meet on a plane
+  const revolved = (points: [number, number][]): Manifold => scope.keep(scope.keep(new csg.CrossSection([points], 'Positive')).revolve(n));
+  const minor = minorRadius(THREAD);
+  const runOut = SCREW.neck + R - minor;
+  const neck = revolved([
+    [0, -0.5],
+    [R + 1, -0.5],
+    [R + 1, 0],
+    [R, 1],
+    [R, SCREW.neck],
+    [minor, runOut],
+    [0, runOut],
+  ]);
+  // the thread from half a millimetre into the run-out: its crests never lie on the neck's surface
   const thread = threadRod(csg, scope, THREAD, 0, -0.5, SCREW.shank, n);
   const chamfer = R + 0.5 - SCREW.tipR;
-  const outline = scope.keep(
-    new csg.CrossSection(
-      [
-        [
-          [0, -1],
-          [R + 0.5, -1],
-          [R + 0.5, SCREW.shank - chamfer],
-          [SCREW.tipR, SCREW.shank],
-          [0, SCREW.shank],
-        ],
-      ],
-      'Positive',
-    ),
-  );
-  const shank = scope.keep(thread.intersect(scope.keep(outline.revolve(n))));
-  return scope.keep(head.add(shank));
+  const outline = revolved([
+    [0, SCREW.neck + 0.5],
+    [R + 0.5, SCREW.neck + 0.5],
+    [R + 0.5, SCREW.shank - chamfer],
+    [SCREW.tipR, SCREW.shank],
+    [0, SCREW.shank],
+  ]);
+  const shank = scope.keep(thread.intersect(outline));
+  return scope.keep(csg.Manifold.union([head, neck, shank]));
 }
 
 /**
@@ -208,13 +216,18 @@ export function moldCuts(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Man
 /**
  * The tabs of the punch, as printed (flange down): each the hull of the boss
  * and of points in the leg's side and in the flange's ring, TAB_T_MM thick
- * from the flange's top, with a plain hole. Over the clay it is cut up to the
+ * from the flange's top, with a plain hole chamfered for the screw's neck. Over the clay it is cut up to the
  * flange's underside; over the slot and the cheeks of the ear — up past the
  * cheeks' top, when a thin slab brings the tab that low.
  */
 export function tabSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout): Manifold {
   const clay = column(csg, scope, layout.seatInMm, layout.tabBottomZ - 1, layout.flangeZ);
-  const hole = column(csg, scope, CLEAR_HOLE_MM / 2, layout.tabBottomZ - 1, layout.tabTopZ + 1, Math.round(ROUND_SEGMENTS / 6));
+  const segments = Math.round(ROUND_SEGMENTS / 6);
+  const bore = column(csg, scope, CLEAR_HOLE_MM / 2, layout.tabBottomZ - 1, layout.tabTopZ + 1, segments);
+  // a 45° chamfer at the top takes the cone under the screw's head
+  const r = CLEAR_HOLE_MM / 2;
+  const chamfer = scope.keep(csg.Manifold.cylinder(1.5, r, r + 1.5, segments).translate([0, 0, layout.tabTopZ - 1]));
+  const hole = scope.keep(bore.add(chamfer));
   const notchTop = layout.cheekZ + 1;
   const inLeg = layout.legSide / 3;
   const tabs = layout.angles.map((angle, i) => {

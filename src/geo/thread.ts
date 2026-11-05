@@ -67,10 +67,12 @@ export const LUG_THREAD_MM = 12;
 export const NUT_ROOM = { d: 20, h: 14 } as const;
 
 /**
- * The printed screw: a knurled thumb head with a slot, the threaded shank
- * from under the head to the tip, the tip chamfered at 45° down to `tipR`.
- * The shank is the tab, the gap and the lug's thread with 8 mm of travel:
- * the first test print found 45 mm 15 % longer than needed.
+ * The printed screw: a knurled thumb head with a slot, the shank from under
+ * the head to the tip, the tip chamfered at 45° down to `tipR`. The shank is
+ * the tab, the gap and the lug's thread with 8 mm of travel: the first test
+ * print found 45 mm 15 % longer than needed. Its first `neck` mm stand in
+ * the tab's plain hole and are plain, as wide as the thread: the second
+ * print tore the screws at the head, where the thread's root met the head.
  */
 export const SCREW = {
   headD: 24,
@@ -79,6 +81,7 @@ export const SCREW = {
   slotW: 2.6,
   slotDepth: 4,
   tipR: 3.5,
+  neck: 7,
 } as const;
 
 /** The stop's boss, mm: half a millimetre lower than the gap with it, so the stop slides in. */
