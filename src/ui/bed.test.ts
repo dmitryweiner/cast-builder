@@ -71,8 +71,11 @@ describe('bed controls', () => {
 });
 
 describe('inOneFile', () => {
-  it('the slump mold always, pour boxes when asked, a master never needs it', () => {
+  it('the slump mold always, pour boxes and split halves when asked, a master or a tile never needs it', () => {
     const settings = defaultSettings();
+    expect(inOneFile({ ...settings, mode: 'split' })).toBe(false);
+    expect(inOneFile({ ...settings, mode: 'split', bed: { ...settings.bed, oneFile: true } })).toBe(true);
+    expect(inOneFile({ ...settings, mode: 'tile', bed: { ...settings.bed, oneFile: true } })).toBe(false);
     expect(inOneFile({ ...settings, mode: 'slump' })).toBe(true);
     expect(inOneFile({ ...settings, mode: 'bath' })).toBe(false);
     expect(inOneFile({ ...settings, mode: 'bath', bed: { ...settings.bed, oneFile: true } })).toBe(true);

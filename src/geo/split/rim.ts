@@ -16,6 +16,11 @@
 //    narrowest — a crest that leans in loses a little mold over its outer
 //    face, never gets mold inside.
 //
+// A mouth that folds round the axis (a ray from it crosses the wall twice)
+// keeps pockets of mold the core does not reach. They are islands — bounded
+// by the wall, the lid, the cut — and the halves drop them (split/index.ts);
+// the release check does not look over the lid at all.
+//
 // Pure: the cutter comes out as meshes; the worker makes them solids.
 
 import type { IndexedMesh } from '../stl';
@@ -56,6 +61,12 @@ export interface RimCut {
   coreAt: (u: number) => number;
   /** the point is in the cut: no mold there */
   contains: (x: number, y: number, z: number) => boolean;
+  /**
+   * the release check leaves the point alone: over the lid's crest, where a
+   * mouth that folds round the axis keeps islands of mold the halves drop,
+   * and the clay is cut along the mold's edge anyway
+   */
+  unchecked: (x: number, y: number, z: number) => boolean;
   /**
    * The cutter as two closed meshes to be fused: over the rim out to
    * `reachMm` from the axis, and inside the mouth; both up to `topMm`.
@@ -136,6 +147,7 @@ export function rimCut(mesh: IndexedMesh, lidZ: number, rimMm: number): RimCut |
       if (z >= topAt(u) - RIM_BELOW_MM) return true;
       return z >= from && Math.hypot(x, y) < coreAt(u);
     },
+    unchecked: (_x, _y, z) => z >= lidZ - RIM_BELOW_MM,
     meshes: (reachMm, topMm) => [overRim(tops, cores, reachMm, topMm), insideMouth(cores, from, topMm + 1)],
   };
 }

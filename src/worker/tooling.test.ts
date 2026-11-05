@@ -675,6 +675,7 @@ describe('split mold', () => {
     for (const part of parts) {
       const report = validateMesh(part);
       expect(report.watertight, part.id).toBe(true);
+      expect(bodies(part), part.id).toBe(1);
       expect(part.blocking, part.id).toEqual([]);
       expect(report.bbox.min[2]).toBeCloseTo(0, 3);
       // the half's depth from the plane: the vase's radius and the wall behind it

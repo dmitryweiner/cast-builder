@@ -307,7 +307,6 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
       info.blocking.push({ code: solid.status === 'open' ? 'model.open' : 'model.openBottom' });
       return { parts: [], info };
     }
-    if (solid.status === 'filled') info.warnings.push({ code: 'model.filled' });
     const shrink = 1 + job.mold.shrinkPct / 100;
     const piece = scope.keep(solid.solid.scale(shrink));
     const mesh = fromManifold(piece);
@@ -325,7 +324,11 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
       { id: 'split-B', half: 'B', side: 1 },
     ] as const;
     for (const { id, half, side } of halves) {
-      const release = releaseDepth(rays, { plane, side, ...(rim ? { cut: rim.contains } : {}) });
+      const release = releaseDepth(rays, {
+        plane,
+        side,
+        ...(rim ? { cut: (x, y, z) => rim.unchecked(x, y, z) || rim.contains(x, y, z) } : {}),
+      });
       info.catches.push({ id, depthMm: release.depthMm, at: release.at });
       const limit = job.mold.allowedCatchMm;
       if (release.depthMm > limit && release.at) {

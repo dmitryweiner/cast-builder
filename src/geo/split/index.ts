@@ -39,7 +39,18 @@ export function buildHalf(csg: CsgApi, scope: CsgScope, piece: Manifold, rays: R
   const land = landPrism(csg, scope, piece, rays.axis, plane, side);
   let half = scope.keep(scope.keep(slab.intersect(land)).subtract(piece));
   if (cutter) half = scope.keep(half.subtract(cutter));
-  return half;
+  return largestPart(scope, half);
+}
+
+/**
+ * The half without its islands: pockets of mold in the folds of a mouth
+ * (rim.ts), slivers between crests. A loose piece of a mold holds nothing
+ * and falls off the print.
+ */
+function largestPart(scope: CsgScope, solid: Manifold): Manifold {
+  const parts = solid.decompose().map((part) => scope.keep(part));
+  if (parts.length <= 1) return solid;
+  return parts.reduce((best, part) => (part.volume() > best.volume() ? part : best));
 }
 
 /**
