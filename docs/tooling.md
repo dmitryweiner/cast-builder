@@ -62,6 +62,14 @@ is topped up. A silicone mold is taken off it by hand.
 With a **mouth plug** (below) the master comes with the plug as a second
 part.
 
+**Shrinkage** grows the piece itself — the master, the cavity, the relief —
+so the fired piece comes out the size of the STL. The slump mold grows whole
+with its punch (the slab is the wall of the piece). The tooling round the
+piece keeps its sizes: plaster, silicone, the collar, the walls and the land
+of the press molds, the screw clamps. The model is multiplied by
+1 + p/100; shrinkage measured from the wet size wants 1 / (1 − p/100), so
+for 12 % set about 13.6 %, or the piece comes out about 1.4 % small.
+
 ## Pour boxes
 
 The app designs the plaster mold and gives the tooling to cast it:
@@ -254,7 +262,8 @@ times, or raise the **Thread fit** for the next mold.
 One part for a flat plate with relief — a keychain, a tile, a medallion. The
 model lies as it would on the table: **its back down**, its face (the relief)
 up. The mold is the plate turned over and sunk into a block: its shadow
-grown by a 10 mm land, the floor under the face as thick as the **Wall**.
+grown by a flat **Land** a scraper rides on (6 mm by default, 2–30 mm),
+the floor under the face as thick as the **Wall**.
 A hole through the plate (for a ring) is a post up to the rim. The back
 stands 0.2 mm proud of the rim, so the scraper takes a hair off it.
 
@@ -272,6 +281,7 @@ leave nubs on the face.
 | Shrinkage        | 0–30 %    | 12      | the plate grows by it                 |
 | Wall             | 1.2–12 mm | 3       | the floor of the mold under the face  |
 | Allowed undercut | 0–6 mm    | 1       | how deep the plate may catch the mold |
+| Land             | 2–30 mm   | 6       | the flat rim a scraper rides on       |
 
 ## Two halves
 
@@ -286,8 +296,8 @@ that axis. The **spin** in the Model card turns the piece under an upright
 plane. Both belong to the model in hand, like its turn.
 
 Each half is a **shell**: the wall behind the piece is the **Wall** thick
-everywhere, the seam included, and round the cavity a flat **land** 12 mm
-wide and twice the wall thick lies in the plane — cut the clay flush with
+everywhere, the seam included, and round the cavity a flat **Land** (12 mm wide
+by default) twice the wall thick lies in the plane — cut the clay flush with
 it. A half is printed **parting face up**; its back and the land need
 supports in the slicer. A hollow piece is filled first: the mold sees only
 its outside. An open piece's mold ends at its rim — a wavy one too — and
@@ -305,6 +315,7 @@ waves across it, and the allowed undercut says how much of one is taken.
 | Shrinkage        | 0–30 %    | 12      | the piece grows by it                          |
 | Wall             | 1.2–12 mm | 3       | the shell of each half; the land is twice that |
 | Allowed undercut | 0–6 mm    | 1       | how deep the piece may catch a half            |
+| Land             | 2–30 mm   | 12      | the flange round the cavity in the plane       |
 | Plane across     | X, Y, Z   | X       | the axis the parting plane is square to        |
 | Plane at         | 5–95 %    | 50      | where the plane cuts the piece                 |
 

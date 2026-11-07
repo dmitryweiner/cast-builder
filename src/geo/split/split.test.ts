@@ -7,7 +7,7 @@ import { castRays, releaseDepth } from '../release';
 import { wavyVase } from '../testing';
 import { validateMesh } from '../validate';
 import { rimCut } from './rim';
-import { SPLIT_LAND_MM, buildHalf } from './index';
+import { buildHalf } from './index';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -15,6 +15,7 @@ beforeAll(async () => {
 });
 
 const WALL = 3;
+const LAND = 12;
 
 /** The wavy vase filled, split by the plane x = 0, the two halves and the means to probe them. */
 function halves(scope: CsgScope) {
@@ -24,8 +25,8 @@ function halves(scope: CsgScope) {
   const cut = rimCut(mesh, solid.rim?.zMm ?? 0, solid.rim?.radiusMm ?? 0);
   if (!cut) throw new Error('no rim');
   const cutter = scope.keep(csg.Manifold.union(cut.meshes(120, 100).map((part) => scope.keep(toManifold(csg, part)))));
-  const rays = castRays(mesh, 0, 0.5, SPLIT_LAND_MM);
-  const build = (side: 1 | -1): Manifold => buildHalf(csg, scope, piece, rays, { plane: 0, side, wallMm: WALL, cutter });
+  const rays = castRays(mesh, 0, 0.5, LAND);
+  const build = (side: 1 | -1): Manifold => buildHalf(csg, scope, piece, rays, { plane: 0, side, wallMm: WALL, landMm: LAND, cutter });
   return { piece, rays, cut, a: build(-1), b: build(1) };
 }
 
@@ -47,7 +48,7 @@ describe('buildHalf', () => {
       expect(a.boundingBox().max[0]).toBeCloseTo(0, 3);
       expect(b.boundingBox().min[0]).toBeCloseTo(0, 3);
       // the land reaches past the piece's outline by its width
-      expect(b.boundingBox().max[1]).toBeCloseTo(30 + SPLIT_LAND_MM, 0);
+      expect(b.boundingBox().max[1]).toBeCloseTo(30 + LAND, 0);
     } finally {
       scope.dispose();
     }

@@ -28,7 +28,7 @@ import {
 } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 import { castRays } from '../geo/release';
-import { TILE_LAND_MM, TILE_PROUD_MM } from '../geo/tile';
+import { TILE_PROUD_MM } from '../geo/tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -585,10 +585,21 @@ describe('tile mold', () => {
     const shrink = 1 + defaultMold().shrinkPct / 100;
     const [w, d, h] = mold.note.split('×').map(Number);
     // the plate 55 × 33 grown by the shrinkage and by the land round it
-    expect(w).toBeCloseTo(55 * shrink + 2 * TILE_LAND_MM, -0.5);
-    expect(d).toBeCloseTo(33 * shrink + 2 * TILE_LAND_MM, -0.5);
+    const land = defaultMold().tileLandMm;
+    expect(w).toBeCloseTo(55 * shrink + 2 * land, -0.5);
+    expect(d).toBeCloseTo(33 * shrink + 2 * land, -0.5);
     // the floor under the face, the tile's thickness less the proud back
     expect(h).toBeCloseTo(defaultMold().bathWallMm + 4.5 * shrink - TILE_PROUD_MM, 0);
+  });
+
+  it('the land is the user’s: the block grows by it on every side', () => {
+    const shrink = 1 + defaultMold().shrinkPct / 100;
+    for (const land of [2, 15]) {
+      const { parts } = runJob(csg, tileJob({ mold: { ...defaultMold(), tileLandMm: land } }));
+      const [w, d] = parts[0].note.split('×').map(Number);
+      expect(w, `${land}`).toBeCloseTo(55 * shrink + 2 * land, -0.5);
+      expect(d, `${land}`).toBeCloseTo(33 * shrink + 2 * land, -0.5);
+    }
   });
 
   it('the ring hole is a post up to the rim; a letter is a dimple in the floor', () => {
@@ -660,6 +671,23 @@ describe('split mold', () => {
     ...jobFor('cup', { mode: 'split' }),
     model: placeModel(model, defaultOrientation()),
     ...over,
+  });
+
+  it('the land is the user’s: a half grows by it across the vase on both sides, along it at the foot only', () => {
+    const extents = (land: number): number[][] =>
+      runJob(csg, splitJob(wavyVase(csg), { mold: { ...defaultMold(), splitLandMm: land } })).parts.map((part) =>
+        validateMesh(part).extents.slice(0, 2),
+      );
+    const narrow = extents(5);
+    const wide = extents(20);
+    expect(wide.length).toBe(2);
+    // the mold of an open piece ends at its rim: no land over the mouth
+    wide.forEach((sizes, i) =>
+      expect(
+        sizes.map((size, j) => Math.round(size - narrow[i][j])),
+        `${i}`,
+      ).toEqual([30, 15]),
+    );
   });
 
   it('a wavy vase: two closed shells, nothing catches, printed parting face up', () => {

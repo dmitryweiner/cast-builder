@@ -8,7 +8,7 @@
 import type { Control } from './controls';
 import type { Mode, Settings, Setup } from '../state';
 import { PRESS_KINDS, SPLIT_AXES, SPLIT_PCT_MAX, SPLIT_PCT_MIN } from '../state';
-import { CATCH_MAX_MM } from '../geo/mold/state';
+import { CATCH_MAX_MM, LAND_MAX_MM, LAND_MIN_MM } from '../geo/mold/state';
 import { lowerFirst, t, tDynamic } from '../i18n';
 import type { Catch } from '../worker/protocol';
 
@@ -39,7 +39,33 @@ export const allowedCatch: Control<Settings> = {
   set: (s, value) => ({ ...s, mold: { ...s.mold, allowedCatchMm: value } }),
 };
 
-export const pressControls: readonly Control<Settings>[] = [pressKind, allowedCatch];
+export const tileLand: Control<Settings> = {
+  kind: 'range',
+  key: 'tileLand',
+  label: 'ctl.land',
+  hint: 'ctl.tileLand.hint',
+  min: LAND_MIN_MM,
+  max: LAND_MAX_MM,
+  step: 1,
+  when: (s) => s.mode === 'tile',
+  get: (s) => s.mold.tileLandMm,
+  set: (s, value) => ({ ...s, mold: { ...s.mold, tileLandMm: value } }),
+};
+
+export const splitLand: Control<Settings> = {
+  kind: 'range',
+  key: 'splitLand',
+  label: 'ctl.land',
+  hint: 'ctl.splitLand.hint',
+  min: LAND_MIN_MM,
+  max: LAND_MAX_MM,
+  step: 1,
+  when: (s) => s.mode === 'split',
+  get: (s) => s.mold.splitLandMm,
+  set: (s, value) => ({ ...s, mold: { ...s.mold, splitLandMm: value } }),
+};
+
+export const pressControls: readonly Control<Settings>[] = [pressKind, allowedCatch, tileLand, splitLand];
 
 export const splitControls: readonly Control<Setup>[] = [
   {

@@ -24,7 +24,7 @@ import type { RimCut } from '../geo/split/rim';
 import { rimCut } from '../geo/split/rim';
 import { findPlane } from '../geo/split/find';
 import { turnForPrint } from '../geo/split/shell';
-import { SPLIT_LAND_MM, buildHalf } from '../geo/split';
+import { buildHalf } from '../geo/split';
 import { meshNormals } from '../geo/normals';
 import { castRays, releaseCell, releaseDepth } from '../geo/release';
 import { buildTileMold, TILE_PROUD_MM } from '../geo/tile';
@@ -154,7 +154,8 @@ function tileJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgres
     }
 
     progress.next({ code: 'progress.tile' });
-    const mold = fromManifold(buildTileMold(csg, scope, scope.keep(model.scale(shrink)), job.mold.bathWallMm));
+    const tile = scope.keep(model.scale(shrink));
+    const mold = fromManifold(buildTileMold(csg, scope, tile, job.mold.bathWallMm, job.mold.tileLandMm));
     if (exporting) progress.next({ code: 'progress.checkMeshes' });
     return { parts: [part('tile', mold, exporting)], info };
   } finally {
@@ -327,9 +328,9 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
     const plane = box.min[axis] + ((box.max[axis] - box.min[axis]) * job.split.pct) / 100;
 
     progress.next({ code: 'progress.release' });
-    const wallMm = job.mold.bathWallMm;
+    const { bathWallMm: wallMm, splitLandMm: landMm } = job.mold;
     const cell = releaseCell(largestExtent(mesh.positions), exporting);
-    const rays = castRays(mesh, axis, cell, SPLIT_LAND_MM + cell);
+    const rays = castRays(mesh, axis, cell, landMm + cell);
     const halves = [
       { id: 'split-A', half: 'A', side: -1 },
       { id: 'split-B', half: 'B', side: 1 },
@@ -349,13 +350,13 @@ function splitJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgre
     }
 
     // the cutter reaches past the land on every side
-    const reach = Math.hypot(box.max[0] - box.min[0], box.max[1] - box.min[1]) + 2 * SPLIT_LAND_MM;
+    const reach = Math.hypot(box.max[0] - box.min[0], box.max[1] - box.min[1]) + 2 * landMm;
     const cutter = rim
-      ? scope.keep(csg.Manifold.union(rim.meshes(reach, box.max[2] + SPLIT_LAND_MM).map((section) => scope.keep(toManifold(csg, section)))))
+      ? scope.keep(csg.Manifold.union(rim.meshes(reach, box.max[2] + landMm).map((section) => scope.keep(toManifold(csg, section)))))
       : null;
     const parts = halves.map(({ id, side }, i) => {
       progress.next({ code: 'progress.split', params: { i: i + 1, n: halves.length } });
-      const built = fromManifold(buildHalf(csg, scope, piece, rays, { plane, side, wallMm, cutter }));
+      const built = fromManifold(buildHalf(csg, scope, piece, rays, { plane, side, wallMm, landMm, cutter }));
       const turned = turnForPrint(built, axis, side);
       return { id, mesh: { ...turned, normals: meshNormals(turned.positions, turned.indices) } };
     });

@@ -63,6 +63,25 @@ describe('press controls', () => {
     slider.dispatchEvent(new Event('input'));
     expect(state.mold.allowedCatchMm).toBe(3.5);
   });
+
+  it('the land round the cavity: a slider of its own for the tile and for the halves, none in the slump mold', () => {
+    render();
+    expect([shown('mold_tileLand'), shown('mold_splitLand')]).toEqual([false, false]);
+    state = { ...state, mode: 'tile' };
+    render();
+    expect([shown('mold_tileLand'), shown('mold_splitLand')]).toEqual([true, false]);
+    const tile = node('mold_tileLand', HTMLInputElement);
+    tile.value = '3';
+    tile.dispatchEvent(new Event('input'));
+    expect(state.mold).toMatchObject({ tileLandMm: 3, splitLandMm: 12 });
+    state = { ...state, mode: 'split' };
+    render();
+    expect([shown('mold_tileLand'), shown('mold_splitLand')]).toEqual([false, true]);
+    const split = node('mold_splitLand', HTMLInputElement);
+    split.value = '20';
+    split.dispatchEvent(new Event('input'));
+    expect(state.mold).toMatchObject({ tileLandMm: 3, splitLandMm: 20 });
+  });
 });
 
 describe('split controls', () => {

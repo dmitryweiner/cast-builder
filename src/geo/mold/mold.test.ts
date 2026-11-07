@@ -18,7 +18,7 @@ import { validateMesh } from '../validate';
 import { analyzeMold, pullUndercut, withScheme } from './analyze';
 import { buildBaths, buildBlocks, buildMaster } from './index';
 import type { Mouth } from './index';
-import { CATCH_MAX_MM, defaultMold, sanitizeMold } from './state';
+import { CATCH_MAX_MM, defaultMold, LAND_MAX_MM, LAND_MIN_MM, sanitizeMold } from './state';
 import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from '../thread';
 import { undersideVoid } from './underside';
 
@@ -413,6 +413,19 @@ describe('sanitizeMold', () => {
     expect(sanitizeMold({ allowedCatchMm: -1 }).allowedCatchMm).toBe(0);
     expect(sanitizeMold({ allowedCatchMm: 60 }).allowedCatchMm).toBe(CATCH_MAX_MM);
     expect(sanitizeMold({ allowedCatchMm: 'deep' }).allowedCatchMm).toBe(1);
+  });
+
+  it('the land round a press mold: 6 mm for a tile, 12 for the halves, clamped to its limits', () => {
+    for (const [key, fallback] of [
+      ['tileLandMm', 6],
+      ['splitLandMm', 12],
+    ] as const) {
+      expect(defaultMold()[key], key).toBe(fallback);
+      expect(sanitizeMold({ [key]: 4 })[key], key).toBe(4);
+      expect(sanitizeMold({ [key]: 0 })[key], key).toBe(LAND_MIN_MM);
+      expect(sanitizeMold({ [key]: 500 })[key], key).toBe(LAND_MAX_MM);
+      expect(sanitizeMold({ [key]: 'wide' })[key], key).toBe(fallback);
+    }
   });
 
   it('the lugs are threaded by default; the choice takes only a boolean', () => {

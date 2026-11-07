@@ -41,7 +41,7 @@ import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from './ui/controls';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
-import { allowedCatch, catchNote, pressKind, splitControls } from './ui/press';
+import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileLand } from './ui/press';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -236,7 +236,9 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     range('bathWall', 'ctl.wall', 'ctl.bathWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['bath']),
     range('slumpWall', 'ctl.wall', 'ctl.slumpWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['slump']),
     range('tileWall', 'ctl.wall', 'ctl.tileWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['tile']),
+    tileLand,
     range('splitWall', 'ctl.wall', 'ctl.splitWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['split']),
+    splitLand,
     allowedCatch,
     range('slab', 'ctl.slab', 'ctl.slab.hint', SLAB_MIN_MM, Math.min(SLAB_MAX_MM, 20), 0.1, 'slabMm', ['slump']),
     range('ear', 'ctl.ear', 'ctl.ear.hint', EAR_MIN_MM, EAR_MAX_MM, 0.5, 'earMm', ['slump']),

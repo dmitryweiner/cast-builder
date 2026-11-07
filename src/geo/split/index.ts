@@ -18,25 +18,24 @@ import type { Axis, RayGrid } from '../release';
 import { reachOf } from '../release';
 import { shellHeights, shellMesh } from './shell';
 
-/** The land round the cavity, mm: a flange in the plane the clay is cut flush with. */
-export const SPLIT_LAND_MM = 12;
-
 export interface HalfOptions {
   /** the parting plane: the coordinate along the rays' axis */
   plane: number;
   /** the half beyond the plane on this side, pulled off this way */
   side: 1 | -1;
   wallMm: number;
+  /** the land round the cavity, mm: a flange in the plane the clay is cut flush with */
+  landMm: number;
   /** what is taken away over the rim and inside the mouth; null for a closed piece */
   cutter: Manifold | null;
 }
 
 /** One half in the world frame; `rays` cast along the plane's axis with the land as their margin. */
 export function buildHalf(csg: CsgApi, scope: CsgScope, piece: Manifold, rays: RayGrid, options: HalfOptions): Manifold {
-  const { plane, side, wallMm, cutter } = options;
+  const { plane, side, wallMm, landMm, cutter } = options;
   const heights = shellHeights(rays, reachOf(rays, plane, side), wallMm);
   const slab = scope.keep(toManifold(csg, shellMesh(rays, plane, side, heights)));
-  const land = landPrism(csg, scope, piece, rays.axis, plane, side);
+  const land = landPrism(csg, scope, piece, rays.axis, plane, side, landMm);
   let half = scope.keep(scope.keep(slab.intersect(land)).subtract(piece));
   if (cutter) half = scope.keep(half.subtract(cutter));
   return largestPart(scope, half);
@@ -58,13 +57,13 @@ function largestPart(scope: CsgScope, solid: Manifold): Manifold {
  * piece's half on the plane, holes filled, grown by the land. `project` sees
  * only along z, so the half is turned to look down the axis and back.
  */
-function landPrism(csg: CsgApi, scope: CsgScope, piece: Manifold, axis: Axis, plane: number, side: 1 | -1): Manifold {
+function landPrism(csg: CsgApi, scope: CsgScope, piece: Manifold, axis: Axis, plane: number, side: 1 | -1, landMm: number): Manifold {
   const normal: [number, number, number] = [0, 0, 0];
   normal[axis] = side;
   const half = scope.keep(piece.trimByPlane(normal, side * plane));
   const toLocal = localFrame(axis);
   const shadow = outerOutline(csg, scope, scope.keep(scope.keep(half.transform(toLocal)).project()));
-  const outline = scope.keep(shadow.offset(SPLIT_LAND_MM, 'Round'));
+  const outline = scope.keep(shadow.offset(landMm, 'Round'));
   // along the axis far past both ends of the slab, which bounds it anyway
   const box = piece.boundingBox();
   const reach = box.max[axis] - box.min[axis] + 100;

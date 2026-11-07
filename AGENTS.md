@@ -259,11 +259,12 @@ Regenerate them only on purpose.
   1.5 cells are not seen.
 - The tile mold reads the model as it is, never `solidify`: a raised
   border is relief, not a rim. Its back lies down; the mold is the tile
-  turned over (never mirrored), the back 0.2 mm proud of the rim.
+  turned over (never mirrored), the back 0.2 mm proud of the rim, the
+  block its shadow grown by `tileLandMm`.
 - A split half is a height field over the plane on the release check's
   grid: the back is the piece's reach dilated by a ball of the wall (along
   the normal: by the seam the wall runs along the pull), never under a
-  2-wall land; cut to the land's outline (the half's shadow grown by 12 mm)
+  2-wall land; cut to the land's outline (the half's shadow grown by `splitLandMm`)
   with the exact piece taken out. Printed turned (never mirrored), the
   parting face up, on supports. A half keeps its largest piece only: a
   mouth folding round the axis leaves islands of mold the rim cutter does

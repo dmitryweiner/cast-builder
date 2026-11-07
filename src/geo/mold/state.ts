@@ -36,6 +36,10 @@ export interface MoldState {
   threadedLugs: boolean;
   /** how deep a press mold without a punch (tile, two halves) may catch the piece, mm (geo/release.ts) */
   allowedCatchMm: number;
+  /** the land round a tile mold's cavity, mm: a scraper rides on it */
+  tileLandMm: number;
+  /** the land round a split half's cavity, mm: a flange in the plane the clay is cut flush with */
+  splitLandMm: number;
 }
 
 export const SHRINK_MAX_PCT = 30;
@@ -49,6 +53,9 @@ export const CLEAR_MIN_MM = 3;
 export const CLEAR_MAX_MM = 60;
 /** Deeper than this no slab comes out of a press mold, however leather-hard. */
 export const CATCH_MAX_MM = 6;
+/** The land round a press mold's cavity: narrower, the cavity's wall is all the clay is cut flush with. */
+export const LAND_MIN_MM = 2;
+export const LAND_MAX_MM = 30;
 export { EAR_MAX_MM, EAR_MIN_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM, THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM };
 
 export function defaultMold(): MoldState {
@@ -69,6 +76,8 @@ export function defaultMold(): MoldState {
     threadFitMm: THREAD_FIT_MM,
     threadedLugs: true,
     allowedCatchMm: 1,
+    tileLandMm: 6,
+    splitLandMm: 12,
   };
 }
 
@@ -101,5 +110,7 @@ export function sanitizeMold(raw: unknown): MoldState {
     threadFitMm: clamp(num(source.threadFitMm, fallback.threadFitMm), THREAD_FIT_MIN_MM, THREAD_FIT_MAX_MM),
     threadedLugs: typeof source.threadedLugs === 'boolean' ? source.threadedLugs : fallback.threadedLugs,
     allowedCatchMm: clamp(num(source.allowedCatchMm, fallback.allowedCatchMm), 0, CATCH_MAX_MM),
+    tileLandMm: clamp(num(source.tileLandMm, fallback.tileLandMm), LAND_MIN_MM, LAND_MAX_MM),
+    splitLandMm: clamp(num(source.splitLandMm, fallback.splitLandMm), LAND_MIN_MM, LAND_MAX_MM),
   };
 }

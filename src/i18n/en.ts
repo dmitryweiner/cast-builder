@@ -75,7 +75,11 @@ export const en = {
   'catch.part': '{part}: {mm} mm',
 
   'ctl.shrink': 'Shrinkage',
-  'ctl.shrink.hint': 'slip shrinks as it dries and fires — the model grows by this much, %',
+  'ctl.shrink.hint':
+    'clay shrinks as it dries and fires — the model grows by this much, %, so the fired piece comes out the size of the STL.\n' +
+    'Grown: the piece itself — the master, the cavity, the relief; the slump mold grows whole with its punch (the slab is the wall of the piece).\n' +
+    'Not grown: the tooling round it — plaster, silicone, the collar, the walls and the land of the press molds, the screw clamps.\n' +
+    'The model is multiplied by 1 + p/100. Shrinkage measured from the wet size wants 1 / (1 − p/100): at 12 % set about 13.6 %, or the piece comes out about 1.4 % small.',
   'ctl.spare': 'Collar',
   'ctl.spare.hint': 'a collar over the rim to top the slip up, mm',
   'ctl.plaster': 'Plaster',
@@ -88,6 +92,9 @@ export const en = {
   'ctl.bathWall.hint': 'wall of the printed formwork, mm',
   'ctl.slumpWall.hint': 'shell of the mold and the punch, mm: only the surface the slab touches is printed',
   'ctl.tileWall.hint': 'floor of the mold under the face of the tile, mm',
+  'ctl.land': 'Land',
+  'ctl.tileLand.hint': 'the flat rim round the cavity a scraper rides on, mm',
+  'ctl.splitLand.hint': 'the flat flange round the cavity in the parting plane, the clay is cut flush with it, mm',
   'ctl.splitWall.hint': 'shell of each half, mm; the land round the cavity is twice as thick',
   'ctl.allowedCatch': 'Allowed undercut',
   'ctl.allowedCatch.hint': 'how deep the piece may catch the mold, mm: leather-hard clay bends a few millimetres, soft clay tears',
