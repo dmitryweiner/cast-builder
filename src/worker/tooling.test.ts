@@ -28,7 +28,7 @@ import {
 } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 import { castRays } from '../geo/release';
-import { TILE_PROUD_MM, TILE_SKIRT_LIFT_MM } from '../geo/tile';
+import { TILE_PROUD_MM, skirtEdge } from '../geo/tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -639,7 +639,9 @@ describe('tile mold', () => {
     expect(base.bbox.min[2]).toBeCloseTo(0, 3);
     expect(base.extents[2]).toBeCloseTo(rim, 1);
     expect(frame.bbox.min[2]).toBeCloseTo(0, 3);
-    expect(frame.extents[2]).toBeCloseTo(rim - TILE_SKIRT_LIFT_MM, 1);
+    // the skirt down to half the base's height
+    const cutZ = cut.bathWallMm + (cut.tileCutPct / 100) * (rim - cut.bathWallMm);
+    expect(frame.extents[2]).toBeCloseTo(rim - skirtEdge(cutZ), 1);
     // the skirt round the base: its fit and the wall on every side
     const grow = 2 * (cut.tileFitMm + cut.bathWallMm);
     expect(frame.extents[0]).toBeCloseTo(base.extents[0] + grow, 1);

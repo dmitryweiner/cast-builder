@@ -45,6 +45,13 @@ The cut is the plane z = h, `h = floor + pct/100 · (R − floor)`.
   skirt's pocket reaches 1 mm under the skirt's edge — no coincident faces.
   Printed **turned over** (`turnOver`, half a turn about x, never
   mirrored): the land on the bed, the skirt up.
+- **The skirt's length** (asked after the first print, 2026-11-08): reaching
+  to 1 mm over the table it hid the whole base, and the stack was hard to
+  take apart. The skirt covers the **upper half** of the base now — its
+  edge at h / 2 (`skirtEdge`), the lower half bare for the fingers — but
+  never shorter than `TILE_SKIRT_MIN_MM` = 2 mm while the base allows it,
+  and never lower than 1 mm over the table: on a thin base the key still
+  holds.
 - **The key** (asked after the first version, 2026-11-08): the skirt
   alone lets a round tile turn, and a tile with an outline symmetric under
   a half turn go on the wrong way round. The outline of both parts gets a
@@ -130,6 +137,10 @@ overlaps its base (a test); the keychain's parts grow by the lobe.
 
 The fit, after the first print: 0.3 mm wobbled; a slider now, 0.2 by
 default.
+
+The skirt, after the first print: down to 1 mm over the table it hid the
+base; it covers the upper half of the base now (the keychain: 2.7 mm of
+skirt instead of 4.4, 2.7 mm of the base bare).
 
 Left for a test print: whether 0.2 mm of fit is right for the skirt, and
 whether the base comes off the face cleanly before the frame.

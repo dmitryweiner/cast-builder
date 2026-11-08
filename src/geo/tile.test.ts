@@ -5,7 +5,16 @@ import { CsgScope, fromManifold, initCSG, toManifold } from './csg';
 import { defaultOrientation, placeModel } from './model';
 import { fixture } from './testing';
 import { validateMesh } from './validate';
-import { TILE_KEY_R_MM, TILE_PROUD_MM, TILE_SKIRT_LIFT_MM, buildTileMold, buildTileParts, tileCutZ } from './tile';
+import {
+  TILE_KEY_R_MM,
+  TILE_PROUD_MM,
+  TILE_SKIRT_LIFT_MM,
+  TILE_SKIRT_MIN_MM,
+  buildTileMold,
+  buildTileParts,
+  skirtEdge,
+  tileCutZ,
+} from './tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -58,6 +67,20 @@ describe('tileCutZ', () => {
   });
 });
 
+describe('skirtEdge', () => {
+  it('the skirt covers the upper half of the base', () => {
+    expect(skirtEdge(6)).toBeCloseTo(3, 6);
+    expect(skirtEdge(12)).toBeCloseTo(6, 6);
+  });
+
+  it('on a low base it is still 2 mm long, but never nearer the table than 1 mm', () => {
+    // half of 3.6 would be a skirt of 1.8
+    expect(skirtEdge(3.6)).toBeCloseTo(3.6 - TILE_SKIRT_MIN_MM, 6);
+    // a base of 2.5 mm leaves no room for 2 mm of skirt over 1 mm of air
+    expect(skirtEdge(2.5)).toBeCloseTo(TILE_SKIRT_LIFT_MM, 6);
+  });
+});
+
 describe('buildTileParts', () => {
   /** The keychain as placed, its mold whole and cut at the middle of the cavity. */
   function keychain(scope: CsgScope) {
@@ -77,7 +100,8 @@ describe('buildTileParts', () => {
         expect(validateMesh(fromManifold(part)).watertight).toBe(true);
         expect(part.decompose().map((piece) => scope.keep(piece)).length).toBe(1);
       }
-      expect(frame.boundingBox().min[2]).toBeCloseTo(TILE_SKIRT_LIFT_MM, 4);
+      // the skirt covers the upper half of the base: the lower half is bare for the fingers
+      expect(frame.boundingBox().min[2]).toBeCloseTo(cutZ / 2, 4);
       expect(frame.boundingBox().max[2]).toBeCloseTo(rim, 4);
       expect(base.boundingBox().min[2]).toBeCloseTo(0, 4);
       // the ring's post goes with the base, up to the rim: a loose piece of the frame would fall off

@@ -283,9 +283,11 @@ cavity at **Cut at** — % of the cavity's depth, 0 the face of the tile,
 - the **base** — the floor with the relief and the cavity up to the cut,
   printed as it stands; a post for a ring hole goes with it, up to the rim;
 - the **frame** — the rest of the cavity and a **skirt** hanging down round
-  the base, the **Skirt fit** off its side, the skirt as thick as the **Wall**. Its
-  edge stops 1 mm over the table: the frame bears on the base, so the
-  pressing keeps the joint shut. Printed turned over — the land on the bed,
+  the upper half of the base, the **Skirt fit** off its side, the skirt as
+  thick as the **Wall**. The lower half of the base stays bare: hold it
+  there to take the stack apart. On a low base the skirt is still 2 mm
+  long, but never comes nearer the table than 1 mm: the frame bears on the
+  base, so the pressing keeps the joint shut. Printed turned over — the land on the bed,
   the skirt up.
 - a **key**: a round lobe (R 5 mm) on one side of the outline of both
   parts, the skirt following it — the frame goes on one way only, even on

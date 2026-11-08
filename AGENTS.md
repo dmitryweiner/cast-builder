@@ -269,8 +269,10 @@ Regenerate them only on purpose.
   plane at `tileCutPct` % of the cavity's depth from the face, moved
   0.1 mm off a flat face of the tile lying in it: the base under it as it
   stands, the frame over it with a skirt round the base (the fit
-  `tileFitMm` the user's, 0.2 mm by default; the wall's thickness; its edge
-  `TILE_SKIRT_LIFT_MM` over the table — the frame bears on the base),
+  `tileFitMm` the user's, 0.2 mm by default; the wall's thickness; down to
+  half the base's height, the lower half bare for the fingers, at least
+  `TILE_SKIRT_MIN_MM` long, never nearer the table than
+  `TILE_SKIRT_LIFT_MM` — the frame bears on the base; `skirtEdge`),
   printed turned over. The
   outline of both parts has a lobe (`TILE_KEY_R_MM`) at its vertex furthest
   along +x: one lobe, no symmetry, the frame goes on one way only. A

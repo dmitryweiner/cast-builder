@@ -16,8 +16,9 @@
 //
 // Cut in two (plans/PLAN-TILE-CUT.md), the mold is a base — the floor with
 // the relief and the cavity up to a plane — and a frame over it, the rest of
-// the cavity, with a skirt hanging down round the base. The frame rests on
-// the base, never on the table: the pressing keeps the joint shut. To free
+// the cavity, with a skirt hanging down round the upper half of the base,
+// the lower half bare to take the stack apart by. The frame rests on the
+// base, never on the table: the pressing keeps the joint shut. To free
 // the tile the stack is turned over, the base lifted off its face, the frame
 // off its sides. A lobe on the outline of both parts keys them: the frame
 // goes on one way only.
@@ -31,8 +32,10 @@ import type { IndexedMesh } from './stl';
 
 /** How far the back of the tile stands over the rim, mm. */
 export const TILE_PROUD_MM = 0.2;
-/** The skirt's lower edge over the table, mm: the frame bears on the base, not on the table. */
+/** The skirt's lower edge is never nearer the table, mm: the frame bears on the base, not on the table. */
 export const TILE_SKIRT_LIFT_MM = 1;
+/** The skirt is never shorter while the base allows it, mm: on a low base the key must still hold. */
+export const TILE_SKIRT_MIN_MM = 2;
 /** How far the cut keeps off a flat face of the tile, mm. */
 const FLAT_CLEAR_MM = 0.1;
 /** The key against turning: a lobe of this radius on the outline of both parts, mm. */
@@ -97,8 +100,7 @@ export function tileCutZ(tile: IndexedMesh, floorMm: number, pct: number): numbe
 /**
  * The mold cut in two at `cut.zMm`, both in the mold's frame. The base: the
  * block under the plane. The frame: the block over it and the skirt round
- * the base, `cut.fitMm` off its side, its edge `TILE_SKIRT_LIFT_MM`
- * over the table. A post over the plane (the ring's hole) would be a loose
+ * the upper half of the base, `cut.fitMm` off its side (`skirtEdge`). A post over the plane (the ring's hole) would be a loose
  * piece of the frame: it goes with the base, up to the rim.
  */
 export function buildTileParts(
@@ -113,7 +115,7 @@ export function buildTileParts(
   const { turned, rim } = sunken;
   const land = keyed(csg, scope, sunken.land);
   const z = cut.zMm;
-  const lift = TILE_SKIRT_LIFT_MM;
+  const lift = skirtEdge(z);
   const outer = scope.keep(land.offset(cut.fitMm + cut.wallMm, 'Round'));
   const inner = scope.keep(land.offset(cut.fitMm, 'Round'));
   const body = scope.keep(scope.keep(outer.extrude(rim - lift)).translate([0, 0, lift]));
@@ -133,6 +135,17 @@ export function buildTileParts(
   );
   const block = scope.keep(csg.Manifold.union([scope.keep(land.extrude(z)), ...prisms]));
   return { base: scope.keep(block.subtract(turned)), frame };
+}
+
+/**
+ * Where the skirt ends, over the table, for a base cut at `cutZ`: half its
+ * height, so the lower half is bare for the fingers taking the stack apart
+ * — a skirt down to the table hid the whole base. On a low base the skirt
+ * keeps `TILE_SKIRT_MIN_MM` for the key, but never comes nearer the table
+ * than `TILE_SKIRT_LIFT_MM`.
+ */
+export function skirtEdge(cutZ: number): number {
+  return Math.max(TILE_SKIRT_LIFT_MM, Math.min(cutZ / 2, cutZ - TILE_SKIRT_MIN_MM));
 }
 
 /**
