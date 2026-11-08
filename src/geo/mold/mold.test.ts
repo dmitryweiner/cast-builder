@@ -18,7 +18,17 @@ import { validateMesh } from '../validate';
 import { analyzeMold, pullUndercut, withScheme } from './analyze';
 import { buildBaths, buildBlocks, buildMaster } from './index';
 import type { Mouth } from './index';
-import { CATCH_MAX_MM, defaultMold, LAND_MAX_MM, LAND_MIN_MM, sanitizeMold } from './state';
+import {
+  CATCH_MAX_MM,
+  defaultMold,
+  LAND_MAX_MM,
+  LAND_MIN_MM,
+  sanitizeMold,
+  TILE_CUT_PCT_MAX,
+  TILE_CUT_PCT_MIN,
+  TILE_FIT_MAX_MM,
+  TILE_FIT_MIN_MM,
+} from './state';
 import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from '../thread';
 import { undersideVoid } from './underside';
 
@@ -426,6 +436,26 @@ describe('sanitizeMold', () => {
       expect(sanitizeMold({ [key]: 500 })[key], key).toBe(LAND_MAX_MM);
       expect(sanitizeMold({ [key]: 'wide' })[key], key).toBe(fallback);
     }
+  });
+
+  it('a tile mold is whole by default; cut in two, at the middle of its cavity, clamped to 10–90 %', () => {
+    expect(defaultMold()).toMatchObject({ tileCut: false, tileCutPct: 50 });
+    expect(sanitizeMold({ tileCut: true, tileCutPct: 30 })).toMatchObject({ tileCut: true, tileCutPct: 30 });
+    expect(sanitizeMold({ tileCut: 'yes', tileCutPct: 'low' })).toMatchObject({ tileCut: false, tileCutPct: 50 });
+    expect(sanitizeMold({ tileCutPct: 0 }).tileCutPct).toBe(TILE_CUT_PCT_MIN);
+    expect(sanitizeMold({ tileCutPct: 100 }).tileCutPct).toBe(TILE_CUT_PCT_MAX);
+    const once = sanitizeMold({ tileCut: true, tileCutPct: 99 });
+    expect(sanitizeMold(once)).toEqual(once);
+  });
+
+  it('the skirt of a tile mold cut in two fits by 0.2 mm by default, clamped to 0.1–0.6', () => {
+    expect(defaultMold().tileFitMm).toBe(0.2);
+    expect(sanitizeMold({ tileFitMm: 0.35 }).tileFitMm).toBe(0.35);
+    expect(sanitizeMold({ tileFitMm: 0 }).tileFitMm).toBe(TILE_FIT_MIN_MM);
+    expect(sanitizeMold({ tileFitMm: 2 }).tileFitMm).toBe(TILE_FIT_MAX_MM);
+    expect(sanitizeMold({ tileFitMm: 'loose' }).tileFitMm).toBe(0.2);
+    const once = sanitizeMold({ tileFitMm: 9 });
+    expect(sanitizeMold(once)).toEqual(once);
   });
 
   it('the lugs are threaded by default; the choice takes only a boolean', () => {

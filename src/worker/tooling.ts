@@ -17,7 +17,7 @@ import type { PressSource } from '../geo/revolve';
 import { moldCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
 import type { SurfaceMesh } from '../geo/surface';
-import { mergeMeshes, translateMesh } from '../geo/surface';
+import { mergeMeshes, translateMesh, turnOver } from '../geo/surface';
 import { validateMesh, assessExport } from '../geo/validate';
 import type { Axis, RayMesh } from '../geo/release';
 import type { RimCut } from '../geo/split/rim';
@@ -27,7 +27,7 @@ import { turnForPrint } from '../geo/split/shell';
 import { buildHalf } from '../geo/split';
 import { meshNormals } from '../geo/normals';
 import { castRays, releaseCell, releaseDepth } from '../geo/release';
-import { buildTileMold, TILE_PROUD_MM } from '../geo/tile';
+import { buildTileMold, buildTileParts, tileCutZ, TILE_PROUD_MM } from '../geo/tile';
 import { sizeOf } from '../geo/model';
 import type { MoldPartMesh, Mouth as MoldMouth } from '../geo/mold';
 import { buildBaths, buildMaster } from '../geo/mold';
@@ -155,9 +155,20 @@ function tileJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgres
 
     progress.next({ code: 'progress.tile' });
     const tile = scope.keep(model.scale(shrink));
-    const mold = fromManifold(buildTileMold(csg, scope, tile, job.mold.bathWallMm, job.mold.tileLandMm));
+    const { bathWallMm: floor, tileLandMm: land } = job.mold;
+    if (!job.mold.tileCut) {
+      const mold = fromManifold(buildTileMold(csg, scope, tile, floor, land));
+      if (exporting) progress.next({ code: 'progress.checkMeshes' });
+      return { parts: [part('tile', mold, exporting)], info };
+    }
+    // in two: the base printed as it stands, the frame turned over — its land on the bed, the skirt up
+    const cut = { zMm: tileCutZ(mesh, floor, job.mold.tileCutPct), wallMm: job.mold.bathWallMm, fitMm: job.mold.tileFitMm };
+    const { base, frame } = buildTileParts(csg, scope, tile, floor, land, cut);
     if (exporting) progress.next({ code: 'progress.checkMeshes' });
-    return { parts: [part('tile', mold, exporting)], info };
+    return {
+      parts: [part('tile-base', fromManifold(base), exporting), part('tile-frame', turnOver(fromManifold(frame)), exporting)],
+      info,
+    };
   } finally {
     scope.dispose();
   }

@@ -49,6 +49,19 @@ describe('bed controls', () => {
     expect([shown('place'), shown('gap')]).toEqual([true, true]);
   });
 
+  it('a tile mold: whole, nothing to lay out; cut in two, a file each unless asked into one', () => {
+    state = { ...state, mode: 'tile' };
+    handle = render();
+    expect([shown('place'), shown('gap'), shown('oneFile')]).toEqual([false, false, false]);
+    expect(inOneFile(state)).toBe(false);
+    state = { ...state, mold: { ...state.mold, tileCut: true } };
+    handle = render();
+    expect([shown('place'), shown('gap'), shown('oneFile')]).toEqual([false, false, true]);
+    node('oneFile', HTMLInputElement).click();
+    expect(inOneFile(state)).toBe(true);
+    expect([shown('place'), shown('gap')]).toEqual([true, true]);
+  });
+
   it('a master is one part: nothing to lay out', () => {
     state = { ...state, mode: 'master' };
     handle = render();

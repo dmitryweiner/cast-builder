@@ -1,7 +1,7 @@
 // The bed card: how the parts go on the bed and into the STL. The slump
-// mold is one file — the mold, the punch, the screws and stops; pour boxes
-// and the halves of a split mold are a file each unless they are asked into
-// one. A layout that goes into no
+// mold is one file — the mold, the punch, the screws and stops; pour boxes,
+// the halves of a split mold and a tile mold cut in two are a file each
+// unless they are asked into one. A layout that goes into no
 // file is not offered: separate pour boxes lie in the view as the layout
 // says, but each prints alone.
 
@@ -9,8 +9,9 @@ import type { Control } from './controls';
 import type { Settings } from '../state';
 import { BED_GAP_MAX_MM, BED_GAP_MIN_MM, BED_PLACES } from '../geo/layout';
 
-/** Modes of several parts that print a file each unless asked into one. */
-const apart = (settings: Settings): boolean => settings.mode === 'bath' || settings.mode === 'split';
+/** Modes of several parts that print a file each unless asked into one: a tile mold has two when cut. */
+const apart = (settings: Settings): boolean =>
+  settings.mode === 'bath' || settings.mode === 'split' || (settings.mode === 'tile' && settings.mold.tileCut);
 
 /** Whether the parts of this mode go into one STL, laid out on the bed. */
 export function inOneFile(settings: Settings): boolean {

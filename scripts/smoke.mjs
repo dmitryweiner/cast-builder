@@ -3,7 +3,7 @@
 // slump mold with screw clamps (their thread fit) and its printed screws and
 // stops with their sizes named, a slump mold for steel bolts (plain holes,
 // stops only), the parts laid out on the bed and pour boxes in one file, a
-// keychain's tile mold (refused face down), a hollow cup in a mold of two
+// keychain's tile mold (refused face down) and cut in two, a hollow cup in a mold of two
 // halves (a file each or one, Find, the press kind remembered), the
 // project kept over a reload and Reset,
 // Clayform's printable teapot, lid and "lid alongside" file, real downloads,
@@ -317,6 +317,40 @@ try {
     await page.click('#turnFlip');
     await page.waitForFunction(() => document.querySelector('#blockers')?.textContent?.includes('not flat'), null, { timeout: 60000 });
     check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for a tile face down');
+    await context.close();
+  });
+
+  await step('the keychain’s tile mold cut in two: a base and a frame with a skirt, a file each or one', async () => {
+    const { page, context } = await app.open();
+    await page.setInputFiles('#fileInput', fixture('keychain'));
+    await page.click('#tabSlump');
+    await page.selectOption('#mold_press', 'tile');
+    await parts(page, 1);
+    check(!(await page.locator('#mold_tileCut').isChecked()) && !(await page.locator('#mold_tileCutPct').isVisible()), 'cut by default');
+    await page.check('#mold_tileCut');
+    const listed = await parts(page, 2);
+    check(listed[0].startsWith('Tile mold: base') && listed[1].startsWith('Tile mold: frame'), `cut: ${listed.join(' | ')}`);
+    check((await page.locator('#mold_tileCutPct').inputValue()) === '50', 'the cut is not at the middle');
+    check((await page.locator('#mold_tileFit').inputValue()) === '0.2', 'the skirt does not fit by 0.2 mm');
+    check((await page.locator('#bedCard').isVisible()) && !(await page.locator('#bed_place').isVisible()), 'no file choice');
+    const downloads = [];
+    page.on('download', (download) => downloads.push(download));
+    const exported = async (count) => {
+      await page.click('#exportBtn');
+      await page.waitForFunction(() => !document.querySelector('#exportBtn')?.disabled, null, { timeout: 120000 });
+      for (let i = 0; i < 40 && downloads.length < count; i++) await page.waitForTimeout(100);
+      await page.waitForTimeout(500);
+    };
+    await exported(2);
+    const names = downloads.map((download) => download.suggestedFilename());
+    check(names.join() === 'keychain-tile-base.stl,keychain-tile-frame.stl', `files: ${names.join()}`);
+    for (const download of downloads)
+      check(stlBodies(readFileSync(await download.path())) === 1, `${download.suggestedFilename()} is not one piece`);
+    await page.check('#bed_oneFile');
+    downloads.length = 0;
+    await exported(1);
+    check(downloads.length === 1 && downloads[0].suggestedFilename() === 'keychain-tile.stl', `one file: ${downloads.length}`);
+    check(stlBodies(readFileSync(await downloads[0].path())) === 2, 'the one file is not the base and the frame');
     await context.close();
   });
 

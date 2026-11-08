@@ -41,7 +41,7 @@ import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from './ui/controls';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
-import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileLand } from './ui/press';
+import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileCutControls, tileLand } from './ui/press';
 import { renderControls, setupAdjustmentButtons } from './ui/controls';
 import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
@@ -237,6 +237,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     range('slumpWall', 'ctl.wall', 'ctl.slumpWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['slump']),
     range('tileWall', 'ctl.wall', 'ctl.tileWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['tile']),
     tileLand,
+    ...tileCutControls,
     range('splitWall', 'ctl.wall', 'ctl.splitWall.hint', BATH_WALL_MIN_MM, BATH_WALL_MAX_MM, 0.2, 'bathWallMm', ['split']),
     splitLand,
     allowedCatch,
@@ -399,8 +400,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     mouthCard.hidden = settings.mode !== 'master' && settings.mode !== 'bath';
     splitCard.hidden = settings.mode !== 'split';
     findBtn.disabled = model === null || finding;
-    // a master and a tile mold are one part: nothing to lay out
-    bedCard.hidden = settings.mode === 'master' || settings.mode === 'tile';
+    // a master and a whole tile mold are one part: nothing to lay out
+    bedCard.hidden = settings.mode === 'master' || (settings.mode === 'tile' && !settings.mold.tileCut);
     emptyEl.hidden = model !== null;
     for (const button of turnButtons) button.disabled = model === null;
     modelNote.hidden = model === null || modelKept !== 'full';

@@ -28,7 +28,7 @@ import {
 } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 import { castRays } from '../geo/release';
-import { TILE_PROUD_MM } from '../geo/tile';
+import { TILE_PROUD_MM, TILE_SKIRT_LIFT_MM } from '../geo/tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -620,6 +620,49 @@ describe('tile mold', () => {
     expect(top(cx - 22.35 * shrink, cy)).toBeCloseTo(rim, 1);
     // the field of the plate below the letters (y = −12, turned to +12): the floor of the cavity, 3 mm under the back
     expect(top(cx + 10 * shrink, cy + 12 * shrink)).toBeCloseTo(rim - 3 * shrink + TILE_PROUD_MM, 1);
+  });
+
+  it('cut in two: a base as it stands and a frame turned over, the skirt on the frame; checked as the whole mold', () => {
+    const cut = { ...defaultMold(), tileCut: true, tileFitMm: 0.4 };
+    const { parts, info } = runJob(csg, tileJob({ kind: 'export', mold: cut }));
+    expect(parts.map((part) => part.id)).toEqual(['tile-base', 'tile-frame']);
+    expect(info.blocking).toEqual([]);
+    expect(info.catches).toEqual([{ id: 'tile', depthMm: 0, at: null }]);
+    const shrink = 1 + cut.shrinkPct / 100;
+    const rim = cut.bathWallMm + 4.5 * shrink - TILE_PROUD_MM;
+    const [base, frame] = parts.map((part) => validateMesh(part));
+    for (const part of parts) {
+      expect(part.blocking, part.id).toEqual([]);
+      expect(bodies(part), part.id).toBe(1);
+    }
+    // both on the bed: the base up to the rim with the ring's post, the frame from its land to the skirt's edge
+    expect(base.bbox.min[2]).toBeCloseTo(0, 3);
+    expect(base.extents[2]).toBeCloseTo(rim, 1);
+    expect(frame.bbox.min[2]).toBeCloseTo(0, 3);
+    expect(frame.extents[2]).toBeCloseTo(rim - TILE_SKIRT_LIFT_MM, 1);
+    // the skirt round the base: its fit and the wall on every side
+    const grow = 2 * (cut.tileFitMm + cut.bathWallMm);
+    expect(frame.extents[0]).toBeCloseTo(base.extents[0] + grow, 1);
+    expect(frame.extents[1]).toBeCloseTo(base.extents[1] + grow, 1);
+    // the frame turned over: its land on the bed, a ring all round the cavity
+    const rays = castRays(parts[1], 2, 0.25);
+    const cx = (frame.bbox.min[0] + frame.bbox.max[0]) / 2;
+    const cy = (frame.bbox.min[1] + frame.bbox.max[1]) / 2;
+    const bottom = (x: number, y: number): number => {
+      const node = rays.nodeAt(x, y);
+      return rays.start[node + 1] > rays.start[node] ? rays.values[rays.start[node]] : NaN;
+    };
+    expect(bottom(frame.bbox.min[0] + 1, cy)).toBeCloseTo(0, 1);
+    expect(bottom(cx + 10 * shrink, cy)).toBeNaN();
+  });
+
+  it('the cut follows its share of the cavity: a higher cut, a taller base and a lower frame', () => {
+    const volumes = (tileCutPct: number): number[] =>
+      runJob(csg, tileJob({ mold: { ...defaultMold(), tileCut: true, tileCutPct } })).parts.map((part) => validateMesh(part).volume);
+    const [lowBase, lowFrame] = volumes(20);
+    const [highBase, highFrame] = volumes(80);
+    expect(highBase).toBeGreaterThan(lowBase);
+    expect(highFrame).toBeLessThan(lowFrame);
   });
 
   it('the keychain face down: its back is not flat — refused, the back named', () => {

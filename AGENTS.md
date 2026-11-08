@@ -29,7 +29,8 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   mode, a slump mold with screw clamps and their printed set (8 pieces, the
   sizes named) laid out in a row and in a column (the thread fit set), one
   for steel bolts (plain holes, stops only: 5 pieces), pour boxes in one file,
-  the keychain's tile mold (refused face down), a hollow cup in two halves
+  the keychain's tile mold (refused face down; cut in two, a file each
+  and one file), a hollow cup in two halves
   (a file each and one file, Find, the press kind remembered),
   the project kept over a reload and Reset, the thumbnail, a file upload,
   real downloads, turning and spin presets, languages, the phone sheet and
@@ -93,7 +94,8 @@ Regenerate them only on purpose.
     clamps (`screwLayout`; no CSG);
   - `release.ts` — whether a piece comes out of a press mold with no punch,
     how deep it catches in mm (`castRays`, `releaseDepth`, `reachOf`; pure);
-  - `tile.ts` — the tile mold (CSG, worker only);
+  - `tile.ts` — the tile mold, whole or cut in two: a base and a frame
+    with a skirt (`tileCutZ` the height of the cut; CSG, worker only);
   - `split/` — the mold of two halves: the shells as height fields and
     their turn for the print (`shell`, pure), the cut over an open piece's
     rim and inside its mouth (`rim`, pure), the search for the plane
@@ -161,6 +163,8 @@ Regenerate them only on purpose.
   (one part, flat plates with relief) and a two-part press mold for pieces
   that are not round (shells as height fields over the plane, the release
   check in mm, the rim cutter, "Find").
+- `plans/PLAN-TILE-CUT.md` — the tile mold cut in two: a base and a frame
+  held by a skirt.
 
 ## Architectural invariants
 
@@ -249,7 +253,8 @@ Regenerate them only on purpose.
   punch, the screws and the stops — and the app lays them out for the view
   and, in one file, for the STL. A change of the layout or the gap lays the
   last build out again with no new build. One STL: the slump mold always,
-  pour boxes and split halves when asked (`inOneFile`).
+  pour boxes, split halves and a tile mold cut in two when asked
+  (`inOneFile`).
 - A press mold with no punch (tile, split) must come off by itself: the
   release check measures **depth** in mm — the locked mold's distance to
   the clay on voxels along the pull — never an area share (a gentle wave
@@ -260,7 +265,17 @@ Regenerate them only on purpose.
 - The tile mold reads the model as it is, never `solidify`: a raised
   border is relief, not a rim. Its back lies down; the mold is the tile
   turned over (never mirrored), the back 0.2 mm proud of the rim, the
-  block its shadow grown by `tileLandMm`.
+  block its shadow grown by `tileLandMm`. Cut in two (`tileCut`), the
+  plane at `tileCutPct` % of the cavity's depth from the face, moved
+  0.1 mm off a flat face of the tile lying in it: the base under it as it
+  stands, the frame over it with a skirt round the base (the fit
+  `tileFitMm` the user's, 0.2 mm by default; the wall's thickness; its edge
+  `TILE_SKIRT_LIFT_MM` over the table — the frame bears on the base),
+  printed turned over. The
+  outline of both parts has a lobe (`TILE_KEY_R_MM`) at its vertex furthest
+  along +x: one lobe, no symmetry, the frame goes on one way only. A
+  post over the plane goes with the base, up to the rim: the frame keeps
+  its largest piece. The release check is the whole mold's.
 - A split half is a height field over the plane on the release check's
   grid: the back is the piece's reach dilated by a ball of the wall (along
   the normal: by the seam the wall runs along the pull), never under a
@@ -295,7 +310,7 @@ triangles):
 | slump mold + punch, preview grid 128              | 0.03–0.1 s                                         |
 | slump mold + punch, export grid 384               | 0.7–0.9 s, ~1M triangles                           |
 | the same with screw clamps (bowl, cup, vase…)     | preview 0.3–0.5 s (teapot 0.9 s); export 2.8–3.8 s |
-| tile mold (keychain)                              | 30–40 ms                                           |
+| tile mold (keychain)                              | 30–40 ms; cut in two 80–90 ms                      |
 | split, two halves (cup, vase, hollow teapot)      | preview 0.8–1.2 s; export 0.9–1.6 s                |
 | split, MathSculpt's vase (263k triangles)         | preview 2.4–2.6 s; export 3.4–3.6 s                |
 | the release check, the vase's half                | 22 ms at 1.1 mm cells, 90 ms at 0.7 mm             |
@@ -333,7 +348,8 @@ never.
   by the mold itself; a block-shaped half with a flat back; the crests of a
   wavy rim checked for catches.
 - A tile with relief on both faces, a draft added to its walls, vents in
-  the tile mold.
+  the tile mold; a cut of the tile mold that is not flat, the frame lifted
+  off upright checked for release.
 
 ## Conventions
 

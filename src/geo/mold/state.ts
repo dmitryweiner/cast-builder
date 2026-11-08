@@ -38,6 +38,12 @@ export interface MoldState {
   allowedCatchMm: number;
   /** the land round a tile mold's cavity, mm: a scraper rides on it */
   tileLandMm: number;
+  /** the tile mold in two parts: a base and a frame over it with a skirt (geo/tile.ts) */
+  tileCut: boolean;
+  /** where a tile mold is cut, % of its cavity's depth from the face to the rim */
+  tileCutPct: number;
+  /** the skirt's clearance round the base of a tile mold cut in two, mm of the print, radially */
+  tileFitMm: number;
   /** the land round a split half's cavity, mm: a flange in the plane the clay is cut flush with */
   splitLandMm: number;
 }
@@ -56,6 +62,12 @@ export const CATCH_MAX_MM = 6;
 /** The land round a press mold's cavity: narrower, the cavity's wall is all the clay is cut flush with. */
 export const LAND_MIN_MM = 2;
 export const LAND_MAX_MM = 30;
+/** A cut nearer the face or the rim leaves a part too thin to handle. */
+export const TILE_CUT_PCT_MIN = 10;
+export const TILE_CUT_PCT_MAX = 90;
+/** The skirt's fit: tighter does not go on, looser wobbles (0.3 did). */
+export const TILE_FIT_MIN_MM = 0.1;
+export const TILE_FIT_MAX_MM = 0.6;
 export { EAR_MAX_MM, EAR_MIN_MM, SLAB_MAX_MM, SLAB_MIN_MM, VENT_MAX_MM, VENT_MIN_MM, THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM };
 
 export function defaultMold(): MoldState {
@@ -77,6 +89,9 @@ export function defaultMold(): MoldState {
     threadedLugs: true,
     allowedCatchMm: 1,
     tileLandMm: 6,
+    tileCut: false,
+    tileCutPct: 50,
+    tileFitMm: 0.2,
     splitLandMm: 12,
   };
 }
@@ -111,6 +126,9 @@ export function sanitizeMold(raw: unknown): MoldState {
     threadedLugs: typeof source.threadedLugs === 'boolean' ? source.threadedLugs : fallback.threadedLugs,
     allowedCatchMm: clamp(num(source.allowedCatchMm, fallback.allowedCatchMm), 0, CATCH_MAX_MM),
     tileLandMm: clamp(num(source.tileLandMm, fallback.tileLandMm), LAND_MIN_MM, LAND_MAX_MM),
+    tileCut: typeof source.tileCut === 'boolean' ? source.tileCut : fallback.tileCut,
+    tileCutPct: clamp(num(source.tileCutPct, fallback.tileCutPct), TILE_CUT_PCT_MIN, TILE_CUT_PCT_MAX),
+    tileFitMm: clamp(num(source.tileFitMm, fallback.tileFitMm), TILE_FIT_MIN_MM, TILE_FIT_MAX_MM),
     splitLandMm: clamp(num(source.splitLandMm, fallback.splitLandMm), LAND_MIN_MM, LAND_MAX_MM),
   };
 }

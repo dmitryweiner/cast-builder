@@ -276,12 +276,37 @@ How to work: press the clay into the mold, scrape it flush with the rim,
 turn the mold over and tap the tile out. There are no vents: they would
 leave nubs on the face.
 
-| Parameter        | Range     | Default | What it does                          |
-| ---------------- | --------- | ------- | ------------------------------------- |
-| Shrinkage        | 0–30 %    | 12      | the plate grows by it                 |
-| Wall             | 1.2–12 mm | 3       | the floor of the mold under the face  |
-| Allowed undercut | 0–6 mm    | 1       | how deep the plate may catch the mold |
-| Land             | 2–30 mm   | 6       | the flat rim a scraper rides on       |
+**Cut in two** (off by default) makes the mold of two parts cut across the
+cavity at **Cut at** — % of the cavity's depth, 0 the face of the tile,
+100 the rim, 50 by default:
+
+- the **base** — the floor with the relief and the cavity up to the cut,
+  printed as it stands; a post for a ring hole goes with it, up to the rim;
+- the **frame** — the rest of the cavity and a **skirt** hanging down round
+  the base, the **Skirt fit** off its side, the skirt as thick as the **Wall**. Its
+  edge stops 1 mm over the table: the frame bears on the base, so the
+  pressing keeps the joint shut. Printed turned over — the land on the bed,
+  the skirt up.
+- a **key**: a round lobe (R 5 mm) on one side of the outline of both
+  parts, the skirt following it — the frame goes on one way only, even on
+  a round medallion.
+
+Press the clay into the two parts stacked and scrape it as usual. To free
+the tile, turn the stack over onto the board, lift the base off the face,
+then the frame off the sides — no tapping. The check of undercuts is that
+of the whole mold: both parts leave the tile the same way. The two parts are
+a file each (`keychain-tile-base.stl`, `keychain-tile-frame.stl`), or one
+file when **On the bed** asks for it.
+
+| Parameter        | Range      | Default | What it does                           |
+| ---------------- | ---------- | ------- | -------------------------------------- |
+| Shrinkage        | 0–30 %     | 12      | the plate grows by it                  |
+| Wall             | 1.2–12 mm  | 3       | the floor of the mold under the face   |
+| Allowed undercut | 0–6 mm     | 1       | how deep the plate may catch the mold  |
+| Land             | 2–30 mm    | 6       | the flat rim a scraper rides on        |
+| Cut in two       | on / off   | off     | a base and a frame with a skirt        |
+| Cut at           | 10–90 %    | 50      | the cut, % of the cavity's depth       |
+| Skirt fit        | 0.1–0.6 mm | 0.2     | the gap between the skirt and the base |
 
 ## Two halves
 
@@ -339,10 +364,10 @@ builds the parts at full detail, checks each mesh (closed, normals out) and
 downloads them, named after the model: the master and pour boxes one STL per
 part (`teapot-bath-half-A.stl`), the slump mold one STL with the punch, the
 screws and the stops (`teapot-slump.stl`), the tile mold one STL
-(`keychain-tile.stl`), the two halves one STL each (`vase-split-A.stl`).
+(`keychain-tile.stl`; cut in two, a file each part), the two halves one STL each (`vase-split-A.stl`).
 
-**On the bed** (pour boxes, the slump mold and the two halves) says how the
-parts lie in that STL:
+**On the bed** (pour boxes, the slump mold, the two halves and a tile mold
+cut in two) says how the parts lie in that STL:
 
 | Parameter       | Choices                            | Default | What it does                                                                                                               |
 | --------------- | ---------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |

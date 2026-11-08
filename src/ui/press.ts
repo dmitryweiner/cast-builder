@@ -8,7 +8,15 @@
 import type { Control } from './controls';
 import type { Mode, Settings, Setup } from '../state';
 import { PRESS_KINDS, SPLIT_AXES, SPLIT_PCT_MAX, SPLIT_PCT_MIN } from '../state';
-import { CATCH_MAX_MM, LAND_MAX_MM, LAND_MIN_MM } from '../geo/mold/state';
+import {
+  CATCH_MAX_MM,
+  LAND_MAX_MM,
+  LAND_MIN_MM,
+  TILE_CUT_PCT_MAX,
+  TILE_CUT_PCT_MIN,
+  TILE_FIT_MAX_MM,
+  TILE_FIT_MIN_MM,
+} from '../geo/mold/state';
 import { lowerFirst, t, tDynamic } from '../i18n';
 import type { Catch } from '../worker/protocol';
 
@@ -52,6 +60,45 @@ export const tileLand: Control<Settings> = {
   set: (s, value) => ({ ...s, mold: { ...s.mold, tileLandMm: value } }),
 };
 
+const tileCut = (s: Settings): boolean => s.mode === 'tile' && s.mold.tileCut;
+
+/** The tile mold in two: a base and a frame with a skirt over it, cut at a share of the cavity's depth; the skirt's fit. */
+export const tileCutControls: readonly Control<Settings>[] = [
+  {
+    kind: 'check',
+    key: 'tileCut',
+    label: 'ctl.tileCut',
+    hint: 'ctl.tileCut.hint',
+    when: (s) => s.mode === 'tile',
+    get: (s) => s.mold.tileCut,
+    set: (s, value) => ({ ...s, mold: { ...s.mold, tileCut: value } }),
+  },
+  {
+    kind: 'range',
+    key: 'tileCutPct',
+    label: 'ctl.tileCutPct',
+    hint: 'ctl.tileCutPct.hint',
+    min: TILE_CUT_PCT_MIN,
+    max: TILE_CUT_PCT_MAX,
+    step: 1,
+    when: tileCut,
+    get: (s) => s.mold.tileCutPct,
+    set: (s, value) => ({ ...s, mold: { ...s.mold, tileCutPct: value } }),
+  },
+  {
+    kind: 'range',
+    key: 'tileFit',
+    label: 'ctl.tileFit',
+    hint: 'ctl.tileFit.hint',
+    min: TILE_FIT_MIN_MM,
+    max: TILE_FIT_MAX_MM,
+    step: 0.05,
+    when: tileCut,
+    get: (s) => s.mold.tileFitMm,
+    set: (s, value) => ({ ...s, mold: { ...s.mold, tileFitMm: value } }),
+  },
+];
+
 export const splitLand: Control<Settings> = {
   kind: 'range',
   key: 'splitLand',
@@ -65,7 +112,7 @@ export const splitLand: Control<Settings> = {
   set: (s, value) => ({ ...s, mold: { ...s.mold, splitLandMm: value } }),
 };
 
-export const pressControls: readonly Control<Settings>[] = [pressKind, allowedCatch, tileLand, splitLand];
+export const pressControls: readonly Control<Settings>[] = [pressKind, allowedCatch, tileLand, ...tileCutControls, splitLand];
 
 export const splitControls: readonly Control<Setup>[] = [
   {

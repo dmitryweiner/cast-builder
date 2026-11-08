@@ -82,6 +82,33 @@ describe('press controls', () => {
     split.dispatchEvent(new Event('input'));
     expect(state.mold).toMatchObject({ tileLandMm: 3, splitLandMm: 20 });
   });
+
+  it('the tile cut in two: a box of the tile only, off by default; its height shown once it is on', () => {
+    render();
+    expect([shown('mold_tileCut'), shown('mold_tileCutPct')]).toEqual([false, false]);
+    state = { ...state, mode: 'tile' };
+    render();
+    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit')]).toEqual([true, false, false]);
+    const box = node('mold_tileCut', HTMLInputElement);
+    expect(box.checked).toBe(false);
+    box.click();
+    expect(state.mold.tileCut).toBe(true);
+    expect(shown('mold_tileCutPct')).toBe(true);
+    const slider = node('mold_tileCutPct', HTMLInputElement);
+    expect(slider.value).toBe('50');
+    slider.value = '30';
+    slider.dispatchEvent(new Event('input'));
+    expect(state.mold).toMatchObject({ tileCut: true, tileCutPct: 30 });
+    expect(shown('mold_tileFit')).toBe(true);
+    const fit = node('mold_tileFit', HTMLInputElement);
+    expect(fit.value).toBe('0.2');
+    fit.value = '0.35';
+    fit.dispatchEvent(new Event('input'));
+    expect(state.mold.tileFitMm).toBe(0.35);
+    state = { ...state, mode: 'split' };
+    render();
+    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit')]).toEqual([false, false, false]);
+  });
 });
 
 describe('split controls', () => {
