@@ -88,7 +88,12 @@ describe('press controls', () => {
     expect([shown('mold_tileCut'), shown('mold_tileCutPct')]).toEqual([false, false]);
     state = { ...state, mode: 'tile' };
     render();
-    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit')]).toEqual([true, false, false]);
+    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit'), shown('mold_tileKey')]).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
     const box = node('mold_tileCut', HTMLInputElement);
     expect(box.checked).toBe(false);
     box.click();
@@ -105,9 +110,19 @@ describe('press controls', () => {
     fit.value = '0.35';
     fit.dispatchEvent(new Event('input'));
     expect(state.mold.tileFitMm).toBe(0.35);
+    expect(shown('mold_tileKey')).toBe(true);
+    const key = node('mold_tileKey', HTMLInputElement);
+    expect(key.checked).toBe(true);
+    key.click();
+    expect(state.mold.tileKey).toBe(false);
     state = { ...state, mode: 'split' };
     render();
-    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit')]).toEqual([false, false, false]);
+    expect([shown('mold_tileCut'), shown('mold_tileCutPct'), shown('mold_tileFit'), shown('mold_tileKey')]).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 });
 

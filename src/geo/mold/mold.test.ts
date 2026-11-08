@@ -448,6 +448,14 @@ describe('sanitizeMold', () => {
     expect(sanitizeMold(once)).toEqual(once);
   });
 
+  it('a tile mold cut in two is keyed by default; the choice takes only a boolean', () => {
+    expect(defaultMold().tileKey).toBe(true);
+    expect(sanitizeMold({ tileKey: false }).tileKey).toBe(false);
+    expect(sanitizeMold({ tileKey: 'no' }).tileKey).toBe(true);
+    const once = sanitizeMold({ tileKey: false });
+    expect(sanitizeMold(once)).toEqual(once);
+  });
+
   it('the skirt of a tile mold cut in two fits by 0.2 mm by default, clamped to 0.1–0.6', () => {
     expect(defaultMold().tileFitMm).toBe(0.2);
     expect(sanitizeMold({ tileFitMm: 0.35 }).tileFitMm).toBe(0.35);

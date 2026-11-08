@@ -275,7 +275,8 @@ Regenerate them only on purpose.
   `TILE_SKIRT_LIFT_MM` — the frame bears on the base; `skirtEdge`),
   printed turned over. The
   outline of both parts has a lobe (`TILE_KEY_R_MM`) at its vertex furthest
-  along +x: one lobe, no symmetry, the frame goes on one way only. A
+  along +x unless `tileKey` is off: one lobe, no symmetry, the frame goes
+  on one way only. A
   post over the plane goes with the base, up to the rim: the frame keeps
   its largest piece. The release check is the whole mold's.
 - A split half is a height field over the plane on the release check's

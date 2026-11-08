@@ -88,7 +88,7 @@ describe('buildTileParts', () => {
     const tile = scope.keep(toManifold(csg, model, { merge: true }));
     const cutZ = tileCutZ(model, FLOOR, 50);
     const whole = buildTileMold(csg, scope, tile, FLOOR, LAND);
-    const { base, frame } = buildTileParts(csg, scope, tile, FLOOR, LAND, { zMm: cutZ, wallMm: WALL, fitMm: FIT });
+    const { base, frame } = buildTileParts(csg, scope, tile, FLOOR, LAND, { zMm: cutZ, wallMm: WALL, fitMm: FIT, key: true });
     return { tile, cutZ, whole, base, frame, rim: tile.boundingBox().max[2] + FLOOR - TILE_PROUD_MM };
   }
 
@@ -141,7 +141,7 @@ describe('buildTileParts', () => {
       const medallion = scope.keep(csg.Manifold.cylinder(4, 20, 20, 96));
       const zMm = tileCutZ(fromManifold(medallion), FLOOR, 50);
       for (const fitMm of [0.1, 0.5]) {
-        const { base, frame } = buildTileParts(csg, scope, medallion, FLOOR, LAND, { zMm, wallMm: WALL, fitMm });
+        const { base, frame } = buildTileParts(csg, scope, medallion, FLOOR, LAND, { zMm, wallMm: WALL, fitMm, key: true });
         const outline = scope.keep(base.project());
         const grown = (by: number): Manifold => scope.keep(scope.keep(outline.offset(by, 'Round')).extrude(zMm));
         expect(scope.keep(grown(fitMm - 0.03).intersect(frame)).volume(), `${fitMm}`).toBeLessThan(0.01);
@@ -157,7 +157,7 @@ describe('buildTileParts', () => {
     try {
       const medallion = scope.keep(csg.Manifold.cylinder(4, 20, 20, 96));
       const zMm = tileCutZ(fromManifold(medallion), FLOOR, 50);
-      const { base, frame } = buildTileParts(csg, scope, medallion, FLOOR, LAND, { zMm, wallMm: WALL, fitMm: FIT });
+      const { base, frame } = buildTileParts(csg, scope, medallion, FLOOR, LAND, { zMm, wallMm: WALL, fitMm: FIT, key: true });
       const overlap = (deg: number): number => scope.keep(base.intersect(scope.keep(frame.rotate([0, 0, deg])))).volume();
       expect(overlap(0)).toBeLessThan(0.01);
       for (const deg of [10, 90, 180]) expect(overlap(deg), `${deg}°`).toBeGreaterThan(1);
@@ -170,6 +170,23 @@ describe('buildTileParts', () => {
     }
   });
 
+  it('without the key the outline is as it is: the skirt alone, a round frame turns on its base', () => {
+    const scope = new CsgScope();
+    try {
+      const medallion = scope.keep(csg.Manifold.cylinder(4, 20, 20, 96));
+      const zMm = tileCutZ(fromManifold(medallion), FLOOR, 50);
+      const { base, frame } = buildTileParts(csg, scope, medallion, FLOOR, LAND, { zMm, wallMm: WALL, fitMm: FIT, key: false });
+      const box = base.boundingBox();
+      expect(box.max[0]).toBeCloseTo(20 + LAND, 0);
+      expect(box.min[0]).toBeCloseTo(-(20 + LAND), 0);
+      for (const deg of [0, 10, 90]) {
+        expect(scope.keep(base.intersect(scope.keep(frame.rotate([0, 0, deg])))).volume(), `${deg}°`).toBeLessThan(0.01);
+      }
+    } finally {
+      scope.dispose();
+    }
+  });
+
   it('the cut through a flat face is moved off it and both parts stay closed', () => {
     const scope = new CsgScope();
     try {
@@ -177,7 +194,7 @@ describe('buildTileParts', () => {
       const mesh = fromManifold(tile);
       const rim = FLOOR + 5 - TILE_PROUD_MM;
       const zMm = tileCutZ(mesh, FLOOR, (100 * 2) / (rim - FLOOR));
-      const { base, frame } = buildTileParts(csg, scope, tile, FLOOR, LAND, { zMm, wallMm: WALL, fitMm: FIT });
+      const { base, frame } = buildTileParts(csg, scope, tile, FLOOR, LAND, { zMm, wallMm: WALL, fitMm: FIT, key: true });
       for (const part of [base, frame]) expect(validateMesh(fromManifold(part)).watertight).toBe(true);
       expect(base.boundingBox().max[2]).toBeCloseTo(zMm, 4);
     } finally {

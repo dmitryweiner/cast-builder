@@ -61,6 +61,9 @@ The cut is the plane z = h, `h = floor + pct/100 · (R − floor)`.
   (a groove in the base's side would cut into a 2 mm land), no new part,
   both still print with no supports. (Rejected: a pin and a socket in the
   cut plane — the land may be 2 mm wide.) The whole mold has no lobe.
+  Made optional after (2026-11-08): a checkbox **Key**, `tileKey`, on by
+  default, shown with the cut only; off — the outline as it is, the skirt
+  alone holds the frame.
 - **Coincident faces**: a flat face of the tile (a relief's top, a step)
   lying in the cut plane would be the worst input of the boolean. `h` is
   moved 0.1 mm up off any horizontal face of the tile within 0.1 mm of it

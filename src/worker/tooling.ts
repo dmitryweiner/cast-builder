@@ -162,7 +162,12 @@ function tileJob(csg: CsgApi, job: ToolingJob, onProgress: (progress: JobProgres
       return { parts: [part('tile', mold, exporting)], info };
     }
     // in two: the base printed as it stands, the frame turned over — its land on the bed, the skirt up
-    const cut = { zMm: tileCutZ(mesh, floor, job.mold.tileCutPct), wallMm: job.mold.bathWallMm, fitMm: job.mold.tileFitMm };
+    const cut = {
+      zMm: tileCutZ(mesh, floor, job.mold.tileCutPct),
+      wallMm: job.mold.bathWallMm,
+      fitMm: job.mold.tileFitMm,
+      key: job.mold.tileKey,
+    };
     const { base, frame } = buildTileParts(csg, scope, tile, floor, land, cut);
     if (exporting) progress.next({ code: 'progress.checkMeshes' });
     return {

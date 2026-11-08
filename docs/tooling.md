@@ -289,9 +289,10 @@ cavity at **Cut at** — % of the cavity's depth, 0 the face of the tile,
   long, but never comes nearer the table than 1 mm: the frame bears on the
   base, so the pressing keeps the joint shut. Printed turned over — the land on the bed,
   the skirt up.
-- a **key**: a round lobe (R 5 mm) on one side of the outline of both
-  parts, the skirt following it — the frame goes on one way only, even on
-  a round medallion.
+- a **Key** (on by default): a round lobe (R 5 mm) on one side of the
+  outline of both parts, the skirt following it — the frame goes on one
+  way only, even on a round medallion. Off, the skirt alone holds the
+  frame.
 
 Press the clay into the two parts stacked and scrape it as usual. To free
 the tile, turn the stack over onto the board, lift the base off the face,
@@ -309,6 +310,7 @@ file when **On the bed** asks for it.
 | Cut in two       | on / off   | off     | a base and a frame with a skirt        |
 | Cut at           | 10–90 %    | 50      | the cut, % of the cavity's depth       |
 | Skirt fit        | 0.1–0.6 mm | 0.2     | the gap between the skirt and the base |
+| Key              | on / off   | on      | a lobe on the outline: one way only    |
 
 ## Two halves
 

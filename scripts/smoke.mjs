@@ -332,6 +332,7 @@ try {
     check(listed[0].startsWith('Tile mold: base') && listed[1].startsWith('Tile mold: frame'), `cut: ${listed.join(' | ')}`);
     check((await page.locator('#mold_tileCutPct').inputValue()) === '50', 'the cut is not at the middle');
     check((await page.locator('#mold_tileFit').inputValue()) === '0.2', 'the skirt does not fit by 0.2 mm');
+    check(await page.locator('#mold_tileKey').isChecked(), 'no key by default');
     check((await page.locator('#bedCard').isVisible()) && !(await page.locator('#bed_place').isVisible()), 'no file choice');
     const downloads = [];
     page.on('download', (download) => downloads.push(download));

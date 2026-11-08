@@ -100,6 +100,8 @@ export const en = {
   'ctl.tileCutPct': 'Cut at, %',
   'ctl.tileFit': 'Skirt fit, mm',
   'ctl.tileFit.hint': 'the gap between the skirt and the base, mm of the print: tighter if the frame wobbles, looser if it does not go on',
+  'ctl.tileKey': 'Key',
+  'ctl.tileKey.hint': 'a lobe on one side of the outline: the frame goes on one way only and cannot turn',
   'ctl.tileCutPct.hint': 'the height of the cut, % of the cavity’s depth: 0 — the face of the tile, 100 — the rim',
   'ctl.splitLand.hint': 'the flat flange round the cavity in the parting plane, the clay is cut flush with it, mm',
   'ctl.splitWall.hint': 'shell of each half, mm; the land round the cavity is twice as thick',

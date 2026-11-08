@@ -62,7 +62,7 @@ export const tileLand: Control<Settings> = {
 
 const tileCut = (s: Settings): boolean => s.mode === 'tile' && s.mold.tileCut;
 
-/** The tile mold in two: a base and a frame with a skirt over it, cut at a share of the cavity's depth; the skirt's fit. */
+/** The tile mold in two: a base and a frame with a skirt over it, cut at a share of the cavity's depth; the skirt's fit, the key. */
 export const tileCutControls: readonly Control<Settings>[] = [
   {
     kind: 'check',
@@ -96,6 +96,15 @@ export const tileCutControls: readonly Control<Settings>[] = [
     when: tileCut,
     get: (s) => s.mold.tileFitMm,
     set: (s, value) => ({ ...s, mold: { ...s.mold, tileFitMm: value } }),
+  },
+  {
+    kind: 'check',
+    key: 'tileKey',
+    label: 'ctl.tileKey',
+    hint: 'ctl.tileKey.hint',
+    when: tileCut,
+    get: (s) => s.mold.tileKey,
+    set: (s, value) => ({ ...s, mold: { ...s.mold, tileKey: value } }),
   },
 ];
 

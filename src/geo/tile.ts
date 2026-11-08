@@ -20,8 +20,8 @@
 // the lower half bare to take the stack apart by. The frame rests on the
 // base, never on the table: the pressing keeps the joint shut. To free
 // the tile the stack is turned over, the base lifted off its face, the frame
-// off its sides. A lobe on the outline of both parts keys them: the frame
-// goes on one way only.
+// off its sides. A lobe on the outline of both parts keys them, unless
+// asked not to: the frame goes on one way only.
 //
 // Only the worker imports this module: it needs the CSG.
 
@@ -51,6 +51,8 @@ export interface TileCut {
   wallMm: number;
   /** the skirt's clearance round the base, mm of the print, radially */
   fitMm: number;
+  /** the lobe on the outline that lets the frame on one way only */
+  key: boolean;
 }
 
 /**
@@ -113,7 +115,7 @@ export function buildTileParts(
 ): { base: Manifold; frame: Manifold } {
   const sunken = sunk(csg, scope, tile, floorMm, landMm);
   const { turned, rim } = sunken;
-  const land = keyed(csg, scope, sunken.land);
+  const land = cut.key ? keyed(csg, scope, sunken.land) : sunken.land;
   const z = cut.zMm;
   const lift = skirtEdge(z);
   const outer = scope.keep(land.offset(cut.fitMm + cut.wallMm, 'Round'));

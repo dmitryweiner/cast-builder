@@ -28,7 +28,7 @@ import {
 } from '../geo/thread';
 import { defaultMold } from '../geo/mold/state';
 import { castRays } from '../geo/release';
-import { TILE_PROUD_MM, skirtEdge } from '../geo/tile';
+import { TILE_KEY_R_MM, TILE_PROUD_MM, skirtEdge } from '../geo/tile';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -656,6 +656,15 @@ describe('tile mold', () => {
     };
     expect(bottom(frame.bbox.min[0] + 1, cy)).toBeCloseTo(0, 1);
     expect(bottom(cx + 10 * shrink, cy)).toBeNaN();
+  });
+
+  it('the key is on by default; off, both parts lose the lobe', () => {
+    const width = (tileKey: boolean): number[] =>
+      runJob(csg, tileJob({ mold: { ...defaultMold(), tileCut: true, tileKey } })).parts.map((part) => validateMesh(part).extents[0]);
+    expect(defaultMold().tileKey).toBe(true);
+    const keyed = width(true);
+    const plain = width(false);
+    for (let i = 0; i < 2; i++) expect(keyed[i] - plain[i], `${i}`).toBeCloseTo(TILE_KEY_R_MM, 0);
   });
 
   it('the cut follows its share of the cavity: a higher cut, a taller base and a lower frame', () => {

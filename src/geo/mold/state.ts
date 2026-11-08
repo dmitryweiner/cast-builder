@@ -44,6 +44,8 @@ export interface MoldState {
   tileCutPct: number;
   /** the skirt's clearance round the base of a tile mold cut in two, mm of the print, radially */
   tileFitMm: number;
+  /** a tile mold cut in two keyed by a lobe on its outline: the frame goes on one way only */
+  tileKey: boolean;
   /** the land round a split half's cavity, mm: a flange in the plane the clay is cut flush with */
   splitLandMm: number;
 }
@@ -92,6 +94,7 @@ export function defaultMold(): MoldState {
     tileCut: false,
     tileCutPct: 50,
     tileFitMm: 0.2,
+    tileKey: true,
     splitLandMm: 12,
   };
 }
@@ -129,6 +132,7 @@ export function sanitizeMold(raw: unknown): MoldState {
     tileCut: typeof source.tileCut === 'boolean' ? source.tileCut : fallback.tileCut,
     tileCutPct: clamp(num(source.tileCutPct, fallback.tileCutPct), TILE_CUT_PCT_MIN, TILE_CUT_PCT_MAX),
     tileFitMm: clamp(num(source.tileFitMm, fallback.tileFitMm), TILE_FIT_MIN_MM, TILE_FIT_MAX_MM),
+    tileKey: typeof source.tileKey === 'boolean' ? source.tileKey : fallback.tileKey,
     splitLandMm: clamp(num(source.splitLandMm, fallback.splitLandMm), LAND_MIN_MM, LAND_MAX_MM),
   };
 }
