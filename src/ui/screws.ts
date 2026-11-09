@@ -5,9 +5,9 @@
 // reusable, so a later mold needs the holes without a new set. Each print
 // box says what it prints, the plain holes what steel they take.
 
-import type { Control } from './controls';
+import type { Control } from 'maker-kit/ui/controls';
 import type { Settings } from '../state';
-import type { Params } from '../i18n';
+import type { Key, Params } from '../i18n';
 import { THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM } from '../geo/mold/state';
 import { PAD, PAD_GAP_MM, SCREW, STEEL_BOLT_MM, THREAD } from '../geo/thread';
 
@@ -19,7 +19,7 @@ export const stopParams: Params = { d: PAD.d, h: PAD.h + PAD.bossH, gap: PAD_GAP
 const clamps = (s: Settings): boolean => s.mode === 'slump' && s.mold.screws;
 const threaded = (s: Settings): boolean => clamps(s) && s.mold.threadedLugs;
 
-export const screwControls: readonly Control<Settings>[] = [
+export const screwControls: readonly Control<Settings, Key>[] = [
   {
     kind: 'check',
     key: 'screws',

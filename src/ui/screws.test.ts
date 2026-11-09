@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // The controls of the slump mold's screw clamps and the sizes they show.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { renderControls } from './controls';
+import { renderControls } from 'maker-kit/ui/controls';
 import { screwControls } from './screws';
 import { defaultSettings } from '../state';
 import type { Settings } from '../state';
+import { t } from '../i18n';
 import { PAD, PAD_GAP_MM, SCREW, STEEL_BOLT_MM, THREAD } from '../geo/thread';
 
 describe('screw clamp checkboxes', () => {
@@ -18,23 +19,22 @@ describe('screw clamp checkboxes', () => {
   });
 
   const render = () =>
-    renderControls(
-      host,
-      screwControls,
-      () => state,
-      (next) => {
+    renderControls(host, screwControls, {
+      read: () => state,
+      change: (next) => {
         state = next;
         handle.sync(state);
       },
-      'tool',
-    );
+      idPrefix: 'tool',
+      t,
+    });
   let handle: ReturnType<typeof render>;
   const box = (key: string): HTMLInputElement => {
     const node = document.getElementById(`tool_${key}`);
     if (!(node instanceof HTMLInputElement)) throw new Error(`no ${key}`);
     return node;
   };
-  const shown = (key: string): boolean => !(box(key).closest('label')?.hidden ?? true);
+  const shown = (key: string): boolean => !(box(key).closest<HTMLElement>('.row')?.hidden ?? true);
 
   const note = (key: string): HTMLElement => {
     const node = document.getElementById(`tool_${key}_note`);
