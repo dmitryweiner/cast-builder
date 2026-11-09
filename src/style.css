@@ -1,183 +1,45 @@
-/* The look of the sibling apps (clayform, case-constructor): a dark theme, a
-   top bar, the panel on the left, the view filling the rest. Casting is a
-   serious business — the accent is burgundy.
-   Mobile first: the base rules are for a phone, where the panel is a bottom
-   sheet over the view; min-width puts it beside the view. Logical properties
-   (inline/block) mirror the layout for RTL by themselves. */
+/* Cast Builder's own styles over maker-kit's design code (maker-kit/styles/
+   kit.css: the palette, the top bar, the panel and its sheet, cards, rows,
+   buttons). The kit's rules are in `@layer kit`, so any rule here wins
+   without a specificity fight. Mobile first; logical properties only. A
+   phone: the view fills the screen, the panel a bottom sheet over it; from
+   1024 px the panel on the start side, beside the view.
+
+   The palette is the kit's with the burgundy accent (`data-accent` in
+   index.html) and its warmer neutrals; casting is a serious business. */
 
 :root {
-  --bg: #1a1214;
-  --panel: #221719;
-  --card: #2c1e21;
-  --text: #efe4e4;
-  --muted: #a8959a;
-  /* burgundy for fills; a lighter shade where a thin line must show on the dark */
-  --accent: #9e2a44;
-  --accent-hi: #c9566e;
-  --accent-soft: rgb(158 42 68 / 0.3);
-  --on-accent: #fff;
-  --warn: #e3b341;
-  --bad: #f0806f;
-  --line: #3e2a2e;
-  --focus: #e3b341;
+  /* the axes in the thumbnail, the usual red, green, blue (AXIS_COLORS in render/look.ts) */
   --axis-x: #e5534b;
   --axis-y: #57ab5a;
   --axis-z: #539bf5;
-  color-scheme: dark;
-}
-
-* {
-  box-sizing: border-box;
-}
-/* the hidden attribute must beat display:flex/grid from classes (.row etc.) */
-[hidden] {
-  display: none !important;
-}
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font:
-    14px/1.45 system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-}
-button,
-select,
-input {
-  font: inherit;
-  color: inherit;
-}
-:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-#app {
-  display: flex;
-  flex-direction: column;
-  block-size: 100dvh;
 }
 
 /* ---- top bar ---- */
 
-#topbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--panel);
-  border-block-end: 1px solid var(--line);
-}
-.brand {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.brand b {
-  font-size: 1.05rem;
-  letter-spacing: 0.3px;
-}
 /* a phone has no room for the tagline */
 .tagline {
   display: none;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--font-small);
+  font-weight: 400;
+  letter-spacing: 0;
 }
-.tb-spacer {
-  flex: 1;
+.topbar .btn {
+  min-block-size: var(--tool);
 }
-
-.tb-btn {
-  min-block-size: 36px;
-  padding: 4px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--card);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.tb-btn:hover:not(:disabled) {
-  border-color: var(--accent-hi);
-}
-.tb-btn.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-}
-.tb-btn.wide {
-  inline-size: 100%;
-  margin-block-start: 8px;
-}
-.tb-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-select {
-  min-inline-size: 0;
-  min-block-size: 32px;
-  padding: 4px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-}
-#topbar select {
-  flex: none;
+/* the language at the end, until the kit's picker takes its place */
+.topbar select {
+  order: 5;
+  inline-size: auto;
   background: var(--card);
 }
 
-/* ---- the panel and the view ---- */
+/* ---- the view ---- */
 
-#content {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-block-size: 0;
-}
-
-/* a phone: a sheet over the bottom of the view, "Settings" brings it back */
-#panel {
-  position: absolute;
-  inset: auto 0 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-block-size: 58dvh;
-  padding: 12px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--panel);
-  border-block-start: 1px solid var(--line);
-  border-start-start-radius: 14px;
-  border-start-end-radius: 14px;
-  box-shadow: 0 -12px 28px rgb(0 0 0 / 0.55);
-  transform: translateY(100%);
-  transition: transform 0.25s ease;
-}
-#panel.open {
-  transform: none;
-}
-
-.stage {
-  position: relative;
-  flex: 1;
-  min-inline-size: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-.stage.dragging {
-  outline: 2px dashed var(--accent-hi);
+.view.dragging {
+  outline: 2px dashed var(--accent-strong);
   outline-offset: -8px;
-}
-#view {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  touch-action: none;
 }
 .empty {
   position: absolute;
@@ -186,8 +48,8 @@ select {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px 16px;
+  gap: var(--space-2);
+  padding: 24px var(--space-4);
   text-align: center;
 }
 .empty h1 {
@@ -196,14 +58,14 @@ select {
 }
 .empty p {
   max-inline-size: 34em;
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   color: var(--muted);
 }
 /* why the view is empty when the panel may be out of sight */
 .stage-note {
   position: absolute;
-  inset-inline: 16px;
-  inset-block-start: 16px;
+  inset-inline: var(--space-4);
+  inset-block-start: var(--space-4);
   margin: 0;
   color: var(--bad);
   text-align: center;
@@ -212,38 +74,30 @@ select {
 .stage-note:empty {
   display: none;
 }
-.panel-btn {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 16px;
-  z-index: 25;
-  inline-size: fit-content;
-  margin-inline: auto;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
-}
 
 .progress {
   position: absolute;
-  inset-inline: 16px;
+  inset-inline: var(--space-4);
   /* above the "Settings" button */
   inset-block-end: 64px;
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--font-tiny);
 }
 .progress-bar {
   flex: 1;
   block-size: 6px;
   border-radius: 3px;
-  background: rgb(168 149 154 / 0.25);
+  background: rgb(168 149 154 / 25%);
   overflow: hidden;
 }
-.progress-fill {
+.progress .progress-fill {
+  position: static;
   block-size: 100%;
   inline-size: 0;
-  background: var(--accent-hi);
+  background: var(--accent-strong);
   transition: inline-size 0.12s linear;
 }
 .progress.indeterminate .progress-fill {
@@ -260,37 +114,23 @@ select {
   }
 }
 
-/* ---- cards ---- */
+/* ---- the panel ---- */
 
-.card {
-  flex: none;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--card);
-}
-.card h2 {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
 .sub {
   margin-block-start: 10px;
-  padding-block-start: 8px;
+  padding-block-start: var(--space-2);
   border-block-start: 1px solid var(--line);
 }
 .sub-title {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 .note {
   margin: 6px 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--font-tiny);
 }
 .note:empty,
 .warnings:empty,
@@ -300,7 +140,7 @@ select {
 .warnings,
 .blockers {
   margin: 6px 0;
-  font-size: 0.8rem;
+  font-size: var(--font-tiny);
   white-space: pre-line;
 }
 .warnings {
@@ -309,12 +149,16 @@ select {
 .blockers {
   color: var(--bad);
 }
+#splitCard .btn,
+.sub .btn {
+  margin-block-start: var(--space-2);
+}
 
 /* the model as it stands: the user turns it with the buttons, not the mouse */
 .thumb {
   position: relative;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg);
 }
 #thumb {
@@ -328,9 +172,9 @@ select {
   padding: 1px 3px;
   border-radius: 3px;
   /* readable over the piece, where an axis behind it ends */
-  background: rgb(26 18 20 / 0.7);
+  background: var(--overlay);
   transform: translate(-50%, -50%);
-  font-size: 0.75rem;
+  font-size: var(--font-tiny);
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
@@ -348,6 +192,7 @@ select {
 .icon-buttons {
   display: flex;
   gap: 6px;
+  margin-block-start: var(--space-2);
 }
 .icon-btn {
   display: inline-grid;
@@ -356,14 +201,14 @@ select {
   block-size: 40px;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
 }
 .icon-btn:hover:not(:disabled) {
-  border-color: var(--accent-hi);
-  color: var(--accent-hi);
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
 }
 .icon-btn:disabled {
   opacity: 0.45;
@@ -390,115 +235,28 @@ select {
   stroke-linejoin: round;
 }
 .icon-btn text {
-  font:
-    700 10px system-ui,
-    sans-serif;
+  font: 700 10px var(--font-family);
   text-anchor: middle;
 }
 
+/* the modes: the press molds share one tab */
 .tabs {
   display: flex;
-  gap: 4px;
-  margin-block-end: 8px;
+  gap: var(--space-1);
+  margin-block-end: var(--space-2);
 }
 .tab {
   flex: 1;
-  min-block-size: 34px;
-  padding: 4px;
+  min-block-size: var(--control-h);
+  padding: var(--space-1);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--muted);
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  border-color: var(--accent-hi);
-  background: var(--accent-soft);
-  color: var(--text);
-}
-
-/* ---- controls ---- */
-
-.row {
-  display: grid;
-  grid-template-columns: minmax(5.5em, 1fr) auto minmax(0, 1.6fr) auto 3em;
-  align-items: center;
-  gap: 6px;
-  min-block-size: 34px;
-}
-.row-name {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.85rem;
-  text-overflow: ellipsis;
-}
-.row input[type='range'] {
-  inline-size: 100%;
-  min-inline-size: 0;
-  accent-color: var(--accent);
-}
-.row output {
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-  text-align: end;
-}
-.row select {
-  grid-column: 2 / -1;
-}
-.check-row {
-  display: flex;
-  gap: 8px;
-}
-.check-row input {
-  inline-size: 18px;
-  block-size: 18px;
-  accent-color: var(--accent);
-}
-.check-row .row-name {
-  color: var(--text);
-}
-.row-note {
-  margin-block: -4px 6px;
-  margin-inline-start: 26px;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-.adj-btn {
-  inline-size: 26px;
-  block-size: 26px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--panel);
-  color: var(--muted);
-  line-height: 1;
-  cursor: pointer;
-}
-.adj-btn:hover {
-  border-color: var(--accent-hi);
-  color: var(--text);
-}
-.presets {
-  display: flex;
-  gap: 4px;
-  margin-block: 2px 4px;
-}
-.preset-btn {
-  flex: 1;
-  min-block-size: 30px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-.preset-btn:hover {
-  border-color: var(--accent-hi);
-}
-.preset-btn[aria-pressed='true'] {
-  border-color: var(--accent-hi);
+  border-color: var(--accent-strong);
   background: var(--accent-soft);
   color: var(--text);
 }
@@ -511,45 +269,33 @@ select {
 .parts li {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   padding-block: 3px;
   border-block-end: 1px solid var(--line);
-  font-size: 0.85rem;
+  font-size: var(--font-small);
 }
 .parts li span:last-child {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-#panel footer {
-  margin-block-start: auto;
-  padding: 4px 2px 0;
+.panel footer {
+  padding: var(--space-1) 2px 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--font-tiny);
 }
-#panel footer a {
+.panel footer a {
   color: inherit;
 }
 
-/* ---- wider screens: the panel beside the view ---- */
-
-@media (min-width: 761px) {
+@media (min-width: 760px) {
   .tagline {
     display: inline;
   }
-  #panel {
-    position: static;
-    flex: none;
-    inline-size: 340px;
-    max-block-size: none;
-    border-block-start: none;
-    border-inline-end: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-    transform: none;
-    transition: none;
-  }
+}
+
+@media (min-width: 1024px) {
   .progress {
-    inset-block-end: 16px;
+    inset-block-end: var(--space-4);
   }
 }
