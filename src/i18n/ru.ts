@@ -1,6 +1,8 @@
+import { kitRu } from 'maker-kit/i18n/index';
 import type { Messages } from './en';
 
 export const ru: Messages = {
+  ...kitRu,
   title: 'Cast Builder',
   description: 'Литейная оснастка из готового STL: мастер-позитив, ванночки под силикон, отминочная форма и пуансон.',
   tagline: 'формы из готового STL',

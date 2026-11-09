@@ -1,10 +1,13 @@
+import { format } from 'maker-kit/core/format';
+import type { Params } from 'maker-kit/core/message';
 import { en, type Key, type Messages } from './en';
 import { ru } from './ru';
 import type { Message } from '../geo/message';
 
+export { format, placeholders } from 'maker-kit/core/format';
+export type { Params } from 'maker-kit/core/message';
 export type { Key, Messages };
 export type Locale = 'en' | 'ru';
-export type Params = Readonly<Record<string, string | number>>;
 
 export const LOCALES: readonly Locale[] = ['en', 'ru'];
 export const DEFAULT_LOCALE: Locale = 'en';
@@ -14,12 +17,6 @@ export const LOCALE_NAMES: Record<Locale, string> = { en: 'English', ru: 'Рус
 const RTL_LOCALES: ReadonlySet<Locale> = new Set<Locale>();
 
 export const messages: Record<Locale, Messages> = { en, ru };
-
-/** The order of forms in `{n|…}`: the Intl.PluralRules categories of the locale. */
-const PLURAL_ORDER: Record<Locale, readonly Intl.LDMLPluralRule[]> = {
-  en: ['one', 'other'],
-  ru: ['one', 'few', 'many'],
-};
 
 export function isLocale(value: unknown): value is Locale {
   return LOCALES.some((locale) => locale === value);
@@ -47,26 +44,6 @@ export function isKey(key: string): key is Key {
 /** A plain message by key (as written in index.html), or undefined. */
 export function staticText(dict: Messages, key: string): string | undefined {
   return isKey(key) ? dict[key] : undefined;
-}
-
-const PLACEHOLDER = /\{(\w+)(?:\|([^}]*))?\}/g;
-
-/** Fills a template: `{name}` with a parameter, `{n|…}` with the word form for n. */
-export function format(template: string, params: Params | undefined, locale: Locale): string {
-  return template.replace(PLACEHOLDER, (whole, name: string, forms: string | undefined) => {
-    const value = params?.[name];
-    if (value === undefined) return whole;
-    if (forms === undefined) return String(value);
-    const variants = forms.split('|');
-    const category = new Intl.PluralRules(locale).select(Number(value));
-    const index = PLURAL_ORDER[locale].indexOf(category);
-    return variants[index >= 0 ? index : variants.length - 1] ?? whole;
-  });
-}
-
-/** Names of a template's parameters — for the test that every locale has the same ones. */
-export function placeholders(template: string): string[] {
-  return [...template.matchAll(PLACEHOLDER)].map((match) => match[1] ?? '').toSorted();
 }
 
 // The current locale lives here, not in each caller: controls, cards and the

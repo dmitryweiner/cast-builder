@@ -2,7 +2,9 @@
 // not a sentence. Neither the core nor the worker knows the language (it may
 // change in the middle of a job); the interface turns a code into text
 // (`tm` in src/i18n). Every code must be a key of the dictionary, which `tm`
-// checks at compile time.
+// checks at compile time. The shape is maker-kit's core/message.
+
+import type { Message as KitMessage } from 'maker-kit/core/message';
 
 export type MessageCode =
   // parting scheme of the mold (mold/analyze)
@@ -50,7 +52,4 @@ export type MessageCode =
   | 'progress.split'
   | 'progress.find';
 
-export interface Message {
-  code: MessageCode;
-  params?: Readonly<Record<string, string | number>>;
-}
+export type Message = KitMessage<MessageCode>;

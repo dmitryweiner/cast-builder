@@ -1,10 +1,13 @@
-// English is the default locale and defines the keys of every message set.
-// Templates: `{name}` is a parameter; `{n|form|form}` picks a word by the
-// number n, the forms in the order of the locale's Intl.PluralRules
-// categories (en: one/other, ru: one/few/many). Plain messages without
-// parameters can be used in index.html via data-i18n / data-i18n-label /
-// data-i18n-title.
+// English is the default locale and defines the keys of every message set,
+// maker-kit's `kit.*` strings among them. Templates (maker-kit's core/format):
+// `{name}` is a parameter; `{n|form|form}` picks a word by the number n, the
+// forms in the order of the locale's Intl.PluralRules categories (en:
+// one/other, ru: one/few/many). Plain messages without parameters can be used
+// in index.html via data-i18n / data-i18n-label / data-i18n-title.
+import { kitEn } from 'maker-kit/i18n/index';
+
 export const en = {
+  ...kitEn,
   title: 'Cast Builder',
   description: 'Slip-casting molds from a ready STL: a master positive, pour boxes for silicone, a slump mold and its punch.',
   tagline: 'molds from a ready STL',
