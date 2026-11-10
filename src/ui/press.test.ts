@@ -2,13 +2,13 @@
 // The press molds' controls: the kind inside the slump tab, the plane of a
 // split mold, the undercuts the build found.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { renderControls } from './controls';
+import { renderControls } from 'maker-kit/ui/controls';
 import { catchNote, pressControls, splitControls } from './press';
 import { defaultSettings, defaultSetup, sanitizeSettings } from '../state';
 import type { Settings, Setup } from '../state';
-import { setLocale } from '../i18n';
+import { setLocale, t } from '../i18n';
 
-const shown = (id: string): boolean => !(document.getElementById(id)?.closest('label')?.hidden ?? true);
+const shown = (id: string): boolean => !(document.getElementById(id)?.closest<HTMLElement>('.row')?.hidden ?? true);
 
 function node<T extends HTMLElement>(id: string, type: new () => T): T {
   const found = document.getElementById(id);
@@ -25,16 +25,15 @@ describe('press controls', () => {
   });
   const render = (): void => {
     const host = node('host', HTMLDivElement);
-    const handle = renderControls(
-      host,
-      pressControls,
-      () => state,
-      (next) => {
+    const handle = renderControls(host, pressControls, {
+      read: () => state,
+      change: (next) => {
         state = sanitizeSettings(next);
         handle.sync(state);
       },
-      'mold',
-    );
+      idPrefix: 'mold',
+      t,
+    });
   };
 
   it('the kind of press mold: shown in the slump tab only; picking one sets the mode and is remembered', () => {
@@ -132,15 +131,14 @@ describe('split controls', () => {
     setLocale('en');
     document.body.innerHTML = '<div id="host"></div>';
     setup = defaultSetup();
-    renderControls(
-      node('host', HTMLDivElement),
-      splitControls,
-      () => setup,
-      (next) => {
+    renderControls(node('host', HTMLDivElement), splitControls, {
+      read: () => setup,
+      change: (next) => {
         setup = next;
       },
-      'split',
-    );
+      idPrefix: 'split',
+      t,
+    });
   });
 
   it('the axis of the plane and its place along it', () => {

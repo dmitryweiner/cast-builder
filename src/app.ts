@@ -38,12 +38,12 @@ import type { Mode, Settings, Setup } from './state';
 import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
 import type { KeyValueStorage, StorageWrite } from './storage';
 import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
-import type { Control } from './ui/controls';
+import type { Control } from 'maker-kit/ui/controls';
+import { renderControls } from 'maker-kit/ui/controls';
+import { el, make } from 'maker-kit/ui/dom';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
 import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileCutControls, tileLand } from './ui/press';
-import { renderControls, setupAdjustmentButtons } from './ui/controls';
-import { el, make } from './ui/dom';
 import { createProgress } from './ui/progress';
 import { createScene } from './render/scene';
 import type { SceneHandle } from './render/scene';
@@ -132,7 +132,7 @@ function range(
   step: number,
   field: MoldNumber,
   modes: readonly Mode[],
-): Control<Settings> {
+): Control<Settings, Key> {
   return {
     kind: 'range',
     key,
@@ -191,7 +191,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     z: el('axisZ', HTMLSpanElement),
   });
   const client = new ToolingClient();
-  const narrow = window.matchMedia('(max-width: 760px)');
+  // the width where kit.css puts the panel beside the view
+  const narrow = window.matchMedia('(max-width: 1023px)');
   // on a phone with no model the sheet would cover the invitation; a model opens it
   const sheet = setupSheet({
     panel,
@@ -226,7 +227,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   // ---- controls ----
 
-  const toolingSpec: Control<Settings>[] = [
+  const toolingSpec: Control<Settings, Key>[] = [
     pressKind,
     range('shrink', 'ctl.shrink', 'ctl.shrink.hint', 0, SHRINK_MAX_PCT, 0.5, 'shrinkPct', MODES),
     range('spare', 'ctl.spare', 'ctl.spare.hint', 0, SPARE_MAX_MM, 1, 'spareMm', ['master', 'bath']),
@@ -251,13 +252,14 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       key: 'resolution',
       label: 'ctl.resolution',
       hint: 'ctl.resolution.hint',
-      options: RESOLUTIONS.map((value) => ({ value: String(value), label: 'size.box' })),
+      // "128 × 128", not a translated label
+      options: RESOLUTIONS.map((value) => ({ value: String(value), text: `${value} × ${value}` })),
       when: (s) => s.mode === 'slump',
       get: (s) => String(s.resolution),
       set: (s, value) => ({ ...s, resolution: Number(value) }),
     },
   ];
-  const schemeSpec: Control<Settings>[] = [
+  const schemeSpec: Control<Settings, Key>[] = [
     {
       kind: 'select',
       key: 'scheme',
@@ -271,7 +273,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   ];
   const heightLimit = (): number => Math.max(1, Math.round(model?.heightMm ?? 100));
   const radiusLimit = (): number => Math.max(2, Math.round(model?.radiusMm ?? 100));
-  const mouthSpec: Control<Setup>[] = [
+  const mouthSpec: Control<Setup, Key>[] = [
     {
       kind: 'check',
       key: 'auto',
@@ -344,7 +346,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       set: (s, galleryMm) => ({ ...s, plug: { ...s.plug, galleryMm } }),
     },
   ];
-  const modelSpec: Control<Setup>[] = [
+  const modelSpec: Control<Setup, Key>[] = [
     {
       kind: 'range',
       key: 'spin',
@@ -353,7 +355,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       min: 0,
       max: 355,
       step: 5,
-      presets: [0, 90, 180, 270],
+      values: { list: [0, 90, 180, 270], suffix: '°' },
       get: (s) => s.orientation.spinDeg,
       set: (s, spinDeg) => ({ ...s, orientation: { ...s.orientation, spinDeg } }),
     },
@@ -370,20 +372,16 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   /** The panel drawn anew — at the start and on every change of language. */
   function renderPanel(): void {
-    const toolingRows = renderControls(toolingControls, toolingSpec, () => settings, setSettings, 'mold');
+    const toolingRows = draw(toolingControls, toolingSpec, () => settings, setSettings, 'mold');
     const mouthHost = make('div');
     const schemeHost = make('div');
     mouthControls.textContent = '';
     mouthControls.append(mouthHost, schemeHost);
-    const mouthRows = renderControls(mouthHost, mouthSpec, () => setup, setSetup, 'mouth');
-    const schemeRows = renderControls(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
-    const modelRows = renderControls(modelControls, modelSpec, () => setup, setSetup, 'model');
-    const splitRows = renderControls(splitControlsEl, splitControls, () => setup, setSetup, 'split');
-    const bedRows = renderControls(bedControlsEl, bedControls, () => settings, setBed, 'bed');
-    // the resolution options read as "128 × 128", not as a translated label
-    for (const option of document.querySelectorAll<HTMLOptionElement>('#mold_resolution option')) {
-      option.textContent = `${option.value} × ${option.value}`;
-    }
+    const mouthRows = draw(mouthHost, mouthSpec, () => setup, setSetup, 'mouth');
+    const schemeRows = draw(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
+    const modelRows = draw(modelControls, modelSpec, () => setup, setSetup, 'model');
+    const splitRows = draw(splitControlsEl, splitControls, () => setup, setSetup, 'split');
+    const bedRows = draw(bedControlsEl, bedControls, () => settings, setBed, 'bed');
     rows = [
       { sync: () => toolingRows.sync(settings) },
       { sync: () => schemeRows.sync(settings) },
@@ -737,12 +735,16 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     syncPanel();
   });
 
-  setupAdjustmentButtons(panel);
   translatePage(locale);
   renderPanel();
   syncPanel();
   const kept = loadSavedModel(storage);
   if (kept) openModel(kept.name, kept.mesh, saved.setup);
+}
+
+/** The rows of one part of the panel; `final` (one undo step) is not told apart yet. */
+function draw<T>(host: HTMLElement, spec: readonly Control<T, Key>[], read: () => T, change: (next: T) => void, idPrefix: string) {
+  return renderControls(host, spec, { read, change, idPrefix, t });
 }
 
 function withNormals(mesh: IndexedMesh): SurfaceMesh {

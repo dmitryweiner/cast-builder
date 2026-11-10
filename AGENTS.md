@@ -72,8 +72,14 @@ Regenerate them only on purpose.
 
 ## Layout
 
-- `src/main.ts` — entry: starts the app with browser storage and languages,
-  registers the service worker in production (`src/pwa.ts`).
+- `src/main.ts` — entry: maker-kit's `kit.css`, then `style.css`; starts the
+  app with browser storage and languages, registers the service worker in
+  production (`src/pwa.ts`).
+- `src/style.css` — Cast Builder's own rules over maker-kit's `kit.css` (in
+  `@layer kit`, so the app's rules win): the kit's palette with
+  `data-accent="burgundy"` and its density (16 px text and 40 px controls on
+  a phone, 14 px and 28 px from 1024 px, where the panel stands beside the
+  view).
 - `src/sw-plugin.ts` — the Vite plugin that writes `sw.js` with the precache
   list of the build (the worker chunk and its WASM included).
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
@@ -131,12 +137,14 @@ Regenerate them only on purpose.
   card (drawn once per change, no controls, the three axes labelled),
   `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
   the bed and the axes (tested in node). `src/ui/`
-  — controls (a range may carry preset buttons, a checkbox a note under it;
+  — the rows of the panel for maker-kit's `ui/controls` (a range may carry
+  value buttons, a check box a note under it; ids in the kit's scheme:
+  `mold_slab`, `mold_slab_n` its exact field, `model_spin_v90`;
   `screws.ts` the clamps, the thread, its fit, the print boxes with the
   sizes they print; `bed.ts` the layout on the bed and `inOneFile`;
   `press.ts` the press kind, the allowed undercut, the split plane, the
   undercuts found), progress bar, the panel as
-  a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
+  a bottom sheet on a phone (`sheet.ts`).
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.

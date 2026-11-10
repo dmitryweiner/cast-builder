@@ -5,7 +5,8 @@
 // file is not offered: separate pour boxes lie in the view as the layout
 // says, but each prints alone.
 
-import type { Control } from './controls';
+import type { Control } from 'maker-kit/ui/controls';
+import type { Key } from '../i18n';
 import type { Settings } from '../state';
 import { BED_GAP_MAX_MM, BED_GAP_MIN_MM, BED_PLACES } from '../geo/layout';
 
@@ -18,7 +19,7 @@ export function inOneFile(settings: Settings): boolean {
   return settings.mode === 'slump' || (apart(settings) && settings.bed.oneFile);
 }
 
-export const bedControls: readonly Control<Settings>[] = [
+export const bedControls: readonly Control<Settings, Key>[] = [
   {
     kind: 'check',
     key: 'oneFile',

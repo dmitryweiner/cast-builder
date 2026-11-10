@@ -5,7 +5,7 @@
 // (their clay, how leather-hard), and the build says how deep it does. The
 // plane of a split mold belongs to the model in hand, like its orientation.
 
-import type { Control } from './controls';
+import type { Control } from 'maker-kit/ui/controls';
 import type { Mode, Settings, Setup } from '../state';
 import { PRESS_KINDS, SPLIT_AXES, SPLIT_PCT_MAX, SPLIT_PCT_MIN } from '../state';
 import {
@@ -18,12 +18,13 @@ import {
   TILE_FIT_MIN_MM,
 } from '../geo/mold/state';
 import { lowerFirst, t, tDynamic } from '../i18n';
+import type { Key } from '../i18n';
 import type { Catch } from '../worker/protocol';
 
 const isPress = (mode: Mode): boolean => PRESS_KINDS.some((kind) => kind === mode);
 const unpunched = (s: Settings): boolean => s.mode === 'tile' || s.mode === 'split';
 
-export const pressKind: Control<Settings> = {
+export const pressKind: Control<Settings, Key> = {
   kind: 'select',
   key: 'press',
   label: 'press.kind',
@@ -34,7 +35,7 @@ export const pressKind: Control<Settings> = {
   set: (s, value) => ({ ...s, mode: PRESS_KINDS.find((kind) => kind === value) ?? s.mode }),
 };
 
-export const allowedCatch: Control<Settings> = {
+export const allowedCatch: Control<Settings, Key> = {
   kind: 'range',
   key: 'allowedCatch',
   label: 'ctl.allowedCatch',
@@ -47,7 +48,7 @@ export const allowedCatch: Control<Settings> = {
   set: (s, value) => ({ ...s, mold: { ...s.mold, allowedCatchMm: value } }),
 };
 
-export const tileLand: Control<Settings> = {
+export const tileLand: Control<Settings, Key> = {
   kind: 'range',
   key: 'tileLand',
   label: 'ctl.land',
@@ -63,7 +64,7 @@ export const tileLand: Control<Settings> = {
 const tileCut = (s: Settings): boolean => s.mode === 'tile' && s.mold.tileCut;
 
 /** The tile mold in two: a base and a frame with a skirt over it, cut at a share of the cavity's depth; the skirt's fit, the key. */
-export const tileCutControls: readonly Control<Settings>[] = [
+export const tileCutControls: readonly Control<Settings, Key>[] = [
   {
     kind: 'check',
     key: 'tileCut',
@@ -108,7 +109,7 @@ export const tileCutControls: readonly Control<Settings>[] = [
   },
 ];
 
-export const splitLand: Control<Settings> = {
+export const splitLand: Control<Settings, Key> = {
   kind: 'range',
   key: 'splitLand',
   label: 'ctl.land',
@@ -121,9 +122,9 @@ export const splitLand: Control<Settings> = {
   set: (s, value) => ({ ...s, mold: { ...s.mold, splitLandMm: value } }),
 };
 
-export const pressControls: readonly Control<Settings>[] = [pressKind, allowedCatch, tileLand, ...tileCutControls, splitLand];
+export const pressControls: readonly Control<Settings, Key>[] = [pressKind, allowedCatch, tileLand, ...tileCutControls, splitLand];
 
-export const splitControls: readonly Control<Setup>[] = [
+export const splitControls: readonly Control<Setup, Key>[] = [
   {
     kind: 'select',
     key: 'axis',

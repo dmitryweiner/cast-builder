@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // The bed card: how the parts go on the bed and into the STL.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { renderControls } from './controls';
+import { renderControls } from 'maker-kit/ui/controls';
 import { bedControls, inOneFile } from './bed';
 import { defaultSettings } from '../state';
 import type { Settings } from '../state';
+import { t } from '../i18n';
 
 describe('bed controls', () => {
   let host: HTMLElement;
@@ -17,23 +18,22 @@ describe('bed controls', () => {
   });
 
   const render = () =>
-    renderControls(
-      host,
-      bedControls,
-      () => state,
-      (next) => {
+    renderControls(host, bedControls, {
+      read: () => state,
+      change: (next) => {
         state = next;
         handle.sync(state);
       },
-      'bed',
-    );
+      idPrefix: 'bed',
+      t,
+    });
   let handle: ReturnType<typeof render>;
   const node = <T extends HTMLElement>(key: string, type: new () => T): T => {
     const found = document.getElementById(`bed_${key}`);
     if (!(found instanceof type)) throw new Error(`no ${key}`);
     return found;
   };
-  const shown = (key: string): boolean => !(document.getElementById(`bed_${key}`)?.closest('label')?.hidden ?? true);
+  const shown = (key: string): boolean => !(document.getElementById(`bed_${key}`)?.closest<HTMLElement>('.row')?.hidden ?? true);
 
   it('the slump mold is one file: the layout and the gap, no file choice', () => {
     handle = render();

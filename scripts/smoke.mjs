@@ -162,7 +162,7 @@ try {
     await page.check('#mold_screws');
     await page.fill('#mold_threadFit', '0.65');
     await page.click('#turnX');
-    await page.click('.preset-btn:text-is("90°")');
+    await page.click('#model_spin_v90');
     const turned = await page.locator('#modelInfo').textContent();
     await page.reload();
     await page.locator('#thumbBox').waitFor();
@@ -440,10 +440,10 @@ try {
     await page.click('#turnX');
     await page.click('#turnReset');
     await page.waitForFunction((text) => document.querySelector('#modelInfo')?.textContent === text, before);
-    check((await page.locator('.preset-btn[aria-pressed="true"]').textContent()) === '0°', 'spin 0 is not pressed');
-    await page.click('.preset-btn:text-is("90°")');
+    check((await page.locator('.value-btn[aria-pressed="true"]').textContent()) === '0°', 'spin 0 is not pressed');
+    await page.click('#model_spin_v90');
     check((await page.locator('#model_spin').inputValue()) === '90', 'the 90° preset did not spin the model');
-    check((await page.locator('.preset-btn[aria-pressed="true"]').textContent()) === '90°', 'the 90° preset is not pressed');
+    check((await page.locator('.value-btn[aria-pressed="true"]').textContent()) === '90°', 'the 90° preset is not pressed');
     await page.click('#turnReset');
     await page.uncheck('#mouth_auto');
     check(await page.locator('#mouth_z').isVisible(), 'no mouth height slider');
