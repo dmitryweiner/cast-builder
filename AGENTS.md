@@ -17,7 +17,8 @@ clay, hollow — is the hand-off, and the solid master is made here.
 Built on **maker-kit** (`~/projects/maker-kit`, the shared library of the
 3D-printing tools), installed by git tag in `package.json`. Its modules are
 imported as `maker-kit/core/storage` and so on; its docs are in its
-`docs/`. Moving onto it is maker-kit's milestone M2, one PR per group. For
+`docs/`. The move onto it was maker-kit's milestone M2 (done 2026-11-10;
+its decisions and deviations are in maker-kit's `plans/PLAN.md`). For
 joint work on the app and the kit: `npm link ../maker-kit`; a kit change
 reaches the app as a new tag.
 
@@ -88,7 +89,7 @@ Regenerate them only on purpose.
 - `src/state.ts` — `Settings` (the user's habits; `press` the kind the press
   tab opens on; not the language) and `Setup` (the model in hand: orientation, mouth, plug,
   the split plane), with their sanitizers; `resetSettings` (all but the
-  language and the mode).
+  mode).
 - `src/storage.ts` — the project in localStorage, two versioned keys (records
   of maker-kit's `core/storage`): the settings with the setup
   (`cast-builder`, written on every change) and the model itself
@@ -133,9 +134,9 @@ Regenerate them only on purpose.
 - `src/worker/` — `tooling.ts` runs one job (tested in node; `slumpTooling`
   the slump mold with its clamps), `csg.worker.ts` its thin adapter over
   maker-kit's `serveJobs`, `client.ts` the main thread's queue (maker-kit's
-  `WorkerClient`, one lane: a waiting preview gives way to a fresher one, an
-  export or a Find to nothing), `protocol.ts` the jobs and results of both
-  sides.
+  `WorkerClient`, one lane: a waiting job gives way to a fresher one, but a
+  waiting export or Find never to a preview), `protocol.ts` the jobs and
+  results of both sides.
 - `src/render/` — Three.js: the main view is maker-kit's `3d/viewer`
   (tooling only, on a grid at least a 200 mm bed, orbit camera, centred
   above the sheet); `thumb.ts` the model thumbnail in the Model card (drawn
@@ -191,6 +192,8 @@ Regenerate them only on purpose.
   check in mm, the rim cutter, "Find").
 - `plans/PLAN-TILE-CUT.md` — the tile mold cut in two: a base and a frame
   held by a skirt.
+- The move onto maker-kit (M2) and 📄 New after it (a blank project, the
+  model in the history by reference): maker-kit's `plans/PLAN.md`.
 
 ## Architectural invariants
 
@@ -351,8 +354,8 @@ triangles):
 | Find: the vase, catching everywhere (whole scan)  | 14 s                                               |
 
 The preview waits 400 ms after the last edit; the worker's queue is one job
-deep, a waiting preview is replaced by a fresher one, an export or a Find
-never.
+deep, a waiting job is replaced by a fresher one, a waiting export or Find
+never by a preview.
 
 ## What is not there
 

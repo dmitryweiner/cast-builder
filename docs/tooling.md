@@ -7,8 +7,10 @@ and ASCII STL are read; the units are taken as millimetres. The model must
 be a closed solid — an STL with holes or loose edges is refused with a
 reason; repair it where it came from.
 
-The panel is on the left; on a phone it is a sheet over the view: a tap on
-the view hides it, **Settings** brings it back. The main view shows only
+The panel is on the left of the view from 1024 px wide; narrower it is a
+sheet over the view: a tap on the view or on the handle at its top hides
+it, **⚙ Settings** brings it back. A slider has the exact number beside it
+(type one in) and **−** / **+** buttons that repeat while held. The main view shows only
 the tooling, standing on a print bed in 1 cm cells (coarser under large
 tooling). The model itself is the small picture in the **Model** card:
 seen from in front of the parting plane, a little from the left, with the
@@ -335,7 +337,8 @@ keeps out of its mouth: cut the clay along the mold's edge.
 The two halves must come off (see [Undercuts](#undercuts)); the panel names
 the depth of each. **Find the plane** looks for the position, and for an
 upright plane the spin, with the shallowest undercut and sets them; it takes
-a few seconds, up to a quarter of a minute for a large model. The mold copies
+a few seconds, up to a quarter of a minute for a large model (a bar over the
+view shows how far it is). The mold copies
 the piece with its undercuts — a plane is a compromise for a piece with
 waves across it, and the allowed undercut says how much of one is taken.
 
@@ -369,6 +372,8 @@ downloads them, named after the model: the master and pour boxes one STL per
 part (`teapot-bath-half-A.stl`), the slump mold one STL with the punch, the
 screws and the stops (`teapot-slump.stl`), the tile mold one STL
 (`keychain-tile.stl`; cut in two, a file each part), the two halves one STL each (`vase-split-A.stl`).
+A bar over the view shows the export's stages; a preview that takes longer
+than a moment shows a bar too.
 
 **On the bed** (pour boxes, the slump mold, the two halves and a tile mold
 cut in two) says how the parts lie in that STL:
@@ -382,6 +387,14 @@ cut in two) says how the parts lie in that STL:
 Under them the size the parts take on the bed. Layout and gap are offered
 only when the parts go into one file; a change of them lays the parts out
 again at once, with no new build. The view shows the parts as they lie.
+
+## Undo and redo
+
+**↶** and **↷** in the top bar, or Ctrl+Z and Ctrl+Shift+Z or Ctrl+Y (⌘ on a Mac, on
+any keyboard layout), step back and forth through the turns and the
+settings: a tab, a turn, **Reset**, **Find** and each finished change of a
+row are a step each; a slider dragged is one step. The language is not a
+step. Opening a model starts the history anew.
 
 ## What is remembered
 
@@ -397,4 +410,4 @@ too large for that is not kept (the Model card says so): open it again
 after a reload. Its settings are kept anyway.
 
 The interface is in English and Russian: the language comes from the
-browser, the menu in the top bar switches it and is remembered too.
+browser, the 🌐 menu in the top bar switches it and is remembered too.
