@@ -26,12 +26,17 @@ export default defineConfig({
   },
   // manifold-3d's glue finds its .wasm via import.meta.url: pre-bundling
   // breaks the relative path, and an iife worker has no import.meta at all.
-  optimizeDeps: { exclude: ['manifold-3d'] },
+  // maker-kit is TypeScript sources, which the pre-bundler's scan reads as
+  // JavaScript: Vite serves them as the app's own files instead.
+  optimizeDeps: { exclude: ['manifold-3d', 'maker-kit'] },
   worker: { format: 'es' },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
     // the CSG tests build real molds: seconds each
     testTimeout: 60000,
+    // Node does not strip the types of files in node_modules: the kit's
+    // TypeScript sources are transformed as the app's own.
+    server: { deps: { inline: ['maker-kit'] } },
   },
 });

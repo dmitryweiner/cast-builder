@@ -14,6 +14,13 @@ It was split out of [clayform](https://github.com/dmitryweiner/clayform),
 which designs the pieces; clayform's export — the piece as it is printed in
 clay, hollow — is the hand-off, and the solid master is made here.
 
+Built on **maker-kit** (`~/projects/maker-kit`, the shared library of the
+3D-printing tools), installed by git tag in `package.json`. Its modules are
+imported as `maker-kit/core/storage` and so on; its docs are in its
+`docs/`. Moving onto it is maker-kit's milestone M2, one PR per group. For
+joint work on the app and the kit: `npm link ../maker-kit`; a kit change
+reaches the app as a new tag.
+
 The shared conventions behind this setup are in `~/projects/CLAUDE.md` and
 `~/projects/_conventions/`; this file is what holds for this repository.
 
@@ -75,10 +82,11 @@ Regenerate them only on purpose.
   tab opens on) and `Setup` (the model in hand: orientation, mouth, plug,
   the split plane), with their sanitizers; `resetSettings` (all but the
   language and the mode).
-- `src/storage.ts` — the project in localStorage, two versioned keys: the
-  settings with the setup (`cast-builder`, written on every change) and the
-  model itself (`cast-builder-model`, written only when a model is opened;
-  removed when it does not fit).
+- `src/storage.ts` — the project in localStorage, two versioned keys (records
+  of maker-kit's `core/storage`): the settings with the setup
+  (`cast-builder`, written on every change) and the model itself
+  (`cast-builder-model`, written only when a model is opened; removed when
+  it does not fit).
 - `src/geo/` — the pure core, no DOM, no Three.js:
   - `stl.ts` — read (binary and ASCII, vertices welded) and write STL;
     `isValidMesh`, the check of a mesh from outside (the worker, the
@@ -129,8 +137,9 @@ Regenerate them only on purpose.
   `press.ts` the press kind, the allowed undercut, the split plane, the
   undercuts found), progress bar, the panel as
   a bottom sheet on a phone (`sheet.ts`), typed DOM access (`dom.ts`).
-- `src/i18n/` — `en.ts` defines the keys, `ru.ts` follows; `index.ts` —
-  locales, detection, templates.
+- `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
+  in), `ru.ts` follows; `index.ts` — locales, detection, the current
+  language; templates are the kit's `core/format`.
 - `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
   smoke; `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
   printable fixtures from clayform's sources, run with clayform's vite-node

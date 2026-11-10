@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { kitMessages } from 'maker-kit/i18n/index';
 import { describe, expect, it } from 'vitest';
 import { detectLocale, direction, format, isKey, isLocale, LOCALES, messages, placeholders, staticText } from './index';
 
@@ -49,6 +50,11 @@ describe('messages', () => {
         ]);
       }
     }
+  });
+
+  it.each(LOCALES)('take the kit’s strings as they are (%s)', (locale) => {
+    for (const [key, text] of Object.entries(kitMessages[locale]))
+      expect({ key, text: staticText(messages[locale], key) }).toEqual({ key, text });
   });
 
   it.each(LOCALES)('cover every text in index.html (%s)', (locale) => {
