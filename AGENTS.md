@@ -156,8 +156,9 @@ Regenerate them only on purpose.
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.
-- `scripts/lib/harness.mjs` — Playwright plumbing; `scripts/smoke.mjs` — the
-  smoke; `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
+- `scripts/smoke.mjs` — the smoke on maker-kit's harness (`maker-kit/harness`:
+  flags, its vite server on ports 5291/4291, pages, steps and the run);
+  `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
   printable fixtures from clayform's sources, run with clayform's vite-node
   (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`);
   with `--presets [--res <n>]` it writes nothing and checks instead that
