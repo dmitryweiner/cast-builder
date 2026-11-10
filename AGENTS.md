@@ -39,7 +39,8 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   the keychain's tile mold (refused face down; cut in two, a file each
   and one file), a hollow cup in two halves
   (a file each and one file, Find, the press kind remembered),
-  the project kept over a reload and Reset, the thumbnail, a file upload,
+  the project kept over a reload and Reset, undo and redo (a −/+ click, a
+  tab, a turn; Ctrl+Z on a Russian layout; the language no step), the thumbnail, a file upload,
   real downloads, turning and spin presets, languages, the phone sheet and
   width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
@@ -85,7 +86,7 @@ Regenerate them only on purpose.
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
   through the worker, downloads.
 - `src/state.ts` — `Settings` (the user's habits; `press` the kind the press
-  tab opens on) and `Setup` (the model in hand: orientation, mouth, plug,
+  tab opens on; not the language) and `Setup` (the model in hand: orientation, mouth, plug,
   the split plane), with their sanitizers; `resetSettings` (all but the
   language and the mode).
 - `src/storage.ts` — the project in localStorage, two versioned keys (records
@@ -143,8 +144,11 @@ Regenerate them only on purpose.
   `screws.ts` the clamps, the thread, its fit, the print boxes with the
   sizes they print; `bed.ts` the layout on the bed and `inOneFile`;
   `press.ts` the press kind, the allowed undercut, the split plane, the
-  undercuts found), progress bar, the panel as
-  a bottom sheet on a phone (`sheet.ts`).
+  undercuts found). The rest of the page is maker-kit's: the sheet
+  (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
+  the view (`ui/progress`: a preview's after 300 ms with no text, an export's
+  and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,
+  `ui/historyKeys`), the language (`ui/languagePicker`).
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.
@@ -307,6 +311,10 @@ Regenerate them only on purpose.
 - An open piece's split mold ends at its rim and keeps out of its mouth:
   one polar cutter round the axis, over z = top(θ) − 0.2 and inside the
   mouth over the lid; the release check does not look over the lid's crest.
+- Undo and redo go over the settings and the setup (`Project`), never the
+  language and never the model: opening a model starts the history anew,
+  as its steps would turn the new one. A tab, a turn, Reset, Find and a
+  final change of a row are a step each; the frames of a drag are not.
 - The project is kept on every change; the model only when opened, never
   on a slider. A model that does not fit removes the one kept before: a
   stale model must not reopen under a fresh setup. The setup is restored

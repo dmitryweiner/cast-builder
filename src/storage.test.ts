@@ -47,30 +47,38 @@ describe('settings storage', () => {
   });
 
   it('returns defaults when nothing is saved or storage is unavailable', () => {
-    const fresh = { settings: defaultSettings(), setup: defaultSetup() };
+    const fresh = { locale: null, settings: defaultSettings(), setup: defaultSetup() };
     expect(loadProject(new MemoryStorage())).toEqual(fresh);
     expect(loadProject(null)).toEqual(fresh);
     expect(loadProject(broken)).toEqual(fresh);
   });
 
-  it('saves and loads the settings and the setup of the model in hand', () => {
+  it('saves and loads the language, the settings and the setup of the model in hand', () => {
     const storage = new MemoryStorage();
-    const settings = { ...defaultSettings(), locale: 'ru' as const, mode: 'slump' as const, scheme: 'halves' as const, resolution: 256 };
+    const settings = { ...defaultSettings(), mode: 'slump' as const, scheme: 'halves' as const, resolution: 256 };
     const setup: Setup = {
       orientation: { turn: [0, 0, 1, 0, 1, 0, -1, 0, 0], spinDeg: 90 },
       mouth: { auto: false, zMm: 80, radiusMm: 20 },
       plug: { on: true, recessMm: 5, galleryMm: 30 },
       split: { axis: 'y', pct: 40 },
     };
-    expect(saveProject(storage, { settings, setup })).toBe('ok');
-    expect(loadProject(storage)).toEqual({ settings, setup });
+    expect(saveProject(storage, { locale: 'ru', settings, setup })).toBe('ok');
+    expect(loadProject(storage)).toEqual({ locale: 'ru', settings, setup });
+  });
+
+  it('keeps the language among the settings, as it was stored before undo came', () => {
+    const storage = new MemoryStorage();
+    saveProject(storage, { locale: 'ru', settings: defaultSettings(), setup: defaultSetup() });
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '')).toMatchObject({ version: 2, settings: { locale: 'ru', mode: 'bath' } });
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, settings: { ...defaultSettings(), locale: 'en' }, setup: defaultSetup() }));
+    expect(loadProject(storage)).toEqual({ locale: 'en', settings: defaultSettings(), setup: defaultSetup() });
   });
 
   it('settings saved before the setup was kept (version 1) keep everything, the setup at its default', () => {
     const storage = new MemoryStorage();
     const settings = { ...defaultSettings(), mode: 'master' as const, resolution: 384 };
     storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, settings }));
-    expect(loadProject(storage)).toEqual({ settings, setup: defaultSetup() });
+    expect(loadProject(storage)).toEqual({ locale: null, settings, setup: defaultSetup() });
   });
 
   it('a project saved before the press molds (version 2) loads with them at their defaults', () => {
@@ -80,14 +88,16 @@ describe('settings storage', () => {
     const { allowedCatchMm, ...mold } = settings.mold;
     storage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, settings: { ...settings, mold }, setup }));
     expect(loadProject(storage)).toEqual({
+      locale: null,
       settings: { ...settings, press, mold: { ...mold, allowedCatchMm } },
       setup: { ...setup, split },
     });
   });
 
   it('reports a failed write and never throws', () => {
-    expect(saveProject(broken, { settings: defaultSettings(), setup: defaultSetup() })).toBe('blocked');
-    expect(saveProject(null, { settings: defaultSettings(), setup: defaultSetup() })).toBe('blocked');
+    const project = { locale: null, settings: defaultSettings(), setup: defaultSetup() };
+    expect(saveProject(broken, project)).toBe('blocked');
+    expect(saveProject(null, project)).toBe('blocked');
   });
 
   it.each(['not json', '[]', '{"version":3,"settings":{"locale":"ru"}}', '{"version":1}', '{"version":2,"settings":[]}'])(
@@ -110,8 +120,8 @@ describe('settings storage', () => {
         setup: { orientation: { spinDeg: 'x' }, plug: { on: true, recessMm: -1 } },
       }),
     );
-    const { settings, setup } = loadProject(storage);
-    expect(settings.locale).toBeNull();
+    const { locale, settings, setup } = loadProject(storage);
+    expect(locale).toBeNull();
     expect(settings.mode).toBe('slump');
     expect(settings.resolution).toBe(defaultSettings().resolution);
     expect(settings.mold.shrinkPct).toBe(30);
@@ -168,7 +178,7 @@ describe('the model kept', () => {
   it('is written apart from the settings: saving them never touches it', () => {
     const storage = new MemoryStorage();
     saveModel(storage, { name: 'cup', mesh: tetra() });
-    saveProject(storage, { settings: defaultSettings(), setup: defaultSetup() });
+    saveProject(storage, { locale: null, settings: defaultSettings(), setup: defaultSetup() });
     expect(loadSavedModel(storage)?.name).toBe('cup');
   });
 

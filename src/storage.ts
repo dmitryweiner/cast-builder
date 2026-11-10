@@ -9,6 +9,8 @@
 
 import { loadRecord, removeRecord, saveRecord, type KeyValueStorage, type StorageWrite, type StoredRecord } from 'maker-kit/core/storage';
 import type { IndexedMesh } from './geo/stl';
+import type { Locale } from './i18n';
+import { isLocale } from './i18n';
 import { isValidMesh } from './geo/stl';
 import type { Settings, Setup } from './state';
 import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
@@ -18,10 +20,15 @@ export { browserStorage, type KeyValueStorage, type StorageWrite } from 'maker-k
 export const STORAGE_KEY = __APP_ID__;
 export const MODEL_KEY = `${__APP_ID__}-model`;
 
-/** The settings and the setup of the model in hand. */
+/** The settings and the setup of the model in hand: what undo goes over. */
 export interface Project {
   settings: Settings;
   setup: Setup;
+}
+
+/** The project and the language picked in the switcher (null — from the browser). */
+export interface StoredProject extends Project {
+  locale: Locale | null;
 }
 
 export interface SavedModel {
@@ -32,17 +39,20 @@ export interface SavedModel {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const PROJECT: StoredRecord<Project> = {
+const PROJECT: StoredRecord<StoredProject> = {
   key: STORAGE_KEY,
   // 1 — the settings alone; 2 — with the setup of the model in hand
   version: 2,
-  write: ({ settings, setup }) => ({ settings, setup }),
+  // the language is kept among the settings, as it was before it left them
+  write: ({ locale, settings, setup }) => ({ settings: { ...settings, locale }, setup }),
   read(data, version) {
     if (!isRecord(data) || !isRecord(data.settings)) return null;
+    const locale = isLocale(data.settings.locale) ? data.settings.locale : null;
+    const settings = sanitizeSettings(data.settings);
     // version 1 kept no setup: the settings stay, the setup starts anew
-    if (version === 1) return { settings: sanitizeSettings(data.settings), setup: defaultSetup() };
+    if (version === 1) return { locale, settings, setup: defaultSetup() };
     if (version !== 2) return null;
-    return { settings: sanitizeSettings(data.settings), setup: sanitizeSetup(data.setup) };
+    return { locale, settings, setup: sanitizeSetup(data.setup) };
   },
 };
 
@@ -62,11 +72,11 @@ const MODEL: StoredRecord<SavedModel> = {
 };
 
 /** The saved project; unreadable data is replaced with defaults, field by field. */
-export function loadProject(storage: KeyValueStorage | null): Project {
-  return loadRecord(storage, PROJECT) ?? { settings: defaultSettings(), setup: defaultSetup() };
+export function loadProject(storage: KeyValueStorage | null): StoredProject {
+  return loadRecord(storage, PROJECT) ?? { locale: null, settings: defaultSettings(), setup: defaultSetup() };
 }
 
-export function saveProject(storage: KeyValueStorage | null, project: Project): StorageWrite {
+export function saveProject(storage: KeyValueStorage | null, project: StoredProject): StorageWrite {
   return saveRecord(storage, PROJECT, project);
 }
 

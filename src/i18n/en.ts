@@ -11,7 +11,6 @@ export const en = {
   title: 'Cast Builder',
   description: 'Slip-casting molds from a ready STL: a master positive, pour boxes for silicone, a slump mold and its punch.',
   tagline: 'molds from a ready STL',
-  languageLabel: 'Language',
   source: 'Source code',
   clayform: 'Design a piece in Clayform',
   open: 'Open STL',
@@ -24,7 +23,6 @@ export const en = {
   'panel.tooling': 'Tooling',
   'panel.mouth': 'Mouth and parting',
   'panel.bed': 'On the bed',
-  'panel.open': 'Settings',
 
   'turn.x': 'Turn about X',
   'turn.y': 'Turn about Y',
@@ -212,7 +210,6 @@ export const en = {
   'progress.tile': 'tile mold',
   'progress.split': 'half {i} of {n}',
   'progress.find': 'looking for the plane: {i} of {n}',
-  'progress.preview': 'building the tooling…',
   'progress.export': 'building…',
 
   'part.master': 'Master positive',

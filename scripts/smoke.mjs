@@ -175,7 +175,7 @@ try {
     check(await page.locator('#mold_screws').isChecked(), 'the clamps were lost on reload');
     check((await page.locator('#mold_threadFit').inputValue()) === '0.65', 'the thread fit was lost on reload');
     check(!(await page.locator('#modelNote').isVisible()), 'a small model is said to be too large to keep');
-    await page.selectOption('#locale', 'ru');
+    await page.selectOption('.lang-field select', 'ru');
     await page.click('#turnReset');
     check((await page.locator('#model_spin').inputValue()) === '0', 'Reset left the spin');
     check(!(await page.locator('#mold_screws').isChecked()), 'Reset left the clamps on');
@@ -453,6 +453,48 @@ try {
     await context.close();
   });
 
+  await step('undo and redo: a −/+ click, a tab, a turn are a step each; Ctrl+Z on any layout', async () => {
+    const { page, context } = await app.open();
+    await page.click('#exampleBtn');
+    await parts(page, 2);
+    check(await page.locator('#undo').isDisabled(), 'undo is enabled for a model just opened');
+    const plaster = await page.locator('#mold_plaster').inputValue();
+    await page.click('#mold_plaster_inc');
+    check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), '+ did not step the plaster');
+    await mode(page, '#tabMaster', 1);
+    const upright = await page.locator('#modelInfo').textContent();
+    await page.click('#turnX');
+    await page.waitForFunction((text) => document.querySelector('#modelInfo')?.textContent !== text, upright);
+    // a Russian layout: the key is я, its place KeyZ; right after a click the focus is on the turn button
+    await page.evaluate(() =>
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'я', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true })),
+    );
+    await page.waitForFunction((text) => document.querySelector('#modelInfo')?.textContent === text, upright);
+    // the language is no step: undo goes past it to the tab
+    await page.locator('.lang-field select').selectOption('ru');
+    await page.click('#undo');
+    check((await page.locator('#tabBath').getAttribute('aria-selected')) === 'true', 'undo did not bring the tab back');
+    check((await page.locator('html').getAttribute('lang')) === 'ru', 'undo changed the language');
+    await page.click('#undo');
+    check((await page.locator('#mold_plaster').inputValue()) === plaster, 'undo did not bring the plaster back');
+    check(await page.locator('#undo').isDisabled(), 'undo is enabled with nothing left to undo');
+    await page.keyboard.press('Control+Shift+KeyZ');
+    check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), 'redo did not step the plaster again');
+    await page.click('#redo');
+    check((await page.locator('#tabMaster').getAttribute('aria-selected')) === 'true', 'redo did not bring the master back');
+    // a slider moved is one step
+    await page.click('#tabBath');
+    await page.locator('#mold_plaster').fill('40');
+    await page.click('#undo');
+    check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), 'undo did not bring the slider back');
+    check((await page.locator('#tabBath').getAttribute('aria-selected')) === 'true', 'a slider was more than one step');
+    // a new model starts the steps anew: they belong to the old one's setup
+    await page.setInputFiles('#fileInput', fixture('cup'));
+    await page.waitForFunction(() => document.querySelector('#modelInfo')?.textContent?.startsWith('cup'));
+    check(await page.locator('#undo').isDisabled(), 'the steps of the old model are left after a new one');
+    await context.close();
+  });
+
   await step('the browser language is detected, the choice survives a reload', async () => {
     const { page, context } = await app.open({ locale: 'ru-RU' });
     check((await page.locator('html').getAttribute('lang')) === 'ru', 'ru-RU browser did not get Russian');
@@ -460,7 +502,7 @@ try {
     await page.click('#exampleBtn');
     const boxes = await parts(page, 2);
     check(boxes[0].startsWith('Ванночка: половина A'), `parts are not Russian: ${boxes.join(' | ')}`);
-    await page.selectOption('#locale', 'en');
+    await page.selectOption('.lang-field select', 'en');
     check((await page.locator('#partList li').first().textContent()).startsWith('Pour box'), 'parts did not switch to English');
     await page.reload();
     check((await page.locator('html').getAttribute('lang')) === 'en', 'the switcher choice was lost on reload');
