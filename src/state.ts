@@ -1,8 +1,8 @@
-// What the user chose, in two parts.
+// What the user chose, in two parts, and the model they chose it for.
 //
 // Settings are the user's habits — the mode, the plaster, the shrinkage of
-// their slip — and survive a reload (storage.ts); undo and redo go over them
-// and the setup. The language is not among them: it is no step to undo. A setup belongs to the
+// their slip — and survive a reload (storage.ts); undo and redo go over them,
+// the setup and the model (`Project`). The language is not among them: it is no step to undo. A setup belongs to the
 // model in hand: how it is turned, where its mouth is, whether it has a plug
 // ledge; a new model starts a new setup.
 //
@@ -15,6 +15,7 @@ import type { MoldState } from './geo/mold/state';
 import { defaultMold, sanitizeMold } from './geo/mold/state';
 import type { Orientation } from './geo/model';
 import { defaultOrientation, sanitizeOrientation } from './geo/model';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import type { BedPlace } from './geo/layout';
 import { BED_GAP_MAX_MM, BED_GAP_MIN_MM, BED_GAP_MM, BED_PLACES } from './geo/layout';
 
@@ -118,6 +119,33 @@ export function defaultSetup(): Setup {
     plug: { on: false, recessMm: 6, galleryMm: 0 },
     split: { axis: 'x', pct: 50 },
   };
+}
+
+/**
+ * The model in hand, by reference. The history compares projects by their
+ * JSON text, and a mesh of a million triangles must never be stringified:
+ * the JSON of a model is its id. The mesh stays shared, never copied, and
+ * goes with the last step that holds it.
+ */
+export class ModelRef {
+  constructor(
+    /** unique in the session: a model opened again is another one */
+    readonly id: string,
+    /** file name without the extension: the downloads are named after it */
+    readonly name: string,
+    readonly mesh: IndexedMesh,
+  ) {}
+
+  toJSON(): string {
+    return this.id;
+  }
+}
+
+/** What undo and redo go over: the settings, the setup and the model (null — none, after 📄 New). */
+export interface Project {
+  settings: Settings;
+  setup: Setup;
+  model: ModelRef | null;
 }
 
 /** Larger than any piece: a limit only against junk. */

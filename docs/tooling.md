@@ -5,7 +5,9 @@
 **Open STL** (or drop a file on the view, or try the sample teapot). Binary
 and ASCII STL are read; the units are taken as millimetres. The model must
 be a closed solid — an STL with holes or loose edges is refused with a
-reason; repair it where it came from.
+reason; repair it where it came from. **📄** in the top bar takes the
+model away: the view invites a new one, its turn, mouth, plug and plane go
+back to their defaults; the mode and the parameters stay.
 
 The panel is on the left of the view from 1024 px wide; narrower it is a
 sheet over the view: a tap on the view or on the handle at its top hides
@@ -392,9 +394,11 @@ again at once, with no new build. The view shows the parts as they lie.
 
 **↶** and **↷** in the top bar, or Ctrl+Z and Ctrl+Shift+Z or Ctrl+Y (⌘ on a Mac, on
 any keyboard layout), step back and forth through the turns and the
-settings: a tab, a turn, **Reset**, **Find** and each finished change of a
-row are a step each; a slider dragged is one step. The language is not a
-step. Opening a model starts the history anew.
+settings and through the models: opening a model, **📄**, a tab, a turn,
+**Reset**, **Find** and each finished change of a row are a step each; a
+slider dragged is one step. Undo after opening a model or after **📄**
+brings the model before it back, turned as it was. The language is not a
+step. The steps last until the page is reloaded.
 
 ## What is remembered
 
@@ -407,7 +411,8 @@ settings stay as they were.
 
 The browser keeps a few megabytes for every app on the same site. A model
 too large for that is not kept (the Model card says so): open it again
-after a reload. Its settings are kept anyway.
+after a reload. Its settings are kept anyway. After **📄** no model is
+kept: a reload opens the invitation.
 
 The interface is in English and Russian: the language comes from the
 browser, the 🌐 menu in the top bar switches it and is remembered too.

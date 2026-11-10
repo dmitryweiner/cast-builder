@@ -95,6 +95,7 @@ await app.run(
       check((await page.locator('h1').textContent()) === 'Bring a ready piece', 'heading is not English');
       check(await page.locator('#empty').isVisible(), 'the empty stage is hidden');
       check(await page.locator('#exportBtn').isDisabled(), 'export is enabled without a model');
+      check(await page.locator('#newProject').isDisabled(), '📄 New is enabled without a model');
       await context.close();
     });
 
@@ -451,11 +452,12 @@ await app.run(
       await context.close();
     });
 
-    await app.step('undo and redo: a −/+ click, a tab, a turn are a step each; Ctrl+Z on any layout', async () => {
+    await app.step('undo and redo: opening a model, a −/+ click, a tab, a turn are a step each; Ctrl+Z on any layout', async () => {
       const { page, context } = await app.open();
       await page.click('#exampleBtn');
       await parts(page, 2);
-      check(await page.locator('#undo').isDisabled(), 'undo is enabled for a model just opened');
+      // opening a model is a step too: the first undo would empty the stage
+      check(!(await page.locator('#undo').isDisabled()), 'opening a model is no step');
       const plaster = await page.locator('#mold_plaster').inputValue();
       await page.click('#mold_plaster_inc');
       check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), '+ did not step the plaster');
@@ -475,7 +477,11 @@ await app.run(
       check((await page.locator('html').getAttribute('lang')) === 'ru', 'undo changed the language');
       await page.click('#undo');
       check((await page.locator('#mold_plaster').inputValue()) === plaster, 'undo did not bring the plaster back');
+      await page.click('#undo');
+      check(await page.locator('#empty').isVisible(), 'undo did not take the opened model away');
       check(await page.locator('#undo').isDisabled(), 'undo is enabled with nothing left to undo');
+      await page.click('#redo');
+      await page.locator('#thumbBox').waitFor();
       await page.keyboard.press('Control+Shift+KeyZ');
       check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), 'redo did not step the plaster again');
       await page.click('#redo');
@@ -486,10 +492,50 @@ await app.run(
       await page.click('#undo');
       check((await page.locator('#mold_plaster').inputValue()) === String(Number(plaster) + 1), 'undo did not bring the slider back');
       check((await page.locator('#tabBath').getAttribute('aria-selected')) === 'true', 'a slider was more than one step');
-      // a new model starts the steps anew: they belong to the old one's setup
+      // a new model is one step from the default setup: undo brings the old one back with its own
+      await page.click('#turnX');
+      const turned = await page.locator('#modelInfo').textContent();
       await page.setInputFiles('#fileInput', fixture('cup'));
       await page.waitForFunction(() => document.querySelector('#modelInfo')?.textContent?.startsWith('cup'));
-      check(await page.locator('#undo').isDisabled(), 'the steps of the old model are left after a new one');
+      check((await page.locator('#model_spin').inputValue()) === '0', 'a new model kept the old one’s setup');
+      await page.click('#undo');
+      check((await page.locator('#modelInfo').textContent()) === turned, 'undo did not bring the turned teapot back');
+      await parts(page, 2);
+      await page.click('#redo');
+      check((await page.locator('#modelInfo').textContent()).startsWith('cup'), 'redo did not bring the cup back');
+      await context.close();
+    });
+
+    await app.step('📄 New: no model, the setup at its defaults, the settings kept; one step; a reload opens no model', async () => {
+      const { page, context } = await app.open();
+      await page.click('#exampleBtn');
+      await mode(page, '#tabMaster', 1);
+      await page.click('#model_spin_v90');
+      const spun = await page.locator('#modelInfo').textContent();
+      await page.click('#newProject');
+      check(await page.locator('#empty').isVisible(), 'New left the model in the view');
+      check(!(await page.locator('#thumbBox').isVisible()), 'New left the thumbnail');
+      check((await page.locator('#partList li').count()) === 0, 'New left the parts');
+      check(await page.locator('#exportBtn').isDisabled(), 'export is enabled after New');
+      check(await page.locator('#newProject').isDisabled(), 'New is enabled with nothing to clear');
+      check((await page.locator('#tabMaster').getAttribute('aria-selected')) === 'true', 'New changed the mode');
+      await page.reload();
+      check(await page.locator('#empty').isVisible(), 'a reload after New opened the model kept before');
+      check((await page.locator('#tabMaster').getAttribute('aria-selected')) === 'true', 'the mode was lost after New');
+      // undo is the session's: after a reload there is none; before it, the model comes back
+      await page.click('#exampleBtn');
+      await parts(page, 1);
+      await page.click('#model_spin_v90');
+      await page.click('#newProject');
+      await page.click('#undo');
+      check((await page.locator('#modelInfo').textContent()) === spun, 'undo did not bring the spun model back');
+      check((await page.locator('#model_spin').inputValue()) === '90', 'undo did not bring the spin back');
+      check(!(await page.locator('#empty').isVisible()), 'the invitation stayed over the model brought back');
+      await parts(page, 1);
+      // brought back, the model is kept again
+      await page.reload();
+      await page.locator('#thumbBox').waitFor();
+      check((await page.locator('#modelInfo').textContent()) === spun, 'the model brought back by undo was not kept');
       await context.close();
     });
 
@@ -525,6 +571,10 @@ await app.run(
             if (shots) await page.screenshot({ path: `shots/${name}-${locale}-closed.png` });
             await page.click('#panelBtn');
             check(await page.locator('#exportBtn').isVisible(), 'the sheet did not open again');
+            // 📄 New closes the sheet: the invitation is what to see
+            await page.click('#newProject');
+            await page.waitForFunction(() => document.querySelector('#panel')?.getBoundingClientRect().top >= innerHeight - 1);
+            check(await page.locator('#exampleBtn').isVisible(), 'the sheet covers the invitation after New');
           } else {
             check(!(await page.locator('#panelBtn').isVisible()), 'Settings shown beside the panel');
           }

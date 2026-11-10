@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
 import type { Setup } from './state';
-import { loadProject, loadSavedModel, MODEL_KEY, saveModel, saveProject, STORAGE_KEY, type KeyValueStorage } from './storage';
+import { loadProject, loadSavedModel, MODEL_KEY, removeModel, saveModel, saveProject, STORAGE_KEY, type KeyValueStorage } from './storage';
 
 class MemoryStorage implements KeyValueStorage {
   data = new Map<string, string>();
@@ -189,6 +189,17 @@ describe('the model kept', () => {
     expect(saveModel(storage, { name: 'big', mesh: big })).toBe('full');
     expect(loadSavedModel(storage)).toBeNull();
     expect(storage.data.has(MODEL_KEY)).toBe(false);
+  });
+
+  it('📄 New removes it, the project stays: a reload opens no model', () => {
+    const storage = new MemoryStorage();
+    saveModel(storage, { name: 'cup', mesh: tetra() });
+    saveProject(storage, { locale: 'ru', settings: defaultSettings(), setup: defaultSetup() });
+    removeModel(storage);
+    expect(loadSavedModel(storage)).toBeNull();
+    expect(loadProject(storage).locale).toBe('ru');
+    removeModel(broken);
+    removeModel(null);
   });
 
   it('a blocked storage keeps nothing and never throws', () => {

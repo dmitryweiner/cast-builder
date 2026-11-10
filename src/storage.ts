@@ -1,7 +1,8 @@
 // What survives a reload, in localStorage: two records of maker-kit's
 // core/storage, every field validated (state.ts). The settings with the
 // setup of the model in hand, written on every change; and the model itself,
-// written only when one is opened — a slider never encodes it again.
+// written only when one is opened (or brought back by undo) and removed by
+// 📄 New — a slider never encodes it again.
 //
 // All apps on <user>.github.io share one origin and its ~5 MB: a model that
 // does not fit is not kept, and the one kept before goes with it, so a stale
@@ -12,7 +13,7 @@ import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import type { Locale } from './i18n';
 import { isLocale } from './i18n';
 import { isValidMesh } from 'maker-kit/3d/mesh';
-import type { Settings, Setup } from './state';
+import type { Project } from './state';
 import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
 
 export { browserStorage, type KeyValueStorage, type StorageWrite } from 'maker-kit/core/storage';
@@ -20,14 +21,8 @@ export { browserStorage, type KeyValueStorage, type StorageWrite } from 'maker-k
 export const STORAGE_KEY = __APP_ID__;
 export const MODEL_KEY = `${__APP_ID__}-model`;
 
-/** The settings and the setup of the model in hand: what undo goes over. */
-export interface Project {
-  settings: Settings;
-  setup: Setup;
-}
-
-/** The project and the language picked in the switcher (null — from the browser). */
-export interface StoredProject extends Project {
+/** The project but its model, and the language picked in the switcher (null — from the browser). */
+export interface StoredProject extends Omit<Project, 'model'> {
   locale: Locale | null;
 }
 
@@ -90,6 +85,11 @@ export function saveModel(storage: KeyValueStorage | null, model: SavedModel): S
   const result = saveRecord(storage, MODEL, model);
   if (result !== 'ok') removeRecord(storage, MODEL);
   return result;
+}
+
+/** 📄 New: no model to reopen. */
+export function removeModel(storage: KeyValueStorage | null): void {
+  removeRecord(storage, MODEL);
 }
 
 /** The bytes of a typed array as base64, in chunks: a spread of a whole mesh would overflow the stack. */
