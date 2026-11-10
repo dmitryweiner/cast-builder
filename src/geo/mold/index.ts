@@ -3,7 +3,7 @@
 // (it takes `mold/analyze` and `mold/state` directly).
 
 import type { Manifold } from 'manifold-3d';
-import type { SurfaceMesh } from '../surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import type { CsgApi } from '../csg';
 import { CsgScope, fromManifold } from '../csg';
 import type { MoldReport } from './analyze';

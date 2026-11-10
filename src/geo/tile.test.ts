@@ -4,7 +4,7 @@ import type { CsgApi } from './csg';
 import { CsgScope, fromManifold, initCSG, toManifold } from './csg';
 import { defaultOrientation, placeModel } from './model';
 import { fixture } from './testing';
-import { validateMesh } from './validate';
+import { validateMesh } from 'maker-kit/3d/validate';
 import {
   TILE_KEY_R_MM,
   TILE_PROUD_MM,

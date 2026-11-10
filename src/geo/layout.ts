@@ -3,7 +3,7 @@
 // function without Three.js: the main thread lays out what the worker built,
 // so a change of the layout needs no new build.
 
-import type { SurfaceMesh } from './surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { translateMesh } from './surface';
 
 /**

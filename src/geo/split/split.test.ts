@@ -5,7 +5,7 @@ import { CsgScope, fromManifold, initCSG, toManifold } from '../csg';
 import { solidify } from '../solidify';
 import { castRays, releaseDepth } from '../release';
 import { wavyVase } from '../testing';
-import { validateMesh } from '../validate';
+import { validateMesh } from 'maker-kit/3d/validate';
 import { rimCut } from './rim';
 import { buildHalf } from './index';
 

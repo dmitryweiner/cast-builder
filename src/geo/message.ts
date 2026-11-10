@@ -5,6 +5,7 @@
 // checks at compile time. The shape is maker-kit's core/message.
 
 import type { Message as KitMessage } from 'maker-kit/core/message';
+import type { KitKey } from 'maker-kit/i18n/index';
 
 export type MessageCode =
   // parting scheme of the mold (mold/analyze)
@@ -28,14 +29,8 @@ export type MessageCode =
   | 'model.filled'
   | 'model.open'
   | 'model.openBottom'
-  // mesh checks before the download (validate)
-  | 'mesh.nonFinite'
-  | 'mesh.badIndices'
-  | 'mesh.empty'
-  | 'mesh.flat'
-  | 'mesh.open'
-  | 'mesh.inverted'
-  | 'mesh.degenerate'
+  // the kit's: the mesh checks before the download (3d/validate gives Message<KitKey>)
+  | KitKey
   // stages of worker jobs
   | 'progress.loading'
   | 'progress.model'

@@ -19,7 +19,7 @@
 //
 // Pure: meshes as typed arrays.
 
-import type { IndexedMesh } from '../stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import type { Axis, RayGrid } from '../release';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { IndexedMesh } from './geo/stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
 import type { Setup } from './state';
 import { loadProject, loadSavedModel, MODEL_KEY, saveModel, saveProject, STORAGE_KEY, type KeyValueStorage } from './storage';

@@ -188,13 +188,6 @@ export const en = {
     'The back of the tile is not flat: the mold catches {mm} mm deep at the rim (allowed {limit} mm). The back lies down, the face up — turn the model over if its face is down.',
   'split.catch':
     'Half {half} will not come off: the piece catches {mm} mm deep (allowed {limit} mm) at {z} mm of the height. Move the plane, spin the model or press Find.',
-  'mesh.nonFinite': 'The mesh has broken coordinates.',
-  'mesh.badIndices': 'The mesh has broken triangles.',
-  'mesh.empty': 'The mesh is empty.',
-  'mesh.flat': 'The mesh is flat.',
-  'mesh.open': 'The mesh is not closed — a slicer will not print it.',
-  'mesh.inverted': 'The mesh is turned inside out.',
-  'mesh.degenerate': '{count} degenerate triangles ({pct} %).',
 
   'progress.loading': 'loading the boolean operations module',
   'progress.model': 'preparing the model',

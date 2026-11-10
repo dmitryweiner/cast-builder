@@ -8,8 +8,8 @@
 
 import Module from 'manifold-3d';
 import type { CrossSection, Manifold, Mesh, ManifoldToplevel } from 'manifold-3d';
-import type { SurfaceMesh } from './surface';
-import { meshNormals } from './normals';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
+import { meshNormals } from 'maker-kit/3d/mesh';
 
 /** All we need from the WASM module: constructors of primitives and Mesh. */
 export type CsgApi = ManifoldToplevel;

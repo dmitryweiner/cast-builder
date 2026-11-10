@@ -3,11 +3,11 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { IndexedMesh } from './stl';
-import { parseSTL } from './stl';
-import type { SurfaceMesh } from './surface';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
+import { parseSTL } from 'maker-kit/3d/stl';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { assembleMesh, sampleGrid } from './surface';
-import { meshNormals } from './normals';
+import { meshNormals } from 'maker-kit/3d/mesh';
 import type { PressSource } from './revolve';
 import type { CsgApi } from './csg';
 import { CsgScope, fromManifold, toManifold } from './csg';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultOrientation, placeModel } from './model';
 import { farthestHit, meshSource, MIN_RADIUS_MM } from './revolve';
 import { fixture, revolveMesh } from './testing';
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import { assembleMesh, sampleGrid } from './surface';
 
 const cone = (v: number) => 30 + 20 * v;

@@ -7,7 +7,7 @@
 // quarter turns about x and y and spins it about the vertical axis; the
 // placement then finds the axis and drops the model onto the table.
 
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 export interface Orientation {
   /** quarter turns as a rotation matrix with entries −1, 0, 1, row-major */

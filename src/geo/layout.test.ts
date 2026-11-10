@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { arrangeOnBed } from './layout';
-import type { SurfaceMesh } from './surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 
 /** A box w × d × 10 standing at (x, y): enough of a mesh for a layout, which reads only positions. */
 function box(w: number, d: number, x = 0, y = 0): SurfaceMesh {

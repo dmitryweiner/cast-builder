@@ -1,11 +1,13 @@
-// The protocol of the tooling worker. Types only: both sides of the boundary
-// (the main thread and the worker) must see one description of the messages.
+// The jobs and results of the tooling worker. Types only: both sides of the
+// boundary (the main thread and the worker) must see one description; the
+// envelope (job ids, progress, done, error) is maker-kit's worker/protocol.
 //
 // A job carries everything: the placed model and the user's choices. The
 // worker keeps nothing between jobs and passes all of it through the
 // sanitizers itself — its boundary is an outer boundary like the UI.
 
-import type { Message } from '../geo/message';
+import type { JobProgress as KitJobProgress } from 'maker-kit/core/progress';
+import type { Message, MessageCode } from '../geo/message';
 import type { Mouth } from '../geo/mouth';
 import type { SolidStatus } from '../geo/solidify';
 import type { MoldScheme } from '../geo/mold/analyze';
@@ -78,22 +80,9 @@ export interface JobResult {
 }
 
 /**
- * Progress by stages. Manifold says nothing about itself inside one boolean
- * operation, so the bar counts stages and the label says which one is on.
+ * Progress by stages (maker-kit's JobProgress, the label always there).
+ * Manifold says nothing about itself inside one boolean operation, so the
+ * bar counts stages and the label says which one is on. `total` may get
+ * smaller once the parting is known.
  */
-export interface JobProgress {
-  step: number;
-  /** may get smaller once the parting is known */
-  total: number;
-  label: Message;
-}
-
-export interface WorkerIn {
-  jobId: number;
-  job: ToolingJob;
-}
-
-export type WorkerOut =
-  | ({ type: 'progress'; jobId: number } & JobProgress)
-  | { type: 'done'; jobId: number; result: JobResult }
-  | { type: 'error'; jobId: number; message: string };
+export type JobProgress = Required<KitJobProgress<MessageCode>>;

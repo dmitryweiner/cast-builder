@@ -28,7 +28,7 @@
 import type { CrossSection, Manifold } from 'manifold-3d';
 import type { CsgApi, CsgScope } from './csg';
 import { outerOutline } from './csg';
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 /** How far the back of the tile stands over the rim, mm. */
 export const TILE_PROUD_MM = 0.2;

@@ -10,7 +10,7 @@
 // segment between two points on the axis gives nothing: it is a piece of the
 // axis itself.
 
-import type { SurfaceMesh } from './surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 
 export interface LathePoint {
   /** radius, mm; a negative one is pulled to zero */
