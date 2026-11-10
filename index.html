@@ -31,10 +31,33 @@
       </button>
       <input id="fileInput" type="file" accept=".stl,model/stl,application/sla" hidden />
       <span class="spacer"></span>
-      <select id="locale" aria-label="Language" data-i18n-label="languageLabel">
-        <option value="en" lang="en">English</option>
-        <option value="ru" lang="ru">Русский</option>
-      </select>
+      <!-- a phone breaks the bar here: the brand and the language above, the buttons below -->
+      <span class="topbar-break"></span>
+      <div class="topbar-tools">
+        <button
+          id="undo"
+          type="button"
+          class="tool-button"
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo (Ctrl+Z)"
+          data-i18n-title="kit.topbar.undo"
+          data-i18n-label="kit.topbar.undo"
+        >
+          ↶
+        </button>
+        <button
+          id="redo"
+          type="button"
+          class="tool-button"
+          title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo (Ctrl+Shift+Z)"
+          data-i18n-title="kit.topbar.redo"
+          data-i18n-label="kit.topbar.redo"
+        >
+          ↷
+        </button>
+      </div>
+      <!-- the language picker (maker-kit's ui/languagePicker) is appended here -->
     </header>
     <div id="content" class="workspace">
       <main id="stage" class="view">
@@ -47,13 +70,19 @@
           <button id="exampleBtn" type="button" class="btn" data-i18n="example">Try a sample teapot</button>
         </div>
         <p id="stageNote" class="stage-note" aria-live="polite"></p>
-        <div id="progressWrap" class="progress" hidden>
-          <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
-          <span id="progressLabel"></span>
-        </div>
-        <button id="panelBtn" type="button" class="sheet-open" data-i18n="panel.open" hidden>Settings</button>
+        <div id="progressWrap" class="view-progress" hidden></div>
+        <button id="panelBtn" type="button" class="sheet-open" data-i18n="kit.sheet.open" hidden>Settings</button>
       </main>
       <aside id="panel" class="panel open">
+        <button
+          id="sheetClose"
+          type="button"
+          class="sheet-handle"
+          title="Close the settings"
+          aria-label="Close the settings"
+          data-i18n-title="kit.sheet.close"
+          data-i18n-label="kit.sheet.close"
+        ></button>
         <section class="card">
           <h2 data-i18n="panel.model">Model</h2>
           <div id="thumbBox" class="thumb" hidden>

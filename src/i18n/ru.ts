@@ -6,7 +6,6 @@ export const ru: Messages = {
   title: 'Cast Builder',
   description: 'Литейная оснастка из готового STL: мастер-позитив, ванночки под силикон, отминочная форма и пуансон.',
   tagline: 'формы из готового STL',
-  languageLabel: 'Язык',
   source: 'Исходный код',
   clayform: 'Придумать изделие в Clayform',
   open: 'Открыть STL',
@@ -19,7 +18,6 @@ export const ru: Messages = {
   'panel.tooling': 'Оснастка',
   'panel.mouth': 'Устье и разъём',
   'panel.bed': 'На столе',
-  'panel.open': 'Настройки',
 
   'turn.x': 'Повернуть вокруг X',
   'turn.y': 'Повернуть вокруг Y',
@@ -204,7 +202,6 @@ export const ru: Messages = {
   'progress.tile': 'форма плитки',
   'progress.split': 'половина {i} из {n}',
   'progress.find': 'поиск плоскости: {i} из {n}',
-  'progress.preview': 'сборка оснастки…',
   'progress.export': 'сборка…',
 
   'part.master': 'Мастер-позитив',

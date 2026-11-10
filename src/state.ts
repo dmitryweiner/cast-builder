@@ -1,7 +1,8 @@
 // What the user chose, in two parts.
 //
 // Settings are the user's habits — the mode, the plaster, the shrinkage of
-// their slip — and survive a reload (storage.ts). A setup belongs to the
+// their slip — and survive a reload (storage.ts); undo and redo go over them
+// and the setup. The language is not among them: it is no step to undo. A setup belongs to the
 // model in hand: how it is turned, where its mouth is, whether it has a plug
 // ledge; a new model starts a new setup.
 //
@@ -16,8 +17,6 @@ import type { Orientation } from './geo/model';
 import { defaultOrientation, sanitizeOrientation } from './geo/model';
 import type { BedPlace } from './geo/layout';
 import { BED_GAP_MAX_MM, BED_GAP_MIN_MM, BED_GAP_MM, BED_PLACES } from './geo/layout';
-import type { Locale } from './i18n';
-import { isLocale } from './i18n';
 
 /**
  * What the export makes:
@@ -50,8 +49,6 @@ export interface BedChoice {
 }
 
 export interface Settings {
-  /** the language picked in the switcher; null — from the browser */
-  locale: Locale | null;
   mode: Mode;
   /** the kind of press mold last picked: the slump tab opens on it */
   press: PressKind;
@@ -63,7 +60,6 @@ export interface Settings {
 
 export function defaultSettings(): Settings {
   return {
-    locale: null,
     mode: 'bath',
     press: 'slump',
     mold: defaultMold(),
@@ -73,9 +69,9 @@ export function defaultSettings(): Settings {
   };
 }
 
-/** Reset: everything at the defaults but the language and the mode tab — where the user is, not what they tuned. */
+/** Reset: everything at the defaults but the mode tab — where the user is, not what they tuned. */
 export function resetSettings(settings: Settings): Settings {
-  return { ...defaultSettings(), locale: settings.locale, mode: settings.mode };
+  return { ...defaultSettings(), mode: settings.mode };
 }
 
 export interface MouthChoice {
@@ -142,7 +138,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   const bed = record(source.bed);
   const mode = oneOf(MODES, source.mode, fallback.mode);
   return {
-    locale: isLocale(source.locale) ? source.locale : null,
     mode,
     // the press tab shows the kind in hand
     press: oneOf(PRESS_KINDS, mode, oneOf(PRESS_KINDS, source.press, fallback.press)),

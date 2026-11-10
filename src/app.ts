@@ -33,22 +33,25 @@ import {
   VENT_MIN_MM,
 } from './geo/mold/state';
 import type { Key, Locale } from './i18n';
-import { detectLocale, direction, isLocale, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
+import { detectLocale, direction, LOCALES, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
 import type { Mode, Settings, Setup } from './state';
 import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
-import type { KeyValueStorage, StorageWrite } from './storage';
+import type { KeyValueStorage, Project, StorageWrite } from './storage';
 import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
 import type { Control } from 'maker-kit/ui/controls';
 import { renderControls } from 'maker-kit/ui/controls';
 import { el, make } from 'maker-kit/ui/dom';
+import { History } from 'maker-kit/core/history';
+import { bindHistory } from 'maker-kit/ui/historyKeys';
+import { createLanguagePicker } from 'maker-kit/ui/languagePicker';
+import { createProgress } from 'maker-kit/ui/progress';
+import { setupSheet } from 'maker-kit/ui/sheet';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
 import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileCutControls, tileLand } from './ui/press';
-import { createProgress } from './ui/progress';
 import { createScene } from './render/scene';
 import type { SceneHandle } from './render/scene';
 import { createThumb } from './render/thumb';
-import { setupSheet } from './ui/sheet';
 import { ToolingClient } from './worker/client';
 import type { JobInfo, JobPart, ToolingJob } from './worker/protocol';
 
@@ -154,7 +157,6 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const stageNote = el('stageNote', HTMLParagraphElement);
   const thumbBox = el('thumbBox', HTMLDivElement);
   const fileInput = el('fileInput', HTMLInputElement);
-  const localeSelect = el('locale', HTMLSelectElement);
   const modelInfo = el('modelInfo', HTMLParagraphElement);
   const modelNote = el('modelNote', HTMLParagraphElement);
   const modelControls = el('modelControls', HTMLDivElement);
@@ -177,11 +179,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const exportBtn = el('exportBtn', HTMLButtonElement);
   const turnButtons = ['turnX', 'turnY', 'turnFlip'].map((id) => el(id, HTMLButtonElement));
   const resetBtn = el('turnReset', HTMLButtonElement);
-  const progress = createProgress({
-    wrap: el('progressWrap', HTMLDivElement),
-    fill: el('progressFill', HTMLDivElement),
-    label: el('progressLabel', HTMLSpanElement),
-  });
+  const progress = createProgress(el('progressWrap', HTMLDivElement), { t });
 
   const view = el('view', HTMLCanvasElement);
   const scene: SceneHandle = createScene(view);
@@ -197,6 +195,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const sheet = setupSheet({
     panel,
     button: el('panelBtn', HTMLButtonElement),
+    close: el('sheetClose', HTMLButtonElement),
     view,
     narrow,
     onInset: (px) => scene.setBottomInset(px),
@@ -208,9 +207,13 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   // the project of the last visit: the settings now, the setup with its model at the end
   const saved = loadProject(storage);
   let settings: Settings = saved.settings;
-  let locale: Locale = detectLocale(settings.locale, languages);
+  /** the language picked in the switcher; null — from the browser */
+  let chosenLocale: Locale | null = saved.locale;
+  let locale: Locale = detectLocale(chosenLocale, languages);
   setLocale(locale);
   let setup: Setup = defaultSetup();
+  /** undo and redo over the settings and the setup; the model itself is not in it — a new one starts it anew */
+  const history = new History<Project>({ settings, setup });
   let model: Model | null = null;
   /** how the model in hand was kept: 'full' — too large, it is gone after a reload */
   let modelKept: StorageWrite = 'ok';
@@ -381,7 +384,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const schemeRows = draw(schemeHost, schemeSpec, () => settings, setSettings, 'mold');
     const modelRows = draw(modelControls, modelSpec, () => setup, setSetup, 'model');
     const splitRows = draw(splitControlsEl, splitControls, () => setup, setSetup, 'split');
-    const bedRows = draw(bedControlsEl, bedControls, () => settings, setBed, 'bed');
+    const bedRows = draw(bedControlsEl, bedControls, () => settings, setSettings, 'bed');
     rows = [
       { sync: () => toolingRows.sync(settings) },
       { sync: () => schemeRows.sync(settings) },
@@ -403,7 +406,6 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     emptyEl.hidden = model !== null;
     for (const button of turnButtons) button.disabled = model === null;
     modelNote.hidden = model === null || modelKept !== 'full';
-    localeSelect.value = locale;
     if (!exporting) exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);
     modelInfo.textContent = model
       ? t('model.info', {
@@ -457,24 +459,45 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   /** Everything but the model itself, on every change: a reload opens the project as it was. */
   function save(): void {
-    saveProject(storage, { settings, setup });
+    saveProject(storage, { locale: chosenLocale, settings, setup });
   }
 
-  function setSettings(next: Settings): void {
+  /** An edit of the settings or the setup: `final` is one undo step, the frames of a drag are not. */
+  function edit(next: Project, final: boolean): void {
+    const clean = { settings: sanitizeSettings(next.settings), setup: sanitizeSetup(next.setup) };
+    if (final) history.commit(clean);
+    else history.live(clean);
+    apply(clean);
+  }
+
+  function setSettings(next: Settings, final: boolean): void {
+    edit({ settings: next, setup }, final);
+  }
+
+  function setSetup(next: Setup, final: boolean): void {
+    edit({ settings, setup: next }, final);
+  }
+
+  /** Shows a project — an edit's, or one undo or redo brought back. */
+  function apply(next: Project): void {
+    const before = { settings, setup };
+    settings = next.settings;
+    setup = next.setup;
     // another mode's parts do not stay in sight while its own are built
-    if (next.mode !== settings.mode) last = null;
-    settings = sanitizeSettings(next);
+    if (settings.mode !== before.settings.mode) last = null;
+    // what Find said is about the setup it left
+    if (!same(setup, before.setup)) findNote.textContent = '';
+    if (model && !same(setup.orientation, before.setup.orientation)) {
+      place(model);
+      last = null;
+    }
     save();
+    // the layout is the main thread's: a change of it alone lays the last build out anew, with no new build
+    const build = !same({ ...settings, bed: null }, { ...before.settings, bed: null }) || !same(setup, before.setup);
+    if (!build && last && !same(settings.bed, before.settings.bed)) show(last.parts);
     syncPanel();
-    schedule();
-  }
-
-  /** The layout is the main thread's: a change of it lays the last build out anew, with no new build. */
-  function setBed(next: Settings): void {
-    settings = sanitizeSettings(next);
-    save();
-    if (last) show(last.parts);
-    syncPanel();
+    keys.refresh();
+    if (build) schedule();
   }
 
   /** The parts on the bed, in the view. */
@@ -489,20 +512,6 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       settings.bed.place,
       settings.bed.gapMm,
     );
-  }
-
-  function setSetup(next: Setup): void {
-    // what Find said is about the setup it left
-    findNote.textContent = '';
-    const turned = next.orientation !== setup.orientation;
-    setup = sanitizeSetup(next);
-    save();
-    if (turned && model) {
-      place(model);
-      last = null;
-    }
-    syncPanel();
-    schedule();
   }
 
   function place(current: Model): void {
@@ -534,6 +543,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     readError = '';
     findNote.textContent = '';
     setup = start;
+    // the steps so far belong to the old model's setup: undone, they would turn this one
+    history.reset({ settings, setup });
     model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
     // the view shows tooling only: the old model's goes, the new one's is on its way
@@ -543,6 +554,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     sheet.open();
     place(model);
     syncPanel();
+    keys.refresh();
     schedule(0);
   }
 
@@ -573,13 +585,12 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const current = model;
     if (!current) return;
     try {
-      const result = await progress.track(
-        (onProgress) =>
-          client.run(job('preview', current), (step) => {
-            onProgress(step);
-            if (stamp === generation) auditEl.textContent = t('audit.step', { step: tm(step.label), i: step.step + 1, n: step.total });
-          }),
-        { label: 'progress.preview' },
+      const result = await progress.track((onProgress) =>
+        client.run(job('preview', current), (step) => {
+          // the view's bar has no text over a preview: the stages are told in the panel
+          onProgress({ step: step.step, total: step.total });
+          if (stamp === generation) auditEl.textContent = t('audit.step', { step: tm(step.label), i: step.step + 1, n: step.total });
+        }),
       );
       // null — a fresher job replaced it; stamp — a fresher answer is coming
       if (!result || stamp !== generation) return;
@@ -651,11 +662,17 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
         findNote.textContent = result.info.blocking.map(tm).join('\n');
         return;
       }
-      setSetup({
-        ...setup,
-        orientation: { ...setup.orientation, spinDeg: (setup.orientation.spinDeg + found.spinDeg) % 360 },
-        split: { ...setup.split, pct: found.pct },
-      });
+      edit(
+        {
+          settings,
+          setup: {
+            ...setup,
+            orientation: { ...setup.orientation, spinDeg: (setup.orientation.spinDeg + found.spinDeg) % 360 },
+            split: { ...setup.split, pct: found.pct },
+          },
+        },
+        true,
+      );
       findNote.textContent = t('split.found', { spin: found.spinDeg, pct: found.pct, mm: found.depthMm.toFixed(1) });
     } catch (error) {
       findNote.textContent = t('error.build', { error: message(error) });
@@ -670,19 +687,16 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   for (const tab of TABS) {
     el(tab.id, HTMLButtonElement).addEventListener('click', () => {
       const mode = tab.mode(settings);
-      if (mode !== settings.mode) setSettings({ ...settings, mode });
+      if (mode !== settings.mode) edit({ settings: { ...settings, mode }, setup }, true);
     });
   }
-  const turn = (next: readonly number[]): void => setSetup({ ...setup, orientation: { ...setup.orientation, turn: next } });
+  const turn = (next: readonly number[]): void =>
+    edit({ settings, setup: { ...setup, orientation: { ...setup.orientation, turn: next } } }, true);
   turnButtons[0].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'x')));
   turnButtons[1].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'y')));
   turnButtons[2].addEventListener('click', () => turn(flip(setup.orientation.turn)));
-  // everything back to the defaults but the model, the language and the mode tab
-  resetBtn.addEventListener('click', () => {
-    settings = resetSettings(settings);
-    last = null;
-    setSetup(defaultSetup());
-  });
+  // everything back to the defaults but the model, the language and the mode tab; one undo step
+  resetBtn.addEventListener('click', () => edit({ settings: resetSettings(settings), setup: defaultSetup() }, true));
 
   const openFile = (file: File | undefined): void => {
     if (!file) return;
@@ -722,18 +736,33 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   });
   exportBtn.addEventListener('click', () => void runExport());
   findBtn.addEventListener('click', () => void runFind());
-  localeSelect.addEventListener('change', () => {
-    const value = localeSelect.value;
-    if (!isLocale(value)) return;
-    locale = value;
-    setLocale(value);
-    settings = { ...settings, locale: value };
-    save();
-    translatePage(locale);
-    renderPanel();
-    progress.refresh();
-    syncPanel();
+  const picker = createLanguagePicker(el('topbar', HTMLElement), {
+    locales: LOCALES,
+    current: locale,
+    t,
+    onChange(value) {
+      // no undo step: the language is not the project's
+      locale = chosenLocale = value;
+      setLocale(value);
+      save();
+      translatePage(locale);
+      picker.set(locale);
+      renderPanel();
+      progress.refresh();
+      syncPanel();
+    },
   });
+  const keys = bindHistory({
+    undo: el('undo', HTMLButtonElement),
+    redo: el('redo', HTMLButtonElement),
+    onUndo: () => restore(history.undo()),
+    onRedo: () => restore(history.redo()),
+    canUndo: () => history.canUndo,
+    canRedo: () => history.canRedo,
+  });
+  function restore(project: Project | null): void {
+    if (project) apply(project);
+  }
 
   translatePage(locale);
   renderPanel();
@@ -742,8 +771,14 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   if (kept) openModel(kept.name, kept.mesh, saved.setup);
 }
 
-/** The rows of one part of the panel; `final` (one undo step) is not told apart yet. */
-function draw<T>(host: HTMLElement, spec: readonly Control<T, Key>[], read: () => T, change: (next: T) => void, idPrefix: string) {
+/** The rows of one part of the panel. */
+function draw<T>(
+  host: HTMLElement,
+  spec: readonly Control<T, Key>[],
+  read: () => T,
+  change: (next: T, final: boolean) => void,
+  idPrefix: string,
+) {
   return renderControls(host, spec, { read, change, idPrefix, t });
 }
 
@@ -754,6 +789,11 @@ function withNormals(mesh: IndexedMesh): SurfaceMesh {
 /** A part's mesh from the worker's answer — the buffers came by transfer, no copies. */
 function toMesh(part: JobPart): SurfaceMesh {
   return { positions: part.positions, indices: part.indices, normals: part.normals };
+}
+
+/** Plain data compared by its text, as the history does. */
+function same(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function round1(value: number): number {

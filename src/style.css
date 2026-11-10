@@ -28,11 +28,12 @@
 .topbar .btn {
   min-block-size: var(--tool);
 }
-/* the language at the end, until the kit's picker takes its place */
-.topbar select {
-  order: 5;
-  inline-size: auto;
-  background: var(--card);
+/* Open STL stands where the kit's top bar has the project's name: a phone
+   puts it in the second line with ↶ ↷, a wider screen after the brand */
+#openBtn {
+  order: 3;
+  flex: 1;
+  max-inline-size: 240px;
 }
 
 /* ---- the view ---- */
@@ -73,45 +74,6 @@
 }
 .stage-note:empty {
   display: none;
-}
-
-.progress {
-  position: absolute;
-  inset-inline: var(--space-4);
-  /* above the "Settings" button */
-  inset-block-end: 64px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: var(--font-tiny);
-}
-.progress-bar {
-  flex: 1;
-  block-size: 6px;
-  border-radius: 3px;
-  background: rgb(168 149 154 / 25%);
-  overflow: hidden;
-}
-.progress .progress-fill {
-  position: static;
-  block-size: 100%;
-  inline-size: 0;
-  background: var(--accent-strong);
-  transition: inline-size 0.12s linear;
-}
-.progress.indeterminate .progress-fill {
-  inline-size: 30%;
-  transition: none;
-  animation: slide 1.1s ease-in-out infinite;
-}
-@keyframes slide {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(340%);
-  }
 }
 
 /* ---- the panel ---- */
@@ -292,10 +254,8 @@
   .tagline {
     display: inline;
   }
-}
-
-@media (min-width: 1024px) {
-  .progress {
-    inset-block-end: var(--space-4);
+  #openBtn {
+    order: 1;
+    flex: none;
   }
 }
