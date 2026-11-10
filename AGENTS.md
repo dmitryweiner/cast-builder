@@ -40,8 +40,10 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   the keychain's tile mold (refused face down; cut in two, a file each
   and one file), a hollow cup in two halves
   (a file each and one file, Find, the press kind remembered),
-  the project kept over a reload and Reset, undo and redo (a −/+ click, a
-  tab, a turn; Ctrl+Z on a Russian layout; the language no step), the thumbnail, a file upload,
+  the project kept over a reload and Reset, undo and redo (opening a
+  model, a −/+ click, a tab, a turn; Ctrl+Z on a Russian layout; the
+  language no step), 📄 New (no model; undo brings it back; a reload opens
+  none; the sheet closes on a phone), the thumbnail, a file upload,
   real downloads, turning and spin presets, languages, the phone sheet and
   width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
@@ -89,12 +91,13 @@ Regenerate them only on purpose.
 - `src/state.ts` — `Settings` (the user's habits; `press` the kind the press
   tab opens on; not the language) and `Setup` (the model in hand: orientation, mouth, plug,
   the split plane), with their sanitizers; `resetSettings` (all but the
-  mode).
+  mode); `ModelRef` (the model by reference: its JSON is its id) and
+  `Project` (what undo goes over: the settings, the setup, the model).
 - `src/storage.ts` — the project in localStorage, two versioned keys (records
   of maker-kit's `core/storage`): the settings with the setup
   (`cast-builder`, written on every change) and the model itself
-  (`cast-builder-model`, written only when a model is opened; removed when
-  it does not fit).
+  (`cast-builder-model`, written only when the model in hand changes — opened,
+  or brought back by undo; removed by 📄 New and when it does not fit).
 - `src/geo/` — the pure core, no DOM, no Three.js. Meshes, STL and the
   export gate are maker-kit's `3d/mesh` (`IndexedMesh`, `SurfaceMesh`,
   `meshNormals`, `isValidMesh` — the check of a mesh from outside: the
@@ -153,7 +156,8 @@ Regenerate them only on purpose.
   (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
   the view (`ui/progress`: a preview's after 300 ms with no text, an export's
   and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,
-  `ui/historyKeys`), the language (`ui/languagePicker`).
+  `ui/historyKeys`), the language (`ui/languagePicker`). 📄 New in the top
+  bar is the app's: it has no presets, so a blank project is no model.
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.
@@ -319,12 +323,17 @@ Regenerate them only on purpose.
 - An open piece's split mold ends at its rim and keeps out of its mouth:
   one polar cutter round the axis, over z = top(θ) − 0.2 and inside the
   mouth over the lid; the release check does not look over the lid's crest.
-- Undo and redo go over the settings and the setup (`Project`), never the
-  language and never the model: opening a model starts the history anew,
-  as its steps would turn the new one. A tab, a turn, Reset, Find and a
-  final change of a row are a step each; the frames of a drag are not.
-- The project is kept on every change; the model only when opened, never
-  on a slider. A model that does not fit removes the one kept before: a
+- Undo and redo go over the settings, the setup and the model (`Project`),
+  never the language. The model is held by reference (`ModelRef`): the
+  history compares states by their JSON text, and the JSON of a model is
+  its id — a mesh is never stringified, never copied; it lives as long as a
+  step holds it. Opening a model (from the default setup) and 📄 New (no
+  model, the default setup, the settings kept) are a step each, as are a
+  tab, a turn, Reset, Find and a final change of a row; the frames of a
+  drag are not.
+- The project is kept on every change; the model only when the model in
+  hand changes (opened, brought back by undo or redo; removed by 📄 New),
+  never on a slider. A model that does not fit removes the one kept before: a
   stale model must not reopen under a fresh setup. The setup is restored
   only with its model.
 - Every visible text goes through `src/i18n/`; a Cyrillic string literal

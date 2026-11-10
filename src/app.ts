@@ -34,10 +34,20 @@ import {
 } from './geo/mold/state';
 import type { Key, Locale } from './i18n';
 import { detectLocale, direction, isKey, LOCALES, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
-import type { Mode, Settings, Setup } from './state';
-import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
-import type { KeyValueStorage, Project, StorageWrite } from './storage';
-import { loadProject, loadSavedModel, saveModel, saveProject } from './storage';
+import type { Mode, Project, Settings, Setup } from './state';
+import {
+  defaultSetup,
+  ModelRef,
+  MODES,
+  RECESS_MAX_MM,
+  resetSettings,
+  RESOLUTIONS,
+  sanitizeSettings,
+  sanitizeSetup,
+  SCHEME_CHOICES,
+} from './state';
+import type { KeyValueStorage, StorageWrite } from './storage';
+import { loadProject, loadSavedModel, removeModel, saveModel, saveProject } from './storage';
 import type { Control } from 'maker-kit/ui/controls';
 import { renderControls } from 'maker-kit/ui/controls';
 import { el, make } from 'maker-kit/ui/dom';
@@ -86,10 +96,9 @@ const EXPORT_LABEL: Record<Mode, Key> = {
 /** What the result card says first: the mold modes give their parting's reason. */
 const NOTE: Partial<Record<Mode, Key>> = { slump: 'slump.note', tile: 'tile.note', split: 'split.note' };
 
+/** The model in hand as it is shown: the history's reference, turned and placed. */
 interface Model {
-  /** file name without the extension: the downloads are named after it */
-  name: string;
-  raw: IndexedMesh;
+  ref: ModelRef;
   placed: IndexedMesh;
   heightMm: number;
   radiusMm: number;
@@ -182,6 +191,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const exportBtn = el('exportBtn', HTMLButtonElement);
   const turnButtons = ['turnX', 'turnY', 'turnFlip'].map((id) => el(id, HTMLButtonElement));
   const resetBtn = el('turnReset', HTMLButtonElement);
+  const newBtn = el('newProject', HTMLButtonElement);
   const progress = createProgress(el('progressWrap', HTMLDivElement), { t });
 
   const view = el('view', HTMLCanvasElement);
@@ -219,9 +229,11 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   let locale: Locale = detectLocale(chosenLocale, languages);
   setLocale(locale);
   let setup: Setup = defaultSetup();
-  /** undo and redo over the settings and the setup; the model itself is not in it — a new one starts it anew */
-  const history = new History<Project>({ settings, setup });
+  /** undo and redo over the settings, the setup and the model, held by reference */
+  const history = new History<Project>({ settings, setup, model: null });
   let model: Model | null = null;
+  /** models opened in this session, for their ids */
+  let opened = 0;
   /** how the model in hand was kept: 'full' — too large, it is gone after a reload */
   let modelKept: StorageWrite = 'ok';
   /** what the last finished build said; the panel is drawn from it */
@@ -408,6 +420,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     mouthCard.hidden = settings.mode !== 'master' && settings.mode !== 'bath';
     splitCard.hidden = settings.mode !== 'split';
     findBtn.disabled = model === null || finding;
+    // with no model the setup waits for one: a new model starts from the defaults anyway
+    newBtn.disabled = model === null;
     // a master and a whole tile mold are one part: nothing to lay out
     bedCard.hidden = settings.mode === 'master' || (settings.mode === 'tile' && !settings.mold.tileCut);
     emptyEl.hidden = model !== null;
@@ -416,11 +430,11 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     if (!exporting) exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);
     modelInfo.textContent = model
       ? t('model.info', {
-          name: model.name,
+          name: model.ref.name,
           dims: sizeOf(model.placed.positions)
             .map((value) => Math.round(value))
             .join('×'),
-          k: Math.round(model.raw.indices.length / 3000),
+          k: Math.round(model.ref.mesh.indices.length / 3000),
         })
       : readError;
     renderResult();
@@ -469,20 +483,20 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     saveProject(storage, { locale: chosenLocale, settings, setup });
   }
 
-  /** An edit of the settings or the setup: `final` is one undo step, the frames of a drag are not. */
+  /** An edit of the project: `final` is one undo step, the frames of a drag are not. */
   function edit(next: Project, final: boolean): void {
-    const clean = { settings: sanitizeSettings(next.settings), setup: sanitizeSetup(next.setup) };
+    const clean = { settings: sanitizeSettings(next.settings), setup: sanitizeSetup(next.setup), model: next.model };
     if (final) history.commit(clean);
     else history.live(clean);
     apply(clean);
   }
 
   function setSettings(next: Settings, final: boolean): void {
-    edit({ settings: next, setup }, final);
+    edit({ settings: next, setup, model: model?.ref ?? null }, final);
   }
 
   function setSetup(next: Setup, final: boolean): void {
-    edit({ settings, setup: next }, final);
+    edit({ settings, setup: next, model: model?.ref ?? null }, final);
   }
 
   /** Shows a project — an edit's, or one undo or redo brought back. */
@@ -490,21 +504,53 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const before = { settings, setup };
     settings = next.settings;
     setup = next.setup;
+    const swapped = next.model !== (model?.ref ?? null);
+    if (swapped) {
+      hold(next.model);
+      // the model is written only when it changes: a slider never encodes it again
+      if (next.model) modelKept = saveModel(storage, { name: next.model.name, mesh: next.model.mesh });
+      else {
+        removeModel(storage);
+        modelKept = 'ok';
+      }
+    }
     // another mode's parts do not stay in sight while its own are built
     if (settings.mode !== before.settings.mode) last = null;
     // what Find said is about the setup it left
-    if (!same(setup, before.setup)) findNote.textContent = '';
-    if (model && !same(setup.orientation, before.setup.orientation)) {
+    if (swapped || !same(setup, before.setup)) findNote.textContent = '';
+    if (model && !swapped && !same(setup.orientation, before.setup.orientation)) {
       place(model);
       last = null;
     }
     save();
     // the layout is the main thread's: a change of it alone lays the last build out anew, with no new build
-    const build = !same({ ...settings, bed: null }, { ...before.settings, bed: null }) || !same(setup, before.setup);
+    const build = swapped || !same({ ...settings, bed: null }, { ...before.settings, bed: null }) || !same(setup, before.setup);
     if (!build && last && !same(settings.bed, before.settings.bed)) show(last.parts);
     syncPanel();
     keys.refresh();
-    if (build) schedule();
+    // a model just opened is built at once
+    if (build) schedule(swapped ? 0 : PREVIEW_DELAY_MS);
+  }
+
+  /** The model in hand changes: one opened or brought back by undo is placed; none empties the stage to its invitation. */
+  function hold(ref: ModelRef | null): void {
+    readError = '';
+    last = null;
+    laid = null;
+    // the view shows tooling only: the old model's goes, the new one's is on its way
+    viewer?.setMeshes([]);
+    stageNote.textContent = '';
+    if (!ref) {
+      model = null;
+      thumbBox.hidden = true;
+      // on a phone the sheet would cover the invitation
+      if (narrow.matches) sheet.close();
+      return;
+    }
+    model = { ref, placed: ref.mesh, heightMm: 0, radiusMm: 0 };
+    // the thumbnail and the turns are what to look at first
+    sheet.open();
+    place(model);
   }
 
   /** The parts on the bed, in the view. */
@@ -522,7 +568,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   }
 
   function place(current: Model): void {
-    current.placed = placeModel(current.raw, setup.orientation);
+    current.placed = placeModel(current.ref.mesh, setup.orientation);
     const [width, depth, height] = sizeOf(current.placed.positions);
     current.heightMm = height;
     current.radiusMm = Math.hypot(width, depth) / 2;
@@ -539,30 +585,13 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       syncPanel();
       return;
     }
-    const stem = name.replace(/\.stl$/i, '');
-    modelKept = saveModel(storage, { name: stem, mesh: raw });
-    openModel(stem, raw, defaultSetup());
-    save();
+    // one step, from the default setup: undo brings back the model before it with its own
+    edit({ settings, setup: defaultSetup(), model: modelRef(name.replace(/\.stl$/i, ''), raw) }, true);
   }
 
-  /** A model in hand, read from a file or kept by the last visit, with its setup. */
-  function openModel(name: string, raw: IndexedMesh, start: Setup): void {
-    readError = '';
-    findNote.textContent = '';
-    setup = start;
-    // the steps so far belong to the old model's setup: undone, they would turn this one
-    history.reset({ settings, setup });
-    model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
-    last = null;
-    // the view shows tooling only: the old model's goes, the new one's is on its way
-    viewer?.setMeshes([]);
-    stageNote.textContent = '';
-    // the thumbnail and the turns are what to look at first
-    sheet.open();
-    place(model);
-    syncPanel();
-    keys.refresh();
-    schedule(0);
+  function modelRef(name: string, mesh: IndexedMesh): ModelRef {
+    opened++;
+    return new ModelRef(`m${opened}`, name, mesh);
   }
 
   // ---- the worker ----
@@ -642,12 +671,12 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       if (oneFile) {
         download(
           encodeSTL(mergeMeshes(layOut(result.parts).groups.flat()), { brand: 'cast-builder', name: mode }),
-          `${current.name}-${mode}.stl`,
+          `${current.ref.name}-${mode}.stl`,
         );
         return;
       }
       for (const part of result.parts) {
-        download(encodeSTL(part, { brand: 'cast-builder', name: part.id }), `${current.name}-${part.id}.stl`);
+        download(encodeSTL(part, { brand: 'cast-builder', name: part.id }), `${current.ref.name}-${part.id}.stl`);
         // oxlint-disable-next-line no-await-in-loop -- one by one on purpose: a browser swallows a burst of downloads
         await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_GAP_MS));
       }
@@ -671,7 +700,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
         label: 'split.finding',
         delayMs: 0,
       });
-      if (!done || current !== model) return;
+      if (!done || current.ref !== model?.ref) return;
       const { result } = done;
       const { found } = result;
       if (!found) {
@@ -681,6 +710,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       edit(
         {
           settings,
+          model: current.ref,
           setup: {
             ...setup,
             orientation: { ...setup.orientation, spinDeg: (setup.orientation.spinDeg + found.spinDeg) % 360 },
@@ -703,16 +733,19 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   for (const tab of TABS) {
     el(tab.id, HTMLButtonElement).addEventListener('click', () => {
       const mode = tab.mode(settings);
-      if (mode !== settings.mode) edit({ settings: { ...settings, mode }, setup }, true);
+      if (mode !== settings.mode) setSettings({ ...settings, mode }, true);
     });
   }
-  const turn = (next: readonly number[]): void =>
-    edit({ settings, setup: { ...setup, orientation: { ...setup.orientation, turn: next } } }, true);
+  const turn = (next: readonly number[]): void => setSetup({ ...setup, orientation: { ...setup.orientation, turn: next } }, true);
   turnButtons[0].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'x')));
   turnButtons[1].addEventListener('click', () => turn(quarterTurn(setup.orientation.turn, 'y')));
   turnButtons[2].addEventListener('click', () => turn(flip(setup.orientation.turn)));
   // everything back to the defaults but the model, the language and the mode tab; one undo step
-  resetBtn.addEventListener('click', () => edit({ settings: resetSettings(settings), setup: defaultSetup() }, true));
+  resetBtn.addEventListener('click', () =>
+    edit({ settings: resetSettings(settings), setup: defaultSetup(), model: model?.ref ?? null }, true),
+  );
+  // 📄 New: no model, the setup at its defaults, the settings (the user's habits) as they are; one undo step
+  newBtn.addEventListener('click', () => edit({ settings, setup: defaultSetup(), model: null }, true));
 
   const openFile = (file: File | undefined): void => {
     if (!file) return;
@@ -783,8 +816,16 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   translatePage(locale);
   renderPanel();
   syncPanel();
+  // the model of the last visit, with its setup: the start of the history, not a step
   const kept = loadSavedModel(storage);
-  if (kept) openModel(kept.name, kept.mesh, saved.setup);
+  if (kept) {
+    setup = saved.setup;
+    const ref = modelRef(kept.name, kept.mesh);
+    history.reset({ settings, setup, model: ref });
+    hold(ref);
+    syncPanel();
+    schedule(0);
+  }
 }
 
 /** The rows of one part of the panel. */
