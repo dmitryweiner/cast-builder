@@ -1,22 +1,24 @@
+import { WorkerClient, type WorkerFactory } from 'maker-kit/worker/client';
+import type { WorkerIn } from 'maker-kit/worker/protocol';
 import { describe, expect, it } from 'vitest';
-import { ToolingClient } from './client';
-import type { ToolingJob, WorkerIn } from './protocol';
+import { TOOLING_POLICY } from './client';
+import type { JobResult, ToolingJob } from './protocol';
 import { defaultSettings, defaultSetup } from '../state';
 
 /** A worker that keeps what it is sent and answers when told. */
-class FakeWorker extends EventTarget {
-  sent: WorkerIn[] = [];
-  postMessage(message: WorkerIn): void {
-    this.sent.push(message);
-  }
-  answer(jobId: number): void {
-    const result = {
-      parts: [],
-      info: { status: null, mouth: null, rimMm: null, scheme: null, reason: [], warnings: [], blocking: [], catches: [] },
-    };
-    this.dispatchEvent(new MessageEvent('message', { data: { type: 'done', jobId, result } }));
-  }
-  terminate(): void {}
+function fakeWorker() {
+  const sent: WorkerIn<ToolingJob>[] = [];
+  let reply: (data: unknown) => void = () => {};
+  const factory: WorkerFactory<ToolingJob> = (receive) => {
+    reply = receive;
+    return { post: (message) => sent.push(message), terminate: () => {} };
+  };
+  const result: JobResult = {
+    parts: [],
+    info: { status: null, mouth: null, rimMm: null, scheme: null, reason: [], warnings: [], blocking: [], catches: [] },
+  };
+  const answer = (jobId: number): void => reply({ type: 'done', jobId, result, ms: 1 });
+  return { sent, factory, answer };
 }
 
 function job(kind: ToolingJob['kind']): ToolingJob {
@@ -35,10 +37,10 @@ function job(kind: ToolingJob['kind']): ToolingJob {
   };
 }
 
-describe('ToolingClient', () => {
+describe('the tooling queue (maker-kit’s WorkerClient with the app’s policy)', () => {
   it('a waiting preview gives way to a fresher one; a job asked by a button never does', async () => {
-    const worker = new FakeWorker();
-    const client = new ToolingClient(() => worker as unknown as Worker);
+    const worker = fakeWorker();
+    const client = new WorkerClient<ToolingJob, JobResult>(worker.factory, TOOLING_POLICY);
     const running = client.run(job('preview'));
     const stale = client.run(job('preview'));
     const find = client.run(job('find'));

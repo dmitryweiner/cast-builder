@@ -9,7 +9,7 @@
 // tip of a spout is a far smaller one. Its height is the mouth, its edge the
 // rim.
 
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 export interface Mouth {
   zMm: number;

@@ -14,7 +14,7 @@ import { CsgScope, fromManifold, initCSG, toManifold } from '../csg';
 import { defaultOrientation, placeModel } from '../model';
 import { guessMouth } from '../mouth';
 import { fixture, revolveMesh, withNormals } from '../testing';
-import { validateMesh } from '../validate';
+import { validateMesh } from 'maker-kit/3d/validate';
 import { analyzeMold, pullUndercut, withScheme } from './analyze';
 import { buildBaths, buildBlocks, buildMaster } from './index';
 import type { Mouth } from './index';

@@ -7,7 +7,7 @@
 // over the canvas. Kept thin like the scene: the smoke checks it.
 
 import * as THREE from 'three';
-import type { SurfaceMesh } from '../geo/surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import type { AxisGuide } from './guides';
 import { thumbAxes } from './guides';
 import { addLights, AXIS_COLORS, CLEAR_COLOR, pieceMaterial, toGeometry } from './look';

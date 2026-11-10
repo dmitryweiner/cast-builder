@@ -1,28 +1,6 @@
-// Where the visual guides go — the print bed under the tooling, the axes in
-// the model thumbnail. Pure numbers without Three.js, so they are tested in
-// node; the views turn them into lines.
-
-export interface BedGrid {
-  /** the side of the square bed, mm */
-  sizeMm: number;
-  /** the side of a cell, mm */
-  cellMm: number;
-}
-
-/** No bed is drawn smaller than a small printer's. */
-const MIN_BED_MM = 200;
-/** room round the tooling, a share of its footprint */
-const BED_MARGIN = 0.3;
-/** more lines than this per side merge into a grey plane from afar */
-const MAX_CELLS = 60;
-const CELLS_MM = [10, 20, 50, 100];
-
-/** A square bed under a footprint of the given size: whole decimetres, the finest cells that stay apart. */
-export function bedGrid(widthMm: number, depthMm: number): BedGrid {
-  const sizeMm = Math.max(MIN_BED_MM, Math.ceil((Math.max(widthMm, depthMm) * (1 + BED_MARGIN)) / 100) * 100);
-  const cellMm = CELLS_MM.find((cell) => sizeMm / cell <= MAX_CELLS) ?? 100;
-  return { sizeMm, cellMm };
-}
+// Where the visual guides go — the axes in the model thumbnail (the print
+// bed under the tooling is maker-kit's viewer's). Pure numbers without
+// Three.js, so they are tested in node; the thumbnail turns them into lines.
 
 export type Vec3 = [number, number, number];
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bodies } from './pieces';
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import { fixture } from './testing';
 
 /** A closed box of side `size` about the origin; `inside` turns its faces in, as a void's are. */

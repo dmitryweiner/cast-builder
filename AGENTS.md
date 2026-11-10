@@ -94,10 +94,11 @@ Regenerate them only on purpose.
   (`cast-builder`, written on every change) and the model itself
   (`cast-builder-model`, written only when a model is opened; removed when
   it does not fit).
-- `src/geo/` — the pure core, no DOM, no Three.js:
-  - `stl.ts` — read (binary and ASCII, vertices welded) and write STL;
-    `isValidMesh`, the check of a mesh from outside (the worker, the
-    storage);
+- `src/geo/` — the pure core, no DOM, no Three.js. Meshes, STL and the
+  export gate are maker-kit's `3d/mesh` (`IndexedMesh`, `SurfaceMesh`,
+  `meshNormals`, `isValidMesh` — the check of a mesh from outside: the
+  worker, the storage), `3d/stl` and `3d/validate` (`kit.mesh.*` codes);
+  `stl.test.ts` reads the fixtures with them.
   - `model.ts` — quarter turns, spin, placement (axis through the origin,
     bottom on z = 0);
   - `pieces.ts` — how many separate pieces are in a file;
@@ -124,20 +125,23 @@ Regenerate them only on purpose.
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
   - `csg.ts` — the bridge to manifold-3d; `surface.ts`, `bottom.ts`,
-    `lathe.ts`, `normals.ts` — mesh assembly; `layout.ts` — parts on the
-    bed in rows (`arrangeOnBed`); `validate.ts` — the export gate; `message.ts` —
-    messages as codes;
+    `lathe.ts` — mesh assembly; `layout.ts` — parts on the bed in rows
+    (`arrangeOnBed`); `message.ts` — messages as codes (the app's and the
+    kit's);
   - `testing.ts` — helpers of the geometry tests (fixtures, analytic
     bodies), never imported by the app.
 - `src/worker/` — `tooling.ts` runs one job (tested in node; `slumpTooling`
-  the slump mold with its clamps), `csg.worker.ts`
-  is its thin adapter, `client.ts` the main thread's queue, `protocol.ts` the
-  types of both sides.
-- `src/render/` — Three.js: `scene.ts` the main view (tooling only, on a
-  print bed grid, orbit camera), `thumb.ts` the model thumbnail in the Model
-  card (drawn once per change, no controls, the three axes labelled),
-  `look.ts` their shared colours and lights, `guides.ts` the pure numbers of
-  the bed and the axes (tested in node). `src/ui/`
+  the slump mold with its clamps), `csg.worker.ts` its thin adapter over
+  maker-kit's `serveJobs`, `client.ts` the main thread's queue (maker-kit's
+  `WorkerClient`, one lane: a waiting preview gives way to a fresher one, an
+  export or a Find to nothing), `protocol.ts` the jobs and results of both
+  sides.
+- `src/render/` — Three.js: the main view is maker-kit's `3d/viewer`
+  (tooling only, on a grid at least a 200 mm bed, orbit camera, centred
+  above the sheet); `thumb.ts` the model thumbnail in the Model card (drawn
+  once per change, no controls, the three axes labelled), `look.ts` its
+  colours and lights and the tooling's material, `guides.ts` the pure
+  numbers of the axes (tested in node). `src/ui/`
   — the rows of the panel for maker-kit's `ui/controls` (a range may carry
   value buttons, a check box a note under it; ids in the kit's scheme:
   `mold_slab`, `mold_slab_n` its exact field, `model_spin_v90`;

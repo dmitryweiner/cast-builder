@@ -8,10 +8,10 @@
 // model never reopens under a fresh setup.
 
 import { loadRecord, removeRecord, saveRecord, type KeyValueStorage, type StorageWrite, type StoredRecord } from 'maker-kit/core/storage';
-import type { IndexedMesh } from './geo/stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import type { Locale } from './i18n';
 import { isLocale } from './i18n';
-import { isValidMesh } from './geo/stl';
+import { isValidMesh } from 'maker-kit/3d/mesh';
 import type { Settings, Setup } from './state';
 import { defaultSettings, defaultSetup, sanitizeSettings, sanitizeSetup } from './state';
 

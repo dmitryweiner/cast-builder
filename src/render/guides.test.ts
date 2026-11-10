@@ -1,24 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bedGrid, thumbAxes } from './guides';
-
-describe('bedGrid', () => {
-  it('is a square of whole decimetres with a margin round the tooling, 1 cm cells', () => {
-    expect(bedGrid(240, 170)).toEqual({ sizeMm: 400, cellMm: 10 });
-  });
-
-  it('is never smaller than a small printer', () => {
-    expect(bedGrid(30, 20)).toEqual({ sizeMm: 200, cellMm: 10 });
-  });
-
-  it('takes larger cells under large tooling, so the lines stay apart', () => {
-    // two pour boxes of a teapot side by side
-    const grid = bedGrid(900, 256);
-    expect(grid.sizeMm).toBeGreaterThanOrEqual(900 * 1.2);
-    expect(grid.sizeMm / grid.cellMm).toBeLessThanOrEqual(60);
-    expect(grid.sizeMm % grid.cellMm).toBe(0);
-    expect([20, 50, 100]).toContain(grid.cellMm);
-  });
-});
+import { thumbAxes } from './guides';
 
 describe('thumbAxes', () => {
   // a teapot: the spout to +x, the axis through the origin, the bottom on z = 0

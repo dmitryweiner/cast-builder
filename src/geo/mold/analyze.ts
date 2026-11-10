@@ -11,7 +11,7 @@
 // "can one part do". Only relief that changes with the angle breaks the
 // picture, and a handle or a spout makes one part impossible by itself.
 
-import type { SurfaceMesh } from '../surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import type { Message } from '../message';
 
 export const MOLD_SCHEMES = ['dropout', 'halves', 'halves-bottom'] as const;

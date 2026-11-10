@@ -11,11 +11,12 @@
 // (`SlumpFit`) and the punch is built from that measure, not from the
 // silhouette again — otherwise the legs would sooner or later miss the ears.
 
-import type { Grid, SurfaceMesh } from './surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
+import type { Grid } from './surface';
 import { assembleHollowMesh, scaleMesh, turnOver } from './surface';
 import type { CapSpec } from './bottom';
 import type { Message } from './message';
-import { meshNormals } from './normals';
+import { meshNormals } from 'maker-kit/3d/mesh';
 import type { PressSource } from './revolve';
 import { FLOOR_CELL_MM, MIN_RADIUS_MM } from './revolve';
 import type { LathePoint } from './lathe';

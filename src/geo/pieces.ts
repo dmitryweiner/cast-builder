@@ -7,7 +7,7 @@
 // any tooling. A closed void is a separate shell too, but turned inside out:
 // its signed volume is negative, and it is not a piece.
 
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 /** The connected parts of the welded mesh that enclose a positive volume. */
 export function bodies({ positions, indices }: IndexedMesh): number {

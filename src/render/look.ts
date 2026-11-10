@@ -1,8 +1,9 @@
-// What the main view and the model thumbnail share: colours, lights and the
-// way a mesh from the core becomes a Three.js geometry.
+// The model thumbnail's colours, lights and the way a mesh from the core
+// becomes a Three.js geometry; the main view (maker-kit's 3d/viewer) takes
+// the tooling's material from here.
 
 import * as THREE from 'three';
-import type { SurfaceMesh } from '../geo/surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 
 /** the page's background (`--bg` in style.css) */
 export const CLEAR_COLOR = 0x1a1214;
@@ -11,8 +12,6 @@ export const TOOLING_COLOR = 0xc9c2b8;
 export const PIECE_COLOR = 0xc98b62;
 /** the axes in the thumbnail, the usual red, green, blue (`--axis-*` in style.css) */
 export const AXIS_COLORS = { x: 0xe5534b, y: 0x57ab5a, z: 0x539bf5 } as const;
-/** the print bed under the tooling: its middle lines and the rest */
-export const BED_COLORS = { center: 0x4a3238, lines: 0x2f2124 } as const;
 
 /** Sky, key and fill lights, and a head lamp on the camera: fixed lights do not reach into a cavity. */
 export function addLights(scene: THREE.Scene, camera: THREE.Camera): void {

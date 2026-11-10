@@ -19,7 +19,7 @@
 // the relief of the mold's floor.
 
 import type { Grid } from './surface';
-import type { IndexedMesh } from './stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 /** What the slump mold and the punch need to know about the piece. */
 export interface PressSource {

@@ -23,7 +23,7 @@
 //
 // Pure: the cutter comes out as meshes; the worker makes them solids.
 
-import type { IndexedMesh } from '../stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
 import { farthestHit, nearestHit, sliceAt } from '../revolve';
 
 /** The mold's edge stands this far under the top of the wall, mm: no coincident faces, the clay cut a hair lower. */

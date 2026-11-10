@@ -7,11 +7,11 @@
 // thread never loads, and the slump mold of a large model is long enough to
 // freeze a tab. The preview waits for a pause in the edits.
 
-import type { IndexedMesh } from './geo/stl';
-import { encodeSTL, parseSTL } from './geo/stl';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
+import { encodeSTL, parseSTL } from 'maker-kit/3d/stl';
 import { flip, placeModel, quarterTurn, sizeOf } from './geo/model';
-import { meshNormals } from './geo/normals';
-import type { SurfaceMesh } from './geo/surface';
+import { meshNormals } from 'maker-kit/3d/mesh';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { mergeMeshes } from './geo/surface';
 import type { Arranged } from './geo/layout';
 import { arrangeOnBed } from './geo/layout';
@@ -33,7 +33,7 @@ import {
   VENT_MIN_MM,
 } from './geo/mold/state';
 import type { Key, Locale } from './i18n';
-import { detectLocale, direction, LOCALES, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
+import { detectLocale, direction, isKey, LOCALES, lowerFirst, messages, setLocale, staticText, t, tDynamic, tm } from './i18n';
 import type { Mode, Settings, Setup } from './state';
 import { defaultSetup, MODES, RECESS_MAX_MM, resetSettings, RESOLUTIONS, sanitizeSettings, sanitizeSetup, SCHEME_CHOICES } from './state';
 import type { KeyValueStorage, Project, StorageWrite } from './storage';
@@ -42,6 +42,7 @@ import type { Control } from 'maker-kit/ui/controls';
 import { renderControls } from 'maker-kit/ui/controls';
 import { el, make } from 'maker-kit/ui/dom';
 import { History } from 'maker-kit/core/history';
+import type { JobProgress } from 'maker-kit/core/progress';
 import { bindHistory } from 'maker-kit/ui/historyKeys';
 import { createLanguagePicker } from 'maker-kit/ui/languagePicker';
 import { createProgress } from 'maker-kit/ui/progress';
@@ -49,10 +50,10 @@ import { setupSheet } from 'maker-kit/ui/sheet';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
 import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileCutControls, tileLand } from './ui/press';
-import { createScene } from './render/scene';
-import type { SceneHandle } from './render/scene';
+import { createViewer } from 'maker-kit/3d/viewer';
+import { toolingMaterial } from './render/look';
 import { createThumb } from './render/thumb';
-import { ToolingClient } from './worker/client';
+import { createToolingClient } from './worker/client';
 import type { JobInfo, JobPart, ToolingJob } from './worker/protocol';
 
 export interface AppOptions {
@@ -66,6 +67,8 @@ const PREVIEW_DELAY_MS = 400;
 /** A browser swallows a burst of downloads — they go one by one. */
 const DOWNLOAD_GAP_MS = 250;
 const EXAMPLE_URL = './examples/teapot.stl';
+/** the smallest bed the view draws under the tooling, mm */
+const PRINT_BED_MM = 200;
 
 /** The tabs: the press molds share one, with a switch of their kind inside. */
 const TABS = [
@@ -182,13 +185,17 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const progress = createProgress(el('progressWrap', HTMLDivElement), { t });
 
   const view = el('view', HTMLCanvasElement);
-  const scene: SceneHandle = createScene(view);
+  // null without WebGL: the panel and the downloads work on without the view
+  const viewer = createViewer(view);
+  // no bed is drawn smaller than a small printer's
+  viewer?.fitBed(PRINT_BED_MM, PRINT_BED_MM);
+  const tooling = toolingMaterial();
   const thumb = createThumb(el('thumb', HTMLCanvasElement), {
     x: el('axisX', HTMLSpanElement),
     y: el('axisY', HTMLSpanElement),
     z: el('axisZ', HTMLSpanElement),
   });
-  const client = new ToolingClient();
+  const client = createToolingClient();
   // the width where kit.css puts the panel beside the view
   const narrow = window.matchMedia('(max-width: 1023px)');
   // on a phone with no model the sheet would cover the invitation; a model opens it
@@ -198,7 +205,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     close: el('sheetClose', HTMLButtonElement),
     view,
     narrow,
-    onInset: (px) => scene.setBottomInset(px),
+    onInset: (px) => viewer?.setInset(px),
     open: !narrow.matches,
   });
   // the sheet's height follows the window
@@ -503,7 +510,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   /** The parts on the bed, in the view. */
   function show(parts: readonly JobPart[]): void {
     laid = parts.length > 0 ? layOut(parts) : null;
-    if (laid) scene.setMeshes(laid.groups.flat());
+    if (laid) viewer?.setMeshes(laid.groups.flat().map((mesh) => ({ mesh, material: tooling })));
   }
 
   function layOut(parts: readonly JobPart[]): Arranged {
@@ -548,7 +555,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     model = { name, raw, placed: raw, heightMm: 0, radiusMm: 0 };
     last = null;
     // the view shows tooling only: the old model's goes, the new one's is on its way
-    scene.setMeshes([]);
+    viewer?.setMeshes([]);
     stageNote.textContent = '';
     // the thumbnail and the turns are what to look at first
     sheet.open();
@@ -585,15 +592,19 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const current = model;
     if (!current) return;
     try {
-      const result = await progress.track((onProgress) =>
+      const done = await progress.track((onProgress) =>
         client.run(job('preview', current), (step) => {
           // the view's bar has no text over a preview: the stages are told in the panel
           onProgress({ step: step.step, total: step.total });
-          if (stamp === generation) auditEl.textContent = t('audit.step', { step: tm(step.label), i: step.step + 1, n: step.total });
+          const { label } = stageOf(step);
+          if (stamp === generation && label) {
+            auditEl.textContent = t('audit.step', { step: t(label.code, label.params), i: step.step + 1, n: step.total });
+          }
         }),
       );
       // null — a fresher job replaced it; stamp — a fresher answer is coming
-      if (!result || stamp !== generation) return;
+      if (!done || stamp !== generation) return;
+      const { result } = done;
       last = result;
       show(result.parts);
       renderResult();
@@ -617,22 +628,26 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     const { mode } = settings;
     const oneFile = inOneFile(settings);
     try {
-      const result = await progress.track((onProgress) => client.run(job('export', current), onProgress), {
+      const done = await progress.track((onProgress) => client.run(job('export', current), (step) => onProgress(stageOf(step))), {
         label: 'progress.export',
         delayMs: 0,
       });
-      if (!result) return;
+      if (!done) return;
+      const { result } = done;
       const blocking = [...result.info.blocking, ...result.parts.flatMap((part) => part.blocking)];
       if (blocking.length > 0) {
         blockersEl.textContent = blocking.map(tm).join('\n');
         return;
       }
       if (oneFile) {
-        download(encodeSTL(mergeMeshes(layOut(result.parts).groups.flat()), { name: mode }), `${current.name}-${mode}.stl`);
+        download(
+          encodeSTL(mergeMeshes(layOut(result.parts).groups.flat()), { brand: 'cast-builder', name: mode }),
+          `${current.name}-${mode}.stl`,
+        );
         return;
       }
       for (const part of result.parts) {
-        download(encodeSTL(part, { name: part.id }), `${current.name}-${part.id}.stl`);
+        download(encodeSTL(part, { brand: 'cast-builder', name: part.id }), `${current.name}-${part.id}.stl`);
         // oxlint-disable-next-line no-await-in-loop -- one by one on purpose: a browser swallows a burst of downloads
         await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_GAP_MS));
       }
@@ -652,11 +667,12 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     finding = true;
     findBtn.disabled = true;
     try {
-      const result = await progress.track((onProgress) => client.run(job('find', current), onProgress), {
+      const done = await progress.track((onProgress) => client.run(job('find', current), (step) => onProgress(stageOf(step))), {
         label: 'split.finding',
         delayMs: 0,
       });
-      if (!result || current !== model) return;
+      if (!done || current !== model) return;
+      const { result } = done;
       const { found } = result;
       if (!found) {
         findNote.textContent = result.info.blocking.map(tm).join('\n');
@@ -789,6 +805,12 @@ function withNormals(mesh: IndexedMesh): SurfaceMesh {
 /** A part's mesh from the worker's answer — the buffers came by transfer, no copies. */
 function toMesh(part: JobPart): SurfaceMesh {
   return { positions: part.positions, indices: part.indices, normals: part.normals };
+}
+
+/** A stage of the worker's job: its codes are the app's keys (the worker is the app's own); anything else is a bar with no text. */
+function stageOf(progress: JobProgress): JobProgress<Key> {
+  const { step, total, label } = progress;
+  return label && isKey(label.code) ? { step, total, label: { code: label.code, params: label.params } } : { step, total };
 }
 
 /** Plain data compared by its text, as the history does. */

@@ -5,7 +5,7 @@ import type { Manifold } from 'manifold-3d';
 import type { CsgApi } from '../geo/csg';
 import { CsgScope, fromManifold, toManifold } from '../geo/csg';
 import type { Message } from '../geo/message';
-import { isValidMesh } from '../geo/stl';
+import { isValidMesh } from 'maker-kit/3d/mesh';
 import { guessMouth, gateRadius } from '../geo/mouth';
 import type { Mouth } from '../geo/mouth';
 import { solidify } from '../geo/solidify';
@@ -16,16 +16,16 @@ import type { PressOptions, ScrewLayout } from '../geo/press';
 import type { PressSource } from '../geo/revolve';
 import { moldCuts, lugSolids, padSolid, screwSolid, tabSolids } from '../geo/screwSolids';
 import { PAD, SCREW, threadPoints } from '../geo/thread';
-import type { SurfaceMesh } from '../geo/surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { mergeMeshes, translateMesh, turnOver } from '../geo/surface';
-import { validateMesh, assessExport } from '../geo/validate';
+import { validateMesh, assessExport } from 'maker-kit/3d/validate';
 import type { Axis, RayMesh } from '../geo/release';
 import type { RimCut } from '../geo/split/rim';
 import { rimCut } from '../geo/split/rim';
 import { findPlane } from '../geo/split/find';
 import { turnForPrint } from '../geo/split/shell';
 import { buildHalf } from '../geo/split';
-import { meshNormals } from '../geo/normals';
+import { meshNormals } from 'maker-kit/3d/mesh';
 import { castRays, releaseCell, releaseDepth } from '../geo/release';
 import { buildTileMold, buildTileParts, tileCutZ, TILE_PROUD_MM } from '../geo/tile';
 import { sizeOf } from '../geo/model';
@@ -481,7 +481,7 @@ function part(id: string, mesh: SurfaceMesh, check: boolean): JobPart {
     positions: mesh.positions,
     indices: mesh.indices,
     normals: mesh.normals,
-    blocking: check ? assessExport(validateMesh(mesh), true).blocking : [],
+    blocking: check ? assessExport(validateMesh(mesh), true).blockers : [],
   };
 }
 

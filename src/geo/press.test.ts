@@ -25,7 +25,7 @@ import { defaultOrientation, placeModel } from './model';
 import { meshSource } from './revolve';
 import type { PressSource } from './revolve';
 import { analyticSource, fixture, withNormals } from './testing';
-import { signedVolume, validateMesh } from './validate';
+import { signedVolume, validateMesh } from 'maker-kit/3d/validate';
 import { LUG_THREAD_MM, PAD, PAD_GAP_MM, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MAX_MM, THREAD_FIT_MIN_MM, THREAD_FIT_MM } from './thread';
 
 const N = 96;

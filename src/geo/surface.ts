@@ -6,6 +6,7 @@
 // duplicated vertices): vertex (i, j) has index j·nu + i, i ∈ [0, nu),
 // j ∈ [0, nv].
 
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import type { Cap, CapSpec } from './bottom';
 import { buildCap } from './bottom';
 
@@ -17,13 +18,6 @@ export interface Grid {
   nv: number;
   /** nu·(nv+1)·3 numbers, layout (j·nu + i)·3 */
   positions: Float32Array;
-}
-
-/** A finished mesh: positions, vertex normals and triangle indices. */
-export interface SurfaceMesh {
-  positions: Float32Array;
-  normals: Float32Array;
-  indices: Uint32Array;
 }
 
 export type GridFn = (u: number, v: number, out: Float64Array) => void;

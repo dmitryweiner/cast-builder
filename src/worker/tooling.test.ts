@@ -3,8 +3,8 @@ import type { CsgApi } from '../geo/csg';
 import { CsgScope, fromManifold, initCSG, toManifold } from '../geo/csg';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture, wavyVase } from '../geo/testing';
-import type { IndexedMesh } from '../geo/stl';
-import { validateMesh } from '../geo/validate';
+import type { IndexedMesh } from 'maker-kit/3d/mesh';
+import { validateMesh } from 'maker-kit/3d/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
@@ -12,7 +12,7 @@ import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
 import { BOSS_R_MM, EAR_MAX_MM, EAR_MIN_MM, EAR_SEAT_MM, buildSlumpShell, punchLayout } from '../geo/press';
 import { lugSolids, screwSolid } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
-import type { SurfaceMesh } from '../geo/surface';
+import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { bodies } from '../geo/pieces';
 import {
   CLEAR_HOLE_MM,
