@@ -16,10 +16,9 @@ import {
   THREAD_FIT_MAX_MM,
   THREAD_FIT_MIN_MM,
   THREAD_FIT_MM,
-  minorRadius,
   threadPoints,
-  threadSection,
 } from './thread';
+import { minorRadius, threadSection } from 'maker-kit/csg/thread';
 
 describe('thread', () => {
   it('is M10 × 2, a 60° profile half a pitch deep', () => {

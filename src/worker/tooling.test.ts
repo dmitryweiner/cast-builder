@@ -14,18 +14,8 @@ import { lugSolids, screwSolid } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
 import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { bodies } from '../geo/pieces';
-import {
-  CLEAR_HOLE_MM,
-  LUG_THREAD_MM,
-  NUT_ROOM,
-  PAD,
-  PAD_GAP_MM,
-  SCREW,
-  THREAD,
-  THREAD_FIT_MAX_MM,
-  THREAD_FIT_MM,
-  minorRadius,
-} from '../geo/thread';
+import { CLEAR_HOLE_MM, LUG_THREAD_MM, NUT_ROOM, PAD, PAD_GAP_MM, SCREW, THREAD, THREAD_FIT_MAX_MM, THREAD_FIT_MM } from '../geo/thread';
+import { minorRadius } from 'maker-kit/csg/thread';
 import { defaultMold } from '../geo/mold/state';
 import { castRays } from '../geo/release';
 import { TILE_KEY_R_MM, TILE_PROUD_MM, skirtEdge } from '../geo/tile';

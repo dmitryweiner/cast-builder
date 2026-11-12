@@ -120,7 +120,8 @@ Regenerate them only on purpose.
     their turn for the print (`shell`, pure), the cut over an open piece's
     rim and inside its mouth (`rim`, pure), the search for the plane
     (`find`, pure), a half assembled (`index`, CSG, worker only);
-  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, tab, gap,
+  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread (maker-kit's
+    `symmetricForm(10, 2)`; its section and rod are the kit's `csg/thread`), tab, gap,
     screw (its neck), stop, the room under the landing, the steel bolt
     (`STEEL_BOLT_MM`); the fit's default and limits; `screwSolids.ts` — the
     threaded rod, the screw, the stop, the mold's lugs and the punch's tabs

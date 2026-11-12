@@ -4,8 +4,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { CsgApi } from 'maker-kit/csg/manifold';
 import { CsgScope, initCSG } from 'maker-kit/csg/manifold';
-import { padSolid, screwSolid, threadRod } from './screwSolids';
-import { CLEAR_HOLE_MM, PAD, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM, threadSection } from './thread';
+import { threadRod, threadSection } from 'maker-kit/csg/thread';
+import { padSolid, screwSolid } from './screwSolids';
+import { CLEAR_HOLE_MM, PAD, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM, THREAD_SLICES } from './thread';
 
 let csg: CsgApi;
 beforeAll(async () => {
@@ -13,11 +14,13 @@ beforeAll(async () => {
 });
 
 const N = 32;
+/** The rods as the app builds them: N points round, THREAD_SLICES slices per turn. */
+const DETAIL = { points: N, slicesPerTurn: THREAD_SLICES };
 
 describe('threadRod', () => {
   it('turns counter-clockwise going up: a right-hand thread', () => {
     const scope = new CsgScope();
-    const rod = threadRod(csg, scope, THREAD, 0, 0, 10, N);
+    const rod = threadRod(csg, scope, THREAD, 0, 0, 10, DETAIL);
     const slice = scope.keep(rod.slice(THREAD.pitch / 4));
     const turned = scope.keep(scope.keep(new csg.CrossSection([threadSection(THREAD, 0, N)], 'Positive')).rotate(90));
     const wrong = scope.keep(scope.keep(new csg.CrossSection([threadSection(THREAD, 0, N)], 'Positive')).rotate(-90));
@@ -62,7 +65,7 @@ describe('screwSolid', () => {
     const scope = new CsgScope();
     const screw = screwSolid(csg, scope, N);
     // the screw's thread is in phase with a rod started at z = −0.5: a hole started a whole number of pitches from there is too
-    const hole = threadRod(csg, scope, THREAD, THREAD_FIT_MM, -0.5, 40, N);
+    const hole = threadRod(csg, scope, THREAD, THREAD_FIT_MM, -0.5, 40, DETAIL);
     // the hole is a lug's, under the neck that stands in the tab
     const block = scope.keep(scope.keep(csg.Manifold.cube([30, 30, 20], true).translate([0, 0, SCREW.neck + 11])).subtract(hole));
     expect(scope.keep(block.intersect(screw)).volume()).toBeLessThan(1e-3);
