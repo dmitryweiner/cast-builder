@@ -55,10 +55,12 @@ import { History } from 'maker-kit/core/history';
 import type { JobProgress } from 'maker-kit/core/progress';
 import { bindHistory } from 'maker-kit/ui/historyKeys';
 import { createLanguagePicker } from 'maker-kit/ui/languagePicker';
+import { renderMessages } from 'maker-kit/ui/messageList';
 import { createProgress } from 'maker-kit/ui/progress';
 import { setupSheet } from 'maker-kit/ui/sheet';
 import { screwControls, screwParams, stopParams } from './ui/screws';
 import { bedControls, inOneFile } from './ui/bed';
+import { messageLines } from './ui/messages';
 import { allowedCatch, catchNote, pressKind, splitControls, splitLand, tileCutControls, tileLand } from './ui/press';
 import { createViewer } from 'maker-kit/3d/viewer';
 import { toolingMaterial } from './render/look';
@@ -185,8 +187,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const bedNote = el('bedNote', HTMLParagraphElement);
   const schemeNote = el('schemeNote', HTMLParagraphElement);
   const partList = el('partList', HTMLUListElement);
-  const warningsEl = el('warnings', HTMLParagraphElement);
-  const blockersEl = el('blockers', HTMLParagraphElement);
+  const messageList = el('messages', HTMLUListElement);
   const auditEl = el('audit', HTMLParagraphElement);
   const exportBtn = el('exportBtn', HTMLButtonElement);
   const turnButtons = ['turnX', 'turnY', 'turnFlip'].map((id) => el(id, HTMLButtonElement));
@@ -444,7 +445,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   function renderResult(): void {
     partList.textContent = '';
     if (!model) {
-      for (const node of [schemeNote, warningsEl, blockersEl, mouthNote, stageNote, bedNote]) node.textContent = '';
+      for (const node of [schemeNote, mouthNote, stageNote, bedNote]) node.textContent = '';
+      renderMessages(messageList, []);
       auditEl.textContent = t('audit.none');
       exportBtn.disabled = true;
       return;
@@ -463,10 +465,10 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
     schemeNote.textContent = [note ? t(note) : info.reason.map(tm).join(' '), catchNote(info.catches, settings.mold.allowedCatchMm)]
       .filter(Boolean)
       .join(' ');
-    warningsEl.textContent = info.warnings.map(tm).join('\n');
-    blockersEl.textContent = [...info.blocking, ...parts.flatMap((part) => part.blocking)].map(tm).join('\n');
+    const blocking = [...info.blocking, ...parts.flatMap((part) => part.blocking)];
+    renderMessages(messageList, messageLines({ blocking, warnings: info.warnings }));
     // the view is empty then, and on a phone the panel may be out of sight
-    stageNote.textContent = parts.length === 0 ? blockersEl.textContent : '';
+    stageNote.textContent = parts.length === 0 ? blocking.map(tm).join('\n') : '';
     const mouth = setup.mouth.auto ? info.mouth : setup.mouth;
     mouthNote.textContent = mouth ? t('mouth.note', { z: mouth.zMm.toFixed(1), d: (mouth.radiusMm * 2).toFixed(1) }) : '';
     bedNote.textContent =
@@ -642,8 +644,9 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       last = null;
       partList.textContent = '';
       auditEl.textContent = '';
-      blockersEl.textContent = t('error.build', { error: message(error) });
-      stageNote.textContent = blockersEl.textContent;
+      const said = t('error.build', { error: message(error) });
+      renderMessages(messageList, messageLines({ error: said, blocking: [], warnings: [] }));
+      stageNote.textContent = said;
       exportBtn.disabled = true;
     }
   }
@@ -665,7 +668,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
       const { result } = done;
       const blocking = [...result.info.blocking, ...result.parts.flatMap((part) => part.blocking)];
       if (blocking.length > 0) {
-        blockersEl.textContent = blocking.map(tm).join('\n');
+        renderMessages(messageList, messageLines({ blocking, warnings: result.info.warnings }));
         return;
       }
       if (oneFile) {
@@ -681,7 +684,8 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
         await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_GAP_MS));
       }
     } catch (error) {
-      blockersEl.textContent = t('error.export', { error: message(error) });
+      const warnings = last?.info.warnings ?? [];
+      renderMessages(messageList, messageLines({ error: t('error.export', { error: message(error) }), blocking: [], warnings }));
     } finally {
       exporting = false;
       exportBtn.textContent = t(EXPORT_LABEL[settings.mode]);

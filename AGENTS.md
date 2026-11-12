@@ -154,7 +154,9 @@ Regenerate them only on purpose.
   `screws.ts` the clamps, the thread, its fit, the print boxes with the
   sizes they print; `bed.ts` the layout on the bed and `inOneFile`;
   `press.ts` the press kind, the allowed undercut, the split plane, the
-  undercuts found). The rest of the page is maker-kit's: the sheet
+  undercuts found; `messages.ts` the panel's one list of messages — a
+  failed job and what blocks the download in red, then the warnings — for
+  maker-kit's `ui/messageList`). The rest of the page is maker-kit's: the sheet
   (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
   the view (`ui/progress`: a preview's after 300 ms with no text, an export's
   and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,

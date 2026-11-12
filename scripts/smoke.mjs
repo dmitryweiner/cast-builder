@@ -37,6 +37,18 @@ async function parts(page, count, timeout = 60000) {
   return page.locator('#partList li').allTextContents();
 }
 
+/**
+ * Waits for a line of the panel's message list in the colour of `severity`
+ * ('bad' blocks the download, 'warn' does not) that says `words`.
+ */
+function message(page, severity, words, timeout = 60000) {
+  return page.waitForFunction(
+    ([kind, text]) => [...document.querySelectorAll(`#messages .message.${kind}`)].some((line) => line.textContent.includes(text)),
+    [severity, words],
+    { timeout },
+  );
+}
+
 /** How many pixels of the model thumbnail differ from its background — 0 is a blank picture. */
 async function thumbPixels(page) {
   return page.evaluate(() => {
@@ -191,7 +203,7 @@ await app.run(
       await page.setInputFiles('#fileInput', fixture('cup-hollow'));
       // the cup bellies out a little: halves and a plate for its wide bottom
       await parts(page, 3);
-      check((await page.locator('#warnings').textContent()).includes('was hollow'), 'no word about filling');
+      await message(page, 'warn', 'was hollow', 1000);
       await mode(page, '#tabMaster', 1);
       const downloads = [];
       page.on('download', (download) => downloads.push(download));
@@ -311,7 +323,7 @@ await app.run(
       check(downloads[0].suggestedFilename() === 'keychain-tile.stl', `file named ${downloads[0].suggestedFilename()}`);
       check(stlBodies(readFileSync(await downloads[0].path())) === 1, 'the tile mold is not one piece');
       await page.click('#turnFlip');
-      await page.waitForFunction(() => document.querySelector('#blockers')?.textContent?.includes('not flat'), null, { timeout: 60000 });
+      await message(page, 'bad', 'not flat');
       check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for a tile face down');
       await context.close();
     });
@@ -399,18 +411,14 @@ await app.run(
 
     await app.step("Clayform's printable files: the teapot fills, the lid asks to be turned, two pieces are refused", async () => {
       const { page, context } = await app.open();
-      const panel = (selector, text) =>
-        page.waitForFunction(([sel, words]) => document.querySelector(sel)?.textContent?.includes(words), [selector, text], {
-          timeout: 60000,
-        });
       await page.setInputFiles('#fileInput', fixture('teapot-hollow'));
-      await panel('#warnings', 'was hollow');
+      await message(page, 'warn', 'was hollow');
       await page.setInputFiles('#fileInput', fixture('lid-printed'));
-      await panel('#warnings', 'open at the bottom');
+      await message(page, 'warn', 'open at the bottom');
       await page.click('#turnFlip');
-      await panel('#warnings', 'was hollow');
+      await message(page, 'warn', 'was hollow');
       await page.setInputFiles('#fileInput', fixture('teapot-lid-beside'));
-      await panel('#blockers', 'separate pieces');
+      await message(page, 'bad', 'separate pieces');
       // nothing to show in the view: it says why
       check((await page.locator('#stageNote').textContent()).includes('separate pieces'), 'the empty view gives no reason');
       check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for two pieces');
@@ -424,9 +432,7 @@ await app.run(
       const count = stl.readUInt32LE(80) - 1;
       const open = Buffer.concat([stl.subarray(0, 80), Buffer.from(new Uint32Array([count]).buffer), stl.subarray(84, 84 + count * 50)]);
       await page.setInputFiles('#fileInput', { name: 'open.stl', mimeType: 'model/stl', buffer: open });
-      await page.waitForFunction(() => document.querySelector('#blockers')?.textContent?.includes('not a closed solid'), null, {
-        timeout: 60000,
-      });
+      await message(page, 'bad', 'not a closed solid');
       check(await page.locator('#exportBtn').isDisabled(), 'export is enabled for a broken model');
       await context.close();
     });
