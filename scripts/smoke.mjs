@@ -22,7 +22,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { check, launch, parseArgs, VIEWPORTS } from 'maker-kit/harness';
+import { check, launch, offline, parseArgs, VIEWPORTS } from 'maker-kit/harness';
 
 const flags = parseArgs(process.argv.slice(2));
 const preview = flags.has('preview');
@@ -608,13 +608,11 @@ await app.run(
 
     if (preview) {
       await app.step('works offline after the first visit, the worker and its WASM too', async () => {
-        const { page, context } = await app.open();
-        await page.evaluate(() => navigator.serviceWorker.ready);
-        // the first visit warms the cache; the worker chunk is in the precache list
-        await page.reload();
-        await context.setOffline(true);
-        await page.reload();
-        check((await page.locator('h1').textContent()) === 'Bring a ready piece', 'the app did not load offline');
+        // the first visit warms the cache; the worker chunk and its WASM are in the precache list
+        const { page, context } = await offline(app, {
+          ready: async (loaded) =>
+            check((await loaded.locator('h1').textContent()) === 'Bring a ready piece', 'the app did not load offline'),
+        });
         await page.click('#exampleBtn');
         await parts(page, 2);
         await context.close();

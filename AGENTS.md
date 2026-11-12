@@ -169,7 +169,8 @@ Regenerate them only on purpose.
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.
 - `scripts/smoke.mjs` — the smoke on maker-kit's harness (`maker-kit/harness`:
-  flags, its vite server on ports 5291/4291, pages, steps and the run);
+  flags, its vite server on ports 5291/4291, pages, steps and the run, the
+  offline check);
   `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
   printable fixtures from clayform's sources, run with clayform's vite-node
   (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`);
@@ -204,7 +205,9 @@ Regenerate them only on purpose.
 - `plans/PLAN-TILE-CUT.md` — the tile mold cut in two: a base and a frame
   held by a skirt.
 - The move onto maker-kit (M2) and 📄 New after it (a blank project, the
-  model in the history by reference): maker-kit's `plans/PLAN.md`.
+  model in the history by reference), then onto v0.4.1 (its K7: csg, the
+  thread, the message list, the job guard, the storage banner, the offline
+  check): maker-kit's `plans/PLAN.md`.
 
 ## Architectural invariants
 
