@@ -51,19 +51,15 @@ const PAD_STEP_MM = PAD.d + 4;
  * Brings anything to a valid job, or null when the model itself is broken:
  * the worker's boundary is an outer boundary like the UI.
  */
+export function sanitizeJob(raw: RawJob): ToolingJob;
+export function sanitizeJob(raw: unknown): ToolingJob | null;
 export function sanitizeJob(raw: unknown): ToolingJob | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const source: Record<string, unknown> = { ...raw };
-  const model = source.model;
-  if (typeof model !== 'object' || model === null || !('positions' in model) || !('indices' in model)) return null;
-  const { positions, indices } = model;
-  if (!(positions instanceof Float32Array) || !(indices instanceof Uint32Array)) return null;
-  if (!isValidMesh({ positions, indices })) return null;
-  const settings = sanitizeSettings(source);
-  const setup = sanitizeSetup(source);
+  if (!isRawJob(raw)) return null;
+  const settings = sanitizeSettings(raw);
+  const setup = sanitizeSetup(raw);
   return {
-    kind: source.kind === 'export' || source.kind === 'find' ? source.kind : 'preview',
-    model: { positions, indices },
+    kind: raw.kind === 'export' || raw.kind === 'find' ? raw.kind : 'preview',
+    model: { positions: raw.model.positions, indices: raw.model.indices },
     mode: settings.mode,
     mold: settings.mold,
     scheme: settings.scheme,
@@ -72,6 +68,23 @@ export function sanitizeJob(raw: unknown): ToolingJob | null {
     plug: setup.plug,
     split: setup.split,
   };
+}
+
+/** What the worker takes: an object whose model is a valid mesh; the rest is the sanitizers'. */
+export interface RawJob extends Record<string, unknown> {
+  model: { positions: Float32Array; indices: Uint32Array };
+}
+
+/**
+ * The worker's guard (maker-kit's `serveJobs` answers what it refuses with
+ * an error): typed arrays, indices in range, finite coordinates.
+ */
+export function isRawJob(raw: unknown): raw is RawJob {
+  if (typeof raw !== 'object' || raw === null || !('model' in raw)) return false;
+  const model = raw.model;
+  if (typeof model !== 'object' || model === null || !('positions' in model) || !('indices' in model)) return false;
+  const { positions, indices } = model;
+  return positions instanceof Float32Array && indices instanceof Uint32Array && isValidMesh({ positions, indices });
 }
 
 /**

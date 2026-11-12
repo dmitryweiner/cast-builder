@@ -8,7 +8,7 @@ import { validateMesh } from 'maker-kit/3d/validate';
 import { defaultSettings, defaultSetup } from '../state';
 import type { Mode } from '../state';
 import type { JobProgress, ToolingJob } from './protocol';
-import { pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
+import { isRawJob, pressOptions, runJob, sanitizeJob, slumpTooling } from './tooling';
 import { BOSS_R_MM, EAR_MAX_MM, EAR_MIN_MM, EAR_SEAT_MM, buildSlumpShell, punchLayout } from '../geo/press';
 import { lugSolids, screwSolid } from '../geo/screwSolids';
 import { meshSource } from '../geo/revolve';
@@ -811,6 +811,24 @@ describe('split mold', () => {
     const { parts, info } = runJob(csg, jobFor('lid-printed', { mode: 'split' }));
     expect(parts).toEqual([]);
     expect(info.blocking.map((m) => m.code)).toEqual(['model.openBottom']);
+  });
+});
+
+describe('isRawJob', () => {
+  it("is the worker's guard: an object with a valid model, whatever the rest", () => {
+    expect(isRawJob(null)).toBe(false);
+    expect(isRawJob('preview')).toBe(false);
+    expect(isRawJob({ kind: 'preview' })).toBe(false);
+    expect(isRawJob({ model: { positions: [0, 0, 0], indices: [0, 0, 0] } })).toBe(false);
+    expect(isRawJob({ model: { positions: new Float32Array(9), indices: new Uint32Array([0, 1, 5]) } })).toBe(false);
+    expect(isRawJob({ ...jobFor('bowl'), mode: 'vessel', resolution: 5 })).toBe(true);
+  });
+
+  it('a job it takes is always brought to a job', () => {
+    const raw: unknown = { model: jobFor('bowl').model };
+    if (!isRawJob(raw)) throw new Error('refused');
+    const job: ToolingJob = sanitizeJob(raw);
+    expect(job.kind).toBe('preview');
   });
 });
 

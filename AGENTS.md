@@ -206,9 +206,11 @@ Regenerate them only on purpose.
 - **The main thread never loads the WASM.** All CSG is in `src/worker/`;
   `app.ts` takes `geo/mold/analyze` and `geo/mold/state` directly, never the
   `geo/mold` facade. CI greps the main chunk for `manifold`.
-- The worker's boundary is an outer boundary: `sanitizeJob` checks the mesh
-  (typed arrays, indices in range, finite coordinates) and passes the rest
-  through the same sanitizers as the UI and localStorage. Sanitizers never
+- The worker's boundary is an outer boundary: `isRawJob`, the guard given
+  to maker-kit's `serveJobs`, checks the mesh (typed arrays, indices in
+  range, finite coordinates) — a job it refuses is answered with an error;
+  `sanitizeJob` passes the rest through the same sanitizers as the UI and
+  localStorage. Sanitizers never
   throw and are idempotent — tests check it.
 - Manifold objects are not collected by the GC: everything made goes into a
   `CsgScope`, which is disposed.
