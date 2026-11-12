@@ -128,7 +128,8 @@ Regenerate them only on purpose.
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
-  - `csg.ts` — the bridge to manifold-3d; `surface.ts`, `bottom.ts`,
+  - the bridge to manifold-3d is maker-kit's `csg/manifold` (`initCSG`,
+    `CsgScope`, `toManifold`, `fromManifold`, `outerOutline`); `surface.ts`, `bottom.ts`,
     `lathe.ts` — mesh assembly; `layout.ts` — parts on the bed in rows
     (`arrangeOnBed`); `message.ts` — messages as codes (the app's and the
     kit's);

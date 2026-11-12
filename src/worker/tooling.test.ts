@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from '../geo/csg';
-import { CsgScope, fromManifold, initCSG, toManifold } from '../geo/csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG, toManifold } from 'maker-kit/csg/manifold';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from '../geo/model';
 import { fixture, wavyVase } from '../geo/testing';
 import type { IndexedMesh } from 'maker-kit/3d/mesh';

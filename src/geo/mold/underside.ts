@@ -19,8 +19,8 @@
 // the erosion moves the void off the side walls by the same thickness itself.
 
 import type { Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from '../csg';
-import { toManifold } from '../csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
+import { toManifold } from 'maker-kit/csg/manifold';
 
 /** Step of the height map, mm: a thinner shell is not needed, a finer step costs more. */
 const CELL_MM = 1;

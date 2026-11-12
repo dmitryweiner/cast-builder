@@ -9,8 +9,8 @@
 
 import type { Manifold } from 'manifold-3d';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from '../csg';
-import { CsgScope, fromManifold, initCSG, toManifold } from '../csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG, toManifold } from 'maker-kit/csg/manifold';
 import { defaultOrientation, placeModel } from '../model';
 import { guessMouth } from '../mouth';
 import { fixture, revolveMesh, withNormals } from '../testing';

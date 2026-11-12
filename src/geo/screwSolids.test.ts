@@ -2,8 +2,8 @@
 // into its own printed hole without touching it and still bites.
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from './csg';
-import { CsgScope, initCSG } from './csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, initCSG } from 'maker-kit/csg/manifold';
 import { padSolid, screwSolid, threadRod } from './screwSolids';
 import { CLEAR_HOLE_MM, PAD, SCREW, TAB_T_MM, THREAD, THREAD_FIT_MM, threadSection } from './thread';
 

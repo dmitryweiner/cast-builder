@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from './csg';
-import { CsgScope, initCSG, toManifold } from './csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, initCSG, toManifold } from 'maker-kit/csg/manifold';
 import { IDENTITY_TURN, defaultOrientation, flip, placeModel } from './model';
 import { guessMouth } from './mouth';
 import { solidify } from './solidify';

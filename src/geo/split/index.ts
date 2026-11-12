@@ -12,8 +12,8 @@
 // Only the worker imports this module: it needs the CSG.
 
 import type { Manifold, Mat4 } from 'manifold-3d';
-import type { CsgApi, CsgScope } from '../csg';
-import { outerOutline, toManifold } from '../csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
+import { outerOutline, toManifold } from 'maker-kit/csg/manifold';
 import type { Axis, RayGrid } from '../release';
 import { reachOf } from '../release';
 import { shellHeights, shellMesh } from './shell';

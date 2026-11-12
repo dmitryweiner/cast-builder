@@ -20,7 +20,7 @@
 // has to come solid.
 
 import type { CrossSection, Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from './csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
 
 export type SolidStatus = 'solid' | 'filled' | 'open' | 'openBottom';
 

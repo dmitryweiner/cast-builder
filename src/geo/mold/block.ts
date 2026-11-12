@@ -6,7 +6,7 @@
 // parting planes: bumps on one part, matching dimples on the other.
 
 import type { Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from '../csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
 import { dropVoids } from '../solidify';
 import type { MoldScheme } from './analyze';
 import type { MoldState } from './state';

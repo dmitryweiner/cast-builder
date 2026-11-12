@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from './csg';
-import { CsgScope, fromManifold, initCSG } from './csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG } from 'maker-kit/csg/manifold';
 import { castRays, releaseDepth, reachOf } from './release';
 import { fixture } from './testing';
 

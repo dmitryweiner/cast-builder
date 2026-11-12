@@ -2,8 +2,8 @@
 // it — so the tests run it in Node with the real CSG.
 
 import type { Manifold } from 'manifold-3d';
-import type { CsgApi } from '../geo/csg';
-import { CsgScope, fromManifold, toManifold } from '../geo/csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, toManifold } from 'maker-kit/csg/manifold';
 import type { Message } from '../geo/message';
 import { isValidMesh } from 'maker-kit/3d/mesh';
 import { guessMouth, gateRadius } from '../geo/mouth';

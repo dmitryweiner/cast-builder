@@ -3,7 +3,7 @@
 // screw and the stop. Worker only; the sizes come from thread.ts.
 
 import type { CrossSection, Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from './csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
 import type { ScrewLayout } from './press';
 import { BOSS_R_MM } from './press';
 import type { ThreadForm } from './thread';

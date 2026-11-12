@@ -5,7 +5,7 @@
 // tooling.ts.
 
 import { serveJobs } from 'maker-kit/worker/serve';
-import { initCSG } from '../geo/csg';
+import { initCSG } from 'maker-kit/csg/manifold';
 import { runJob, sanitizeJob } from './tooling';
 import type { JobResult } from './protocol';
 

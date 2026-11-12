@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Manifold } from 'manifold-3d';
-import type { CsgApi } from './csg';
-import { CsgScope, fromManifold, initCSG, toManifold } from './csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG, toManifold } from 'maker-kit/csg/manifold';
 import { defaultOrientation, placeModel } from './model';
 import { fixture } from './testing';
 import { validateMesh } from 'maker-kit/3d/validate';
