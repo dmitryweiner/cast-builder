@@ -34,6 +34,9 @@ export const en = {
 
   'model.info': '{name} · {dims} mm · {k}k triangles',
   'model.notKept': 'The model is too large to keep: open it again after a reload.',
+  // what to do when the browser keeps nothing, or not the latest (the kit's banner says what failed)
+  'storage.advice.blocked': 'After a reload the model and the settings are gone: open the model again and set them anew.',
+  'storage.advice.full': 'After a reload the latest settings are gone: set them again.',
   'model.pieces':
     'There are {n} separate pieces in the file: a mold is made for one. Export each piece on its own — in Clayform untick “Lid alongside”.',
   'model.notSolid': 'The model is not a closed solid: it has holes or loose edges. Repair it in the program it came from.',

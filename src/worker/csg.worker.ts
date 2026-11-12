@@ -5,8 +5,8 @@
 // tooling.ts.
 
 import { serveJobs } from 'maker-kit/worker/serve';
-import { initCSG } from '../geo/csg';
-import { runJob, sanitizeJob } from './tooling';
+import { initCSG } from 'maker-kit/csg/manifold';
+import { isRawJob, runJob, sanitizeJob, type RawJob } from './tooling';
 import type { JobResult } from './protocol';
 
 /** The WASM loads as soon as the worker is made: the client makes it lazily, when there is work to do. */
@@ -20,14 +20,13 @@ void ready.then(() => {
   loaded = true;
 });
 
-serveJobs<unknown, JobResult>({
-  // Any object is taken and checked by the sanitizer, which answers an
-  // unknown job with an error. Silence is never an answer: the client waits
-  // for exactly one reply per job and would wait forever.
-  isJob: (job): job is unknown => typeof job === 'object' && job !== null,
+serveJobs<RawJob, JobResult>({
+  // The outer boundary: a job with no valid model is refused, and the kit
+  // answers it with an error (the client waits for one reply per job); the
+  // rest of a job taken is brought to a valid one by the sanitizers.
+  isJob: isRawJob,
   async handle(raw, progress) {
     const job = sanitizeJob(raw);
-    if (!job) throw new Error('the model in the job is broken');
     if (!loaded) progress({ step: 0, total: 1, label: { code: 'progress.loading' } });
     const result = runJob(await ready, job, progress);
     // the buffers are transferred, not copied: at export detail that is tens of megabytes

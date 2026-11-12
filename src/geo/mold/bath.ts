@@ -11,7 +11,7 @@
 // the one the analyzer chose.
 
 import type { Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from '../csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
 import type { BlockPart } from './block';
 import type { MoldState } from './state';
 import { undersideVoid } from './underside';

@@ -120,7 +120,8 @@ Regenerate them only on purpose.
     their turn for the print (`shell`, pure), the cut over an open piece's
     rim and inside its mouth (`rim`, pure), the search for the plane
     (`find`, pure), a half assembled (`index`, CSG, worker only);
-  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread, tab, gap,
+  - `thread.ts` — the clamps' frozen sizes: M10 × 2 thread (maker-kit's
+    `symmetricForm(10, 2)`; its section and rod are the kit's `csg/thread`), tab, gap,
     screw (its neck), stop, the room under the landing, the steel bolt
     (`STEEL_BOLT_MM`); the fit's default and limits; `screwSolids.ts` — the
     threaded rod, the screw, the stop, the mold's lugs and the punch's tabs
@@ -128,7 +129,8 @@ Regenerate them only on purpose.
   - `mold/` — undercut analysis and the parting scheme (`analyze`), plaster
     blocks and the plug (`block`), pour boxes (`bath`) and the void under
     their positive (`underside`), parameters (`state`), the facade (`index`);
-  - `csg.ts` — the bridge to manifold-3d; `surface.ts`, `bottom.ts`,
+  - the bridge to manifold-3d is maker-kit's `csg/manifold` (`initCSG`,
+    `CsgScope`, `toManifold`, `fromManifold`, `outerOutline`); `surface.ts`, `bottom.ts`,
     `lathe.ts` — mesh assembly; `layout.ts` — parts on the bed in rows
     (`arrangeOnBed`); `message.ts` — messages as codes (the app's and the
     kit's);
@@ -152,17 +154,23 @@ Regenerate them only on purpose.
   `screws.ts` the clamps, the thread, its fit, the print boxes with the
   sizes they print; `bed.ts` the layout on the bed and `inOneFile`;
   `press.ts` the press kind, the allowed undercut, the split plane, the
-  undercuts found). The rest of the page is maker-kit's: the sheet
+  undercuts found; `messages.ts` the panel's one list of messages — a
+  failed job and what blocks the download in red, then the warnings — for
+  maker-kit's `ui/messageList`). The rest of the page is maker-kit's: the sheet
   (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
   the view (`ui/progress`: a preview's after 300 ms with no text, an export's
   and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,
-  `ui/historyKeys`), the language (`ui/languagePicker`). 📄 New in the top
+  `ui/historyKeys`), the language (`ui/languagePicker`), the storage
+  banner (`ui/banner`: the kit says what the browser did not keep, Cast
+  Builder's `storage.advice.*` what to do — it has no project file; the
+  model's own "too large to keep" note stays in the Model card). 📄 New in the top
   bar is the app's: it has no presets, so a blank project is no model.
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current
   language; templates are the kit's `core/format`.
 - `scripts/smoke.mjs` — the smoke on maker-kit's harness (`maker-kit/harness`:
-  flags, its vite server on ports 5291/4291, pages, steps and the run);
+  flags, its vite server on ports 5291/4291, pages, steps and the run, the
+  offline check);
   `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
   printable fixtures from clayform's sources, run with clayform's vite-node
   (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`);
@@ -197,16 +205,20 @@ Regenerate them only on purpose.
 - `plans/PLAN-TILE-CUT.md` — the tile mold cut in two: a base and a frame
   held by a skirt.
 - The move onto maker-kit (M2) and 📄 New after it (a blank project, the
-  model in the history by reference): maker-kit's `plans/PLAN.md`.
+  model in the history by reference), then onto v0.4.1 (its K7: csg, the
+  thread, the message list, the job guard, the storage banner, the offline
+  check): maker-kit's `plans/PLAN.md`.
 
 ## Architectural invariants
 
 - **The main thread never loads the WASM.** All CSG is in `src/worker/`;
   `app.ts` takes `geo/mold/analyze` and `geo/mold/state` directly, never the
   `geo/mold` facade. CI greps the main chunk for `manifold`.
-- The worker's boundary is an outer boundary: `sanitizeJob` checks the mesh
-  (typed arrays, indices in range, finite coordinates) and passes the rest
-  through the same sanitizers as the UI and localStorage. Sanitizers never
+- The worker's boundary is an outer boundary: `isRawJob`, the guard given
+  to maker-kit's `serveJobs`, checks the mesh (typed arrays, indices in
+  range, finite coordinates) — a job it refuses is answered with an error;
+  `sanitizeJob` passes the rest through the same sanitizers as the UI and
+  localStorage. Sanitizers never
   throw and are idempotent — tests check it.
 - Manifold objects are not collected by the GC: everything made goes into a
   `CsgScope`, which is disposed.

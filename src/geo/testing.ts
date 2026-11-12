@@ -9,8 +9,8 @@ import type { SurfaceMesh } from 'maker-kit/3d/mesh';
 import { assembleMesh, sampleGrid } from './surface';
 import { meshNormals } from 'maker-kit/3d/mesh';
 import type { PressSource } from './revolve';
-import type { CsgApi } from './csg';
-import { CsgScope, fromManifold, toManifold } from './csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, toManifold } from 'maker-kit/csg/manifold';
 
 /**
  * Fixtures are meshes built by clayform's core at 48 segments (see

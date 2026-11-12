@@ -26,8 +26,8 @@
 // Only the worker imports this module: it needs the CSG.
 
 import type { CrossSection, Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from './csg';
-import { outerOutline } from './csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
+import { outerOutline } from 'maker-kit/csg/manifold';
 import type { IndexedMesh } from 'maker-kit/3d/mesh';
 
 /** How far the back of the tile stands over the rim, mm. */

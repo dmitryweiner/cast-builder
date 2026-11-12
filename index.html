@@ -70,6 +70,8 @@
       </div>
       <!-- the language picker (maker-kit's ui/languagePicker) is appended here -->
     </header>
+    <!-- what the browser's storage failed to keep (maker-kit's ui/banner) -->
+    <div id="storageBanner" class="banner" hidden></div>
     <div id="content" class="workspace">
       <main id="stage" class="view">
         <canvas id="view"></canvas>
@@ -205,8 +207,7 @@
           <div class="sub">
             <p id="schemeNote" class="note"></p>
             <ul id="partList" class="parts"></ul>
-            <p id="warnings" class="warnings"></p>
-            <p id="blockers" class="blockers"></p>
+            <ul id="messages" class="messages" hidden></ul>
             <p id="audit" class="note"></p>
             <button id="exportBtn" type="button" class="btn primary wide" disabled>Export pour boxes</button>
           </div>

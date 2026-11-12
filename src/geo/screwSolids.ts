@@ -3,29 +3,19 @@
 // screw and the stop. Worker only; the sizes come from thread.ts.
 
 import type { CrossSection, Manifold } from 'manifold-3d';
-import type { CsgApi, CsgScope } from './csg';
+import type { CsgApi, CsgScope } from 'maker-kit/csg/manifold';
 import type { ScrewLayout } from './press';
 import { BOSS_R_MM } from './press';
-import type { ThreadForm } from './thread';
-import { CLEAR_HOLE_MM, NUT_ROOM, PAD, SCREW, THREAD, THREAD_SLICES, minorRadius, threadSection } from './thread';
+import { minorRadius, threadRod, type ThreadDetail } from 'maker-kit/csg/thread';
+import { CLEAR_HOLE_MM, NUT_ROOM, PAD, SCREW, THREAD, THREAD_SLICES } from './thread';
 
 /** Segments of a full turn for the cavity a lug keeps out of and the columns cut off it. */
 const ROUND_SEGMENTS = 192;
 /** Segments of a boss. */
 const BOSS_SEGMENTS = 48;
 
-/**
- * A threaded rod from z0 to z1 along z: the thread's section extruded with
- * a twist of 360° per pitch, THREAD_SLICES slices per turn — its vertices
- * run along the helix. The section at z0 is the section of `threadSection`:
- * rods started a whole number of pitches apart are in phase.
- */
-export function threadRod(csg: CsgApi, scope: CsgScope, form: ThreadForm, grow: number, z0: number, z1: number, n: number): Manifold {
-  const turns = (z1 - z0) / form.pitch;
-  const section = scope.keep(new csg.CrossSection([threadSection(form, grow, n)], 'Positive'));
-  const rod = scope.keep(section.extrude(z1 - z0, Math.max(1, Math.round(turns * THREAD_SLICES)), 360 * turns));
-  return scope.keep(rod.translate([0, 0, z0]));
-}
+/** The kit's thread rod at `n` points round its section, THREAD_SLICES slices per turn. */
+const detail = (n: number): ThreadDetail => ({ points: n, slicesPerTurn: THREAD_SLICES });
 
 /**
  * The printed screw in its own frame: the head from z = −headH to 0, the
@@ -71,7 +61,7 @@ export function screwSolid(csg: CsgApi, scope: CsgScope, n: number): Manifold {
     [0, runOut],
   ]);
   // the thread from half a millimetre into the run-out: its crests never lie on the neck's surface
-  const thread = threadRod(csg, scope, THREAD, 0, -0.5, SCREW.shank, n);
+  const thread = threadRod(csg, scope, THREAD, 0, -0.5, SCREW.shank, detail(n));
   const chamfer = R + 0.5 - SCREW.tipR;
   const outline = revolved([
     [0, SCREW.neck + 0.5],
@@ -168,7 +158,7 @@ export function lugSolids(csg: CsgApi, scope: CsgScope, layout: ScrewLayout, n: 
   const clay = column(csg, scope, layout.seatInMm, layout.shelfZ, z1 + 1);
   // the thread leaves the lug through the flat landing: whole teeth, no arches over a slanted cut
   const rod = layout.threaded
-    ? threadRod(csg, scope, THREAD, layout.fitMm, layout.landingZ - 1, z1, n)
+    ? threadRod(csg, scope, THREAD, layout.fitMm, layout.landingZ - 1, z1, detail(n))
     : column(csg, scope, layout.holeMm, layout.landingZ - 1, z1, Math.round(ROUND_SEGMENTS / 6));
   const support = scope.keep(
     scope.keep(new csg.CrossSection([layout.support.map(({ r, z }): [number, number] => [r, z])], 'Positive')).revolve(ROUND_SEGMENTS),

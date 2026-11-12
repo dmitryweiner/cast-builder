@@ -94,22 +94,8 @@
   color: var(--muted);
   font-size: var(--font-tiny);
 }
-.note:empty,
-.warnings:empty,
-.blockers:empty {
+.note:empty {
   display: none;
-}
-.warnings,
-.blockers {
-  margin: 6px 0;
-  font-size: var(--font-tiny);
-  white-space: pre-line;
-}
-.warnings {
-  color: var(--warn);
-}
-.blockers {
-  color: var(--bad);
 }
 #splitCard .btn,
 .sub .btn {

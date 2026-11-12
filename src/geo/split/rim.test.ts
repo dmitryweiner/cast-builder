@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from '../csg';
-import { CsgScope, fromManifold, initCSG, toManifold } from '../csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG, toManifold } from 'maker-kit/csg/manifold';
 import { placeModel, defaultOrientation } from '../model';
 import { solidify } from '../solidify';
 import { fixture, wavyVase } from '../testing';

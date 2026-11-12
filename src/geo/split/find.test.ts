@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { CsgApi } from '../csg';
-import { CsgScope, fromManifold, initCSG } from '../csg';
+import type { CsgApi } from 'maker-kit/csg/manifold';
+import { CsgScope, fromManifold, initCSG } from 'maker-kit/csg/manifold';
 import { placeModel, IDENTITY_TURN } from '../model';
 import { findPlane, spinMesh } from './find';
 
