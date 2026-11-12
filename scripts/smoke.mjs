@@ -163,6 +163,23 @@ await app.run(
       await context.close();
     });
 
+    await app.step("a browser that keeps nothing says so, with Cast Builder's advice", async () => {
+      const { page, context } = await app.open({
+        script: () => {
+          Storage.prototype.setItem = () => {
+            throw new DOMException('denied', 'SecurityError');
+          };
+        },
+      });
+      check(await page.locator('#storageBanner').isHidden(), 'the banner is shown before anything was refused');
+      await page.click('#tabMaster');
+      await page.waitForFunction(() => !document.querySelector('#storageBanner')?.hidden, null, { timeout: 5000 });
+      const note = await page.locator('#storageBanner').textContent();
+      check(note.includes('does not keep your project') && note.includes('open the model again'), `the banner says: ${note}`);
+      check(await page.locator('#storageBanner.bad').isVisible(), 'a browser that keeps nothing is not in the blocker colour');
+      await context.close();
+    });
+
     await app.step('the project survives a reload; Reset puts the settings back, the model, the language and the tab stay', async () => {
       const { page, context } = await app.open();
       await page.setInputFiles('#fileInput', fixture('bowl'));

@@ -160,7 +160,10 @@ Regenerate them only on purpose.
   (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
   the view (`ui/progress`: a preview's after 300 ms with no text, an export's
   and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,
-  `ui/historyKeys`), the language (`ui/languagePicker`). 📄 New in the top
+  `ui/historyKeys`), the language (`ui/languagePicker`), the storage
+  banner (`ui/banner`: the kit says what the browser did not keep, Cast
+  Builder's `storage.advice.*` what to do — it has no project file; the
+  model's own "too large to keep" note stays in the Model card). 📄 New in the top
   bar is the app's: it has no presets, so a blank project is no model.
 - `src/i18n/` — `en.ts` defines the keys (maker-kit's `kit.*` strings spread
   in), `ru.ts` follows; `index.ts` — locales, detection, the current

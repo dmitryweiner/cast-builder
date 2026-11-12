@@ -48,6 +48,7 @@ import {
 } from './state';
 import type { KeyValueStorage, StorageWrite } from './storage';
 import { loadProject, loadSavedModel, removeModel, saveModel, saveProject } from './storage';
+import { renderBanner } from 'maker-kit/ui/banner';
 import type { Control } from 'maker-kit/ui/controls';
 import { renderControls } from 'maker-kit/ui/controls';
 import { el, make } from 'maker-kit/ui/dom';
@@ -173,6 +174,7 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
   const fileInput = el('fileInput', HTMLInputElement);
   const modelInfo = el('modelInfo', HTMLParagraphElement);
   const modelNote = el('modelNote', HTMLParagraphElement);
+  const storageBanner = el('storageBanner', HTMLDivElement);
   const modelControls = el('modelControls', HTMLDivElement);
   const toolingControls = el('toolingControls', HTMLDivElement);
   const splitCard = el('splitCard', HTMLDivElement);
@@ -480,9 +482,18 @@ export function startApp({ storage = null, languages = [] }: AppOptions = {}): v
 
   // ---- state changes ----
 
-  /** Everything but the model itself, on every change: a reload opens the project as it was. */
+  /**
+   * Everything but the model itself, on every change: a reload opens the
+   * project as it was. The banner says when the browser refuses it, and goes
+   * once a write works.
+   */
   function save(): void {
-    saveProject(storage, { locale: chosenLocale, settings, setup });
+    const project = saveProject(storage, { locale: chosenLocale, settings, setup });
+    renderBanner(
+      storageBanner,
+      { project, preset: null },
+      { t, advice: { blocked: 'storage.advice.blocked', full: 'storage.advice.full' }, onDismiss: () => {} },
+    );
   }
 
   /** An edit of the project: `final` is one undo step, the frames of a drag are not. */
