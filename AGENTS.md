@@ -198,6 +198,9 @@ Regenerate them only on purpose.
 - `plans/PLAN-CLAMP-HARDWARE.md` — the second test print (screws tore at the
   head): a landing under the lugs for steel, the thread optional, stops on
   their own, the screw's neck, the sizes in the panel.
+- `plans/TODO-SERVICE-WORKER.md` — the service worker is the template's old
+  one (no `skipWaiting`, no update on return, no reload): an open page
+  never gets a new version; the fix from the template (open).
 - `plans/PLAN-PRESS-MOLDS.md` — press molds with no punch: a tile mold
   (one part, flat plates with relief) and a two-part press mold for pieces
   that are not round (shells as height fields over the plane, the release
