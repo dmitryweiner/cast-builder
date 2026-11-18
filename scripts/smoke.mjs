@@ -10,17 +10,18 @@
 // the model turned and spun by a preset, language detection and memory, the
 // panel as a sheet and no horizontal scroll on a phone, no console errors. With --preview it runs against a fresh
 // production build and also checks that the app — the worker and its WASM
-// included — works offline.
+// included — works offline, and that a new deploy reaches a page already
+// open (phones suspend pages, never close them) with the project intact.
 //
 //   npm run smoke               # dev server
-//   npm run smoke -- --preview  # production build + offline check
+//   npm run smoke -- --preview  # production build + offline and update checks
 //   npm run smoke -- --shots    # also saves shots/<viewport>-<locale>.png
 //
 // Prints one line per step, with the time of each build; exits 1 on the
 // first failed step or on any console error. New checks are new steps
 // here, not new scripts.
 
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { check, launch, offline, parseArgs, VIEWPORTS } from 'maker-kit/harness';
 
@@ -614,6 +615,35 @@ await app.run(
             check((await loaded.locator('h1').textContent()) === 'Bring a ready piece', 'the app did not load offline'),
         });
         await page.click('#exampleBtn');
+        await parts(page, 2);
+        await context.close();
+      });
+
+      await app.step('a new deploy reaches an open page; its reload mid-edit loses nothing', async () => {
+        const { page, context } = await app.open();
+        await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+        await page.setInputFiles('#fileInput', fixture('bowl'));
+        await mode(page, '#tabSlump', 2);
+        await page.click('#model_spin_v90');
+        const turned = await page.locator('#modelInfo').textContent();
+        await page.evaluate(() => (window.oldPage = true));
+        // a changed sw.js is what a deploy looks like to the browser
+        const worker = resolve(import.meta.dirname, '../dist/sw.js');
+        const original = readFileSync(worker, 'utf8');
+        appendFileSync(worker, `\n// deploy ${Date.now()}\n`);
+        try {
+          const reloaded = page.waitForEvent('load', { timeout: 10_000 }).catch(() => null);
+          // what a phone does when the user returns to a suspended page
+          await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+          check((await reloaded) !== null, 'the open page never switched to the new version');
+          check((await page.evaluate(() => window.oldPage)) === undefined, 'the page was not reloaded');
+        } finally {
+          writeFileSync(worker, original);
+        }
+        await page.locator('#thumbBox').waitFor();
+        check((await page.locator('#modelInfo').textContent()) === turned, 'the model was lost in the reload');
+        check((await page.locator('#model_spin').inputValue()) === '90', 'the spin was lost in the reload');
+        check((await page.locator('#tabSlump').getAttribute('aria-selected')) === 'true', 'the mode was lost in the reload');
         await parts(page, 2);
         await context.close();
       });

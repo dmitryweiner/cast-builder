@@ -13,8 +13,9 @@ export function precacheFiles(bundleFiles: string[], publicFiles: string[]): str
 
 /**
  * Offline-first worker: everything is precached on install and served from the cache.
- * A new build gets a new cache name. It activates only after pages of the old version are closed
- * (no skipWaiting), so they never lose their hashed assets; then old caches are removed.
+ * A new build gets a new cache name and takes over at once (skipWaiting): on phones pages are
+ * suspended rather than closed, so a waiting worker would never activate. Old caches are removed,
+ * and the page reloads itself on `controllerchange` (see pwa.ts) before it needs an old asset.
  */
 export function serviceWorkerSource(appId: string, version: string, files: string[]): string {
   return `const PREFIX = ${JSON.stringify(`${appId}-`)};
@@ -22,7 +23,7 @@ const CACHE = PREFIX + ${JSON.stringify(version)};
 const FILES = ${JSON.stringify(files)};
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
