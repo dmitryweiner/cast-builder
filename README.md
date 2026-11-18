@@ -32,7 +32,7 @@ Node.js from `.node-version`.
 npm ci
 npm run dev       # dev server
 npm run check     # typecheck + lint + format check + unit tests
-npm run smoke     # browser smoke; -- --preview for the production build and offline mode
+npm run smoke     # browser smoke; -- --preview for the production build, offline mode and updates
 npm run build     # production build into dist/
 ```
 

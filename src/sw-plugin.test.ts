@@ -88,10 +88,10 @@ describe('generated service worker', () => {
     expect([...w.stores.get('app-v1')!.keys()]).toEqual([w.scope, `${w.scope}index.html`, `${w.scope}assets/app.js`]);
   });
 
-  it('waits for open pages of the old version to close instead of taking over their cache', async () => {
+  it('takes over right after install: mobile pages are suspended, not closed, so waiting never ends', async () => {
     const w = runWorker(serviceWorkerSource('app', 'v1', files), online);
     await w.dispatch('install');
-    expect(w.self.skipWaiting).not.toHaveBeenCalled();
+    expect(w.self.skipWaiting).toHaveBeenCalled();
   });
 
   it('removes caches of older versions on activate', async () => {

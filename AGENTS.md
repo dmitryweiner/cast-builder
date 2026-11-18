@@ -47,7 +47,9 @@ Node.js — the version in `.node-version` (`fnm use`; check `node -v`).
   real downloads, turning and spin presets, languages, the phone sheet and
   width;
   `-- --preview` builds and also checks offline mode (the worker and its WASM
-  included); `-- --shots` saves screenshots to `shots/`. Each step prints its time.
+  included) and that a new deploy (a changed `dist/sw.js`) reloads an open
+  page, its project intact; `-- --shots` saves screenshots to `shots/`. Each
+  step prints its time.
 - `npm run build` — typecheck and build into `dist/`.
 - `npm run format` — prettier.
 - `npm run icons` — render the PWA PNG icons from `public/icon.svg`.
@@ -78,14 +80,16 @@ Regenerate them only on purpose.
 
 - `src/main.ts` — entry: maker-kit's `kit.css`, then `style.css`; starts the
   app with browser storage and languages, registers the service worker in
-  production (`src/pwa.ts`).
+  production (`src/pwa.ts`: `update()` whenever the page becomes visible,
+  a reload when a new version takes control).
 - `src/style.css` — Cast Builder's own rules over maker-kit's `kit.css` (in
   `@layer kit`, so the app's rules win): the kit's palette with
   `data-accent="burgundy"` and its density (16 px text and 40 px controls on
   a phone, 14 px and 28 px from 1024 px, where the panel stands beside the
   view).
 - `src/sw-plugin.ts` — the Vite plugin that writes `sw.js` with the precache
-  list of the build (the worker chunk and its WASM included).
+  list of the build (the worker chunk and its WASM included); a new worker
+  takes over at once (`skipWaiting`), phones never close a page.
 - `src/app.ts` — DOM wiring: the model in, the panel, previews and exports
   through the worker, downloads.
 - `src/state.ts` — `Settings` (the user's habits; `press` the kind the press
@@ -198,9 +202,10 @@ Regenerate them only on purpose.
 - `plans/PLAN-CLAMP-HARDWARE.md` — the second test print (screws tore at the
   head): a landing under the lugs for steel, the thread optional, stops on
   their own, the screw's neck, the sizes in the panel.
-- `plans/TODO-SERVICE-WORKER.md` — the service worker is the template's old
+- `plans/TODO-SERVICE-WORKER.md` — the service worker was the template's old
   one (no `skipWaiting`, no update on return, no reload): an open page
-  never gets a new version; the fix from the template (open).
+  never got a new version (found 2026-11-18, fixed the same day from the
+  template; what the reload costs).
 - `plans/PLAN-PRESS-MOLDS.md` — press molds with no punch: a tile mold
   (one part, flat plates with relief) and a two-part press mold for pieces
   that are not round (shells as height fields over the plane, the release
