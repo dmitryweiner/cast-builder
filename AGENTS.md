@@ -215,7 +215,9 @@ Regenerate them only on purpose.
 - The move onto maker-kit (M2) and 📄 New after it (a blank project, the
   model in the history by reference), then onto v0.4.1 (its K7: csg, the
   thread, the message list, the job guard, the storage banner, the offline
-  check): maker-kit's `plans/PLAN.md`.
+  check), then v0.5.2 (the viewer's `look` and `onFrame`, a busy preview
+  port refused, an offline check that fails instead of hanging): maker-kit's
+  `plans/PLAN.md`.
 
 ## Architectural invariants
 
