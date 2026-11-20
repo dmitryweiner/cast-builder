@@ -392,7 +392,7 @@ again at once, with no new build. The view shows the parts as they lie.
 
 ## Undo and redo
 
-**↶** and **↷** in the top bar, or Ctrl+Z and Ctrl+Shift+Z or Ctrl+Y (⌘ on a Mac, on
+**↩** and **↪** in the top bar, or Ctrl+Z and Ctrl+Shift+Z or Ctrl+Y (⌘ on a Mac, on
 any keyboard layout), step back and forth through the turns and the
 settings and through the models: opening a model, **📄**, a tab, a turn,
 **Reset**, **Find** and each finished change of a row are a step each; a

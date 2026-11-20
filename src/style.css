@@ -29,7 +29,7 @@
   min-block-size: var(--tool);
 }
 /* Open STL stands where the kit's top bar has the project's name: a phone
-   puts it in the second line with ↶ ↷, a wider screen after the brand */
+   puts it in the second line with ↩ ↪, a wider screen after the brand */
 #openBtn {
   order: 3;
   flex: 1;
