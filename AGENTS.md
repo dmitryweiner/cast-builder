@@ -163,7 +163,7 @@ Regenerate them only on purpose.
   maker-kit's `ui/messageList`). The rest of the page is maker-kit's: the sheet
   (`ui/sheet`, from 1024 px the panel stands beside the view), the bar over
   the view (`ui/progress`: a preview's after 300 ms with no text, an export's
-  and Find's at once with their stages), ↶ ↷ and Ctrl+Z (`core/history`,
+  and Find's at once with their stages), ↩ ↪ and Ctrl+Z (`core/history`,
   `ui/historyKeys`), the language (`ui/languagePicker`), the storage
   banner (`ui/banner`: the kit says what the browser did not keep, Cast
   Builder's `storage.advice.*` what to do — it has no project file; the
@@ -215,7 +215,9 @@ Regenerate them only on purpose.
 - The move onto maker-kit (M2) and 📄 New after it (a blank project, the
   model in the history by reference), then onto v0.4.1 (its K7: csg, the
   thread, the message list, the job guard, the storage banner, the offline
-  check): maker-kit's `plans/PLAN.md`.
+  check), then v0.5.2 (the viewer's `look` and `onFrame`, a busy preview
+  port refused, an offline check that fails instead of hanging): maker-kit's
+  `plans/PLAN.md`.
 
 ## Architectural invariants
 
