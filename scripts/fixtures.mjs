@@ -16,8 +16,12 @@
 // the lid filled turned over and reported `openBottom` as printed. Exits 1
 // on any miss. Run it after changing the body, the spout or the lid in
 // clayform, or `solidify` here. --res <n> sets the segments (default 192).
+// --concave does the same with clayform's concave base on every preset,
+// spherical and recessed flat, and checks besides that the bottom read from
+// below (`meshSource(…).floorAt`, the floor of the slump mold) is as deep
+// as clayform made it.
 //
-//   node scripts/fixtures.mjs --presets [--res 384]
+//   node scripts/fixtures.mjs --presets [--concave] [--res 384]
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -83,7 +87,7 @@ function printable(state, segments) {
 }
 
 try {
-  if (flag('--presets')) await checkPresets(Number(option('--res', '192')));
+  if (flag('--presets')) await checkPresets(Number(option('--res', '192')), flag('--concave'));
   else writeFixtures();
 } finally {
   await runner.close();
@@ -105,13 +109,35 @@ function writeFixtures() {
   console.log(`built from clayform ${commit}`);
 }
 
-async function checkPresets(segments) {
+/** The depth of a base that is not concave. */
+const flatBase = () => 0;
+
+async function checkPresets(segments, concave) {
   const { initCSG: initOwn, CsgScope, toManifold } = await kit(root, 'csg/manifold.ts');
   const { parseSTL } = await kit(root, '3d/stl.ts');
   const { placeModel, flip, IDENTITY_TURN } = await own('geo/model.ts');
   const { solidify } = await own('geo/solidify.ts');
+  const { meshSource } = await own('geo/revolve.ts');
   const { PRESETS } = await load('state/presets.ts');
+  const { profileRadius } = await load('geo/profiles.ts');
   const ownCsg = await initOwn();
+
+  // the concave bases checked, and how deep clayform makes them
+  const kinds = concave
+    ? [
+        { kind: 'sphere', radiusMm: 200 },
+        { kind: 'flat', depthMm: 5, ringMm: 8, filletMm: 2 },
+      ]
+    : [null];
+  let depthOf = flatBase;
+  if (concave) {
+    if (!sanitizeState({ concave: { on: true } }).concave?.on) throw new Error('this clayform has no concave base');
+    const { concaveLayout } = await load('geo/concave.ts');
+    depthOf = (state) => {
+      const profile = buildProfile(state.family, state.shape, state.heightMm);
+      return concaveLayout(state.concave, profileRadius(profile, 0), state.heightMm)?.depthMm ?? 0;
+    };
+  }
 
   /** Through STL bytes, as a file comes into the app: parse, place, fill. */
   const fill = (mesh, turn) => {
@@ -125,6 +151,8 @@ async function checkPresets(segments) {
         shells: result.solid.decompose().map((shell) => scope.keep(shell)).length,
         genus: result.solid.genus(),
         rimMm: result.rim?.zMm,
+        // the lift of the bottom over the table on the axis, as the slump mold reads it
+        floorMm: concave ? (meshSource(placed, 96, 96).floorAt?.(0, 0) ?? 0) : undefined,
         ms: performance.now() - started,
       };
     } finally {
@@ -138,27 +166,33 @@ async function checkPresets(segments) {
       .filter(([key, value]) => (typeof value === 'function' ? !value(got[key]) : got[key] !== value))
       .map(([key]) => `${key} ${got[key]}`);
     const rim = got.rimMm === undefined ? '—' : got.rimMm.toFixed(1);
+    const floor = got.floorMm === undefined ? '' : ` floor ${got.floorMm.toFixed(1).padStart(4)}`;
     console.log(
       `${wrong.length ? '✗' : '✓'} ${name.padEnd(20)} ${got.status.padEnd(10)} shells ${got.shells} genus ${got.genus}` +
-        ` rim ${rim.padStart(5)} ${got.ms.toFixed(0).padStart(5)} ms`,
+        ` rim ${rim.padStart(5)}${floor} ${got.ms.toFixed(0).padStart(5)} ms`,
     );
     if (wrong.length) misses.push(`${name}: ${wrong.join(', ')}`);
   };
 
-  console.log(`clayform ${commit}, ${PRESETS.length} presets at ${segments} segments`);
+  console.log(`clayform ${commit}, ${PRESETS.length} presets at ${segments} segments${concave ? ', concave bases' : ''}`);
   for (const preset of PRESETS) {
-    const state = preset.build();
-    const { body, lid } = printable(state, segments);
-    report(preset.id, fill(body, IDENTITY_TURN), {
-      status: 'filled',
-      shells: 1,
-      genus: state.handle.on ? state.handle.count : 0,
-      // the mouth at the top of the piece, not at the tip of a spout
-      rimMm: (z) => z !== undefined && Math.abs(z - state.heightMm) < 1,
-    });
-    if (!lid) continue;
-    report(`${preset.id} lid`, fill(lid, IDENTITY_TURN), { status: 'openBottom' });
-    report(`${preset.id} lid turned`, fill(lid, flip(IDENTITY_TURN)), { status: 'filled', shells: 1, genus: 0 });
+    for (const kind of kinds) {
+      const state = kind ? sanitizeState({ ...preset.build(), concave: { on: true, ...kind } }) : preset.build();
+      const { body, lid } = printable(state, segments);
+      const depth = depthOf(state);
+      report(kind ? `${preset.id} ${kind.kind}` : preset.id, fill(body, IDENTITY_TURN), {
+        status: 'filled',
+        shells: 1,
+        genus: state.handle.on ? state.handle.count : 0,
+        // the mouth at the top of the piece, not at the tip of a spout
+        rimMm: (z) => z !== undefined && Math.abs(z - state.heightMm) < 1,
+        ...(kind ? { floorMm: (z) => Math.abs(z - depth) < 0.3 } : {}),
+      });
+      // the lid has no concave base: checked once, with the plain piece
+      if (!lid || kind) continue;
+      report(`${preset.id} lid`, fill(lid, IDENTITY_TURN), { status: 'openBottom' });
+      report(`${preset.id} lid turned`, fill(lid, flip(IDENTITY_TURN)), { status: 'filled', shells: 1, genus: 0 });
+    }
   }
   if (misses.length) {
     console.error(`\n${misses.length} missed:\n${misses.join('\n')}`);
