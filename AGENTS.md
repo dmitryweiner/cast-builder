@@ -176,12 +176,17 @@ Regenerate them only on purpose.
   flags, its vite server on ports 5291/4291, pages, steps and the run, the
   offline check);
   `scripts/icons.mjs` — icon rendering; `scripts/fixtures.mjs` — the
-  printable fixtures from clayform's sources, run with clayform's vite-node
-  (`../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs`);
-  with `--presets [--res <n>]` it writes nothing and checks instead that
-  every built-in clayform preset, exported as printed (192 segments by
-  default), fills into a master: one shell, genus = handles, the mouth on
-  top, the lid `openBottom` as printed and filled turned over (~10 s). Run
+  printable fixtures from clayform's sources, run as
+  `node scripts/fixtures.mjs [clayform dir]` (../clayform by default); the
+  TypeScript of clayform and of both apps' copies of the kit goes through
+  Vite's module runner, so no vite-node is needed; with `--presets [--res <n>]` it writes nothing and
+  checks instead that every built-in clayform preset, exported as printed
+  (192 segments by default), fills into a master: one shell, genus =
+  handles, the mouth on top, the lid `openBottom` as printed and filled
+  turned over (~25 s); `--concave` does it with clayform's concave base on
+  every preset, spherical and recessed flat, and checks that the bottom
+  read from below (`floorAt`, the slump mold's floor) is as deep as
+  clayform made it (~50 s). Run
   it after changing `solidify` here or the body, spout or lid in clayform:
   the fixtures are frozen and would not notice.
 - `docs/` — user documentation.
