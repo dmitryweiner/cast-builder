@@ -1,10 +1,11 @@
 // Builds the printable fixtures of fixtures/README.md from clayform's core:
 // the teapot as it is printed (hollow, the applied spout open at its tip, the
 // seat for the lid), its lid skirt down, and both in one file ("Lid
-// beside"). It runs clayform's TypeScript sources through clayform's own
-// vite-node, so nothing of clayform is installed here.
+// beside"). Clayform's TypeScript sources (and the kit's, which both apps
+// carry as TypeScript in node_modules) go through Vite's own module runner,
+// so nothing of clayform is installed here.
 //
-//   ../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs [clayform dir]
+//   node scripts/fixtures.mjs [clayform dir]
 //
 // The clayform directory defaults to ../clayform. Prints the commit it was
 // built from; the files go to fixtures/. Regenerate them only on purpose.
@@ -16,11 +17,12 @@
 // on any miss. Run it after changing the body, the spout or the lid in
 // clayform, or `solidify` here. --res <n> sets the segments (default 192).
 //
-//   ../clayform/node_modules/.bin/vite-node --root ../clayform scripts/fixtures.mjs --presets [--res 384]
+//   node scripts/fixtures.mjs --presets [--res 384]
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createServer, createServerModuleRunner } from 'vite';
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -33,17 +35,33 @@ const dirArg = args.find((arg, i) => !arg.startsWith('--') && args[i - 1] !== '-
 const root = resolve(import.meta.dirname, '..');
 const clayform = resolve(dirArg ?? resolve(root, '../clayform'));
 const src = resolve(clayform, 'src');
-const load = (path) => import(resolve(src, path));
-const own = (path) => import(resolve(root, 'src', path));
 
-const { initCSG } = await load('geo/csg.ts');
+// Node strips no types in node_modules, so the kit's sources are transformed
+// like the apps' own; manifold-3d is plain JavaScript and stays external.
+// Nothing is pre-bundled: the optimizer would read the kit as JavaScript.
+const server = await createServer({
+  configFile: false,
+  root,
+  logLevel: 'error',
+  appType: 'custom',
+  server: { middlewareMode: true, hmr: false, ws: false },
+  optimizeDeps: { noDiscovery: true },
+  ssr: { noExternal: ['maker-kit'], optimizeDeps: { noDiscovery: true } },
+});
+const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
+const load = (path) => runner.import(resolve(src, path));
+const own = (path) => runner.import(resolve(root, 'src', path));
+/** A module of the kit as the app at `dir` has it: each app carries its own copy. */
+const kit = (dir, path) => runner.import(resolve(dir, 'node_modules/maker-kit/src', path));
+
+const { initCSG } = await kit(clayform, 'csg/manifold.ts');
 const { buildPrintableVessel } = await load('geo/assemble.ts');
 const { sanitizeState, toBuildParams, effectiveSpout, lidRelief } = await load('state/schema.ts');
 const { lidFit, lidSeat, buildLidMesh } = await load('geo/lid.ts');
 const { buildProfile } = await load('geo/profiles.ts');
 const { mergeMeshes } = await load('geo/surface.ts');
 const { placeInRow, LID_BESIDE_GAP_MM } = await load('geo/layout.ts');
-const { encodeSTL } = await load('geo/stl.ts');
+const { encodeSTL } = await kit(clayform, '3d/stl.ts');
 
 const csg = await initCSG();
 const commit = execFileSync('git', ['-C', clayform, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
@@ -64,8 +82,13 @@ function printable(state, segments) {
   return { body, lid };
 }
 
-if (flag('--presets')) await checkPresets(Number(option('--res', '192')));
-else writeFixtures();
+try {
+  if (flag('--presets')) await checkPresets(Number(option('--res', '192')));
+  else writeFixtures();
+} finally {
+  await runner.close();
+  await server.close();
+}
 
 function writeFixtures() {
   // the teapot of teapot.stl: a pot 120 mm high, the applied spout, a lid
@@ -83,8 +106,8 @@ function writeFixtures() {
 }
 
 async function checkPresets(segments) {
-  const { initCSG: initOwn, CsgScope, toManifold } = await own('geo/csg.ts');
-  const { parseSTL } = await own('geo/stl.ts');
+  const { initCSG: initOwn, CsgScope, toManifold } = await kit(root, 'csg/manifold.ts');
+  const { parseSTL } = await kit(root, '3d/stl.ts');
   const { placeModel, flip, IDENTITY_TURN } = await own('geo/model.ts');
   const { solidify } = await own('geo/solidify.ts');
   const { PRESETS } = await load('state/presets.ts');
@@ -139,7 +162,8 @@ async function checkPresets(segments) {
   }
   if (misses.length) {
     console.error(`\n${misses.length} missed:\n${misses.join('\n')}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log('all filled');
 }
