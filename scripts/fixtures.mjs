@@ -67,6 +67,10 @@ const { mergeMeshes } = await load('geo/surface.ts');
 const { placeInRow, LID_BESIDE_GAP_MM } = await load('geo/layout.ts');
 const { encodeSTL } = await kit(clayform, '3d/stl.ts');
 
+// The depth of a base that is not concave. It stands above the run at the
+// bottom: that one awaits, and a `const` below it would not be there yet.
+const flatBase = () => 0;
+
 const csg = await initCSG();
 const commit = execFileSync('git', ['-C', clayform, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
 
@@ -109,9 +113,6 @@ function writeFixtures() {
   console.log(`built from clayform ${commit}`);
 }
 
-/** The depth of a base that is not concave. */
-const flatBase = () => 0;
-
 async function checkPresets(segments, concave) {
   const { initCSG: initOwn, CsgScope, toManifold } = await kit(root, 'csg/manifold.ts');
   const { parseSTL } = await kit(root, '3d/stl.ts');
@@ -125,8 +126,8 @@ async function checkPresets(segments, concave) {
   // the concave bases checked, and how deep clayform makes them
   const kinds = concave
     ? [
-        { kind: 'sphere', radiusMm: 200 },
-        { kind: 'flat', depthMm: 5, ringMm: 8, filletMm: 2 },
+        { kind: 'sphere', radiusMm: 100 },
+        { kind: 'flat', depthMm: 5, ringMm: 5, filletMm: 2 },
       ]
     : [null];
   let depthOf = flatBase;
